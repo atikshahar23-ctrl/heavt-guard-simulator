@@ -1,6 +1,6 @@
-# [Project name]
+# ARB_SCAN — Bitcoin Sentiment & Arbitrage Scanner
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A real-time dashboard that cross-references Binance BTC futures data with Polymarket prediction markets to surface crowd sentiment gaps and arbitrage signals.
 
 ## Run & Operate
 

@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Crypto Arbitrage Scanner API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: crypto
+    description: Crypto market data and arbitrage scanning
 paths:
   /healthz:
     get:
@@ -24,6 +26,77 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /crypto/binance:
+    get:
+      operationId: getBinanceData
+      tags: [crypto]
+      summary: Get Binance Futures data for BTC
+      description: Returns current mark price and funding rate for BTCUSDT
+      parameters:
+        - in: query
+          name: symbol
+          schema:
+            type: string
+            default: BTCUSDT
+          required: false
+          description: Trading symbol (default BTCUSDT)
+      responses:
+        "200":
+          description: Binance futures data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BinanceData"
+        "502":
+          description: Failed to fetch from Binance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /crypto/polymarket:
+    get:
+      operationId: getPolymarketMarkets
+      tags: [crypto]
+      summary: Get active Polymarket BTC markets
+      description: Returns active Bitcoin prediction markets from Polymarket with crowd probability
+      responses:
+        "200":
+          description: List of active BTC markets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PolymarketMarket"
+        "502":
+          description: Failed to fetch from Polymarket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /crypto/scan:
+    get:
+      operationId: getScanResults
+      tags: [crypto]
+      summary: Run full arbitrage/sentiment scan
+      description: Fetches Binance and Polymarket data, cross-references them, and returns arbitrage signals
+      responses:
+        "200":
+          description: Scan results with signals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        "502":
+          description: Failed to fetch external data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +107,126 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    BinanceData:
+      type: object
+      required:
+        - symbol
+        - markPrice
+        - fundingRate
+        - fundingRatePercent
+        - fetchedAt
+      properties:
+        symbol:
+          type: string
+        markPrice:
+          type: number
+        fundingRate:
+          type: number
+        fundingRatePercent:
+          type: number
+        fetchedAt:
+          type: string
+
+    PolymarketMarket:
+      type: object
+      required:
+        - question
+        - yesPrice
+        - noPrice
+        - yesProbabilityPercent
+        - targetPrice
+        - conditionId
+        - active
+      properties:
+        conditionId:
+          type: string
+        question:
+          type: string
+        yesPrice:
+          type: number
+        noPrice:
+          type: number
+        yesProbabilityPercent:
+          type: number
+        targetPrice:
+          type: ["number", "null"]
+        active:
+          type: boolean
+        endDate:
+          type: ["string", "null"]
+        volume:
+          type: ["number", "null"]
+
+    ArbitrageSignal:
+      type: object
+      required:
+        - type
+        - message
+        - severity
+      properties:
+        type:
+          type: string
+          enum: [overbought_sentiment, underpriced_probability, neutral]
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high]
+
+    MarketAnalysis:
+      type: object
+      required:
+        - market
+        - distanceToTargetPercent
+        - signal
+      properties:
+        market:
+          $ref: "#/components/schemas/PolymarketMarket"
+        distanceToTargetPercent:
+          type: number
+        signal:
+          $ref: "#/components/schemas/ArbitrageSignal"
+
+    ScanResult:
+      type: object
+      required:
+        - binance
+        - markets
+        - scannedAt
+        - totalMarkets
+        - signalCounts
+      properties:
+        binance:
+          $ref: "#/components/schemas/BinanceData"
+        markets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketAnalysis"
+        scannedAt:
+          type: string
+        totalMarkets:
+          type: integer
+        signalCounts:
+          $ref: "#/components/schemas/SignalCounts"
+
+    SignalCounts:
+      type: object
+      required:
+        - overbought
+        - underpriced
+        - neutral
+      properties:
+        overbought:
+          type: integer
+        underpriced:
+          type: integer
+        neutral:
+          type: integer

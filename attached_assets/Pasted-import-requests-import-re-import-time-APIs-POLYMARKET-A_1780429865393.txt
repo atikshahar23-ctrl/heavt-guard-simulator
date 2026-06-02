@@ -1,0 +1,89 @@
+import requests
+import re
+import time
+
+# --- הגדרות חיבור ל-APIs ---
+POLYMARKET_API = "https://clob.polymarket.com/markets"
+BINANCE_FUTURES_API = "https://fapi.binance.com/fapi/v1/premiumIndex"
+
+def get_binance_futures_data(symbol="BTCUSDT"):
+    """ מושך נתוני זמן אמת מחוזים עתידיים בבינאנס (מחיר מארק ושיעור מימון) """
+    try:
+        response = requests.get(BINANCE_FUTURES_API, params={"symbol": symbol})
+        response.raise_for_status()
+        data = response.json()
+        return float(data['markPrice']), float(data['lastFundingRate'])
+    except Exception as e:
+        print(f"❌ שגיאה במשיכת נתונים מבינאנס: {e}")
+        return None, None
+
+def extract_target_price(question):
+    """ חילוץ המחיר מתוך שאלת החוזה בפולימרקט באמצעות ביטוי רגולרי """
+    # מחפש תבניות כמו $100,000 או $65k
+    match = re.search(r'\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+k)', question, re.IGNORECASE)
+    if match:
+        price_str = match.group(1).replace(',', '').lower()
+        if 'k' in price_str:
+            return float(price_str.replace('k', '')) * 1000
+        return float(price_str)
+    return None
+
+def scan_polymarket_binance_arbitrage():
+    print("🚀 מתחיל סריקת ארביטראז' וסנטימנט: פולימרקט מול Binance Futures...\n")
+    
+    # 1. משיכת נתונים מבינאנס
+    btc_mark_price, btc_funding_rate = get_binance_futures_data("BTCUSDT")
+    if not btc_mark_price:
+        return
+
+    print("-" * 60)
+    print(f"📈 [Binance Futures - BTCUSDT]")
+    print(f"   מחיר מארק נוכחי: ${btc_mark_price:,.2f}")
+    print(f"   שיעור מימון (Funding Rate): {btc_funding_rate * 100:.4f}%")
+    print("-" * 60 + "\n")
+
+    # 2. משיכת שווקים פעילים מפולימרקט (מסונן לביטקוין)
+    try:
+        response = requests.get(f"{POLYMARKET_API}?active=true&limit=100")
+        response.raise_for_status()
+        markets = response.json().get('data', response.json())
+        
+        found_markets = False
+        
+        for market in markets:
+            question = market.get('question', '')
+            
+            # מסנן רק שווקים שקשורים לביטקוין
+            if 'Bitcoin' in question or 'BTC' in question:
+                tokens = market.get('tokens', [])
+                if len(tokens) >= 2:
+                    target_price = extract_target_price(question)
+                    
+                    yes_price = float(tokens[0].get('price', 0))
+                    no_price = float(tokens[1].get('price', 0))
+                    yes_prob = yes_price * 100
+                    
+                    # הצגת הנתונים רק אם המחיר לא קיצוני מדי (מסנן שווקים מתים)
+                    if 0.01 < yes_price < 0.99 and target_price:
+                        found_markets = True
+                        distance_to_target = ((target_price - btc_mark_price) / btc_mark_price) * 100
+                        
+                        print(f"📌 חוזה: {question}")
+                        print(f"   🎯 יעד בחוזה: ${target_price:,.2f} | מרחק מהמחיר בבינאנס: {distance_to_target:.2f}%")
+                        print(f"   📊 הסתברות ההמון (פולימרקט): {yes_prob:.1f}%")
+                        
+                        # לוגיקה בסיסית לזיהוי פערים (EV)
+                        if distance_to_target > 10 and yes_prob > 30:
+                            print("   ⚠️ התראת סנטימנט מוגזם: הקהל מתמחר סיכוי גבוה ליעד רחוק.")
+                        elif distance_to_target < 2 and yes_prob < 10:
+                            print("   💡 התראת תמחור חסר: היעד קרוב מאוד אבל ההמון לא מאמין.")
+                        print("\n")
+                        
+        if not found_markets:
+            print("לא נמצאו שווקים רלוונטיים עם נזילות כרגע.")
+
+    except Exception as e:
+        print(f"❌ שגיאה במשיכת נתונים מפולימרקט: {e}")
+
+if __name__ == "__main__":
+    scan_polymarket_binance_arbitrage()
