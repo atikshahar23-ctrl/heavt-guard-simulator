@@ -38,6 +38,13 @@ export interface PolymarketMarket {
   volume?: number | null;
   /** Which asset this market relates to e.g. BTC, ETH */
   assetTag: string;
+  /** Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER */
+  category: string;
+  /**
+     * Polymarket market slug for direct URL linking
+     * @nullable
+     */
+  slug?: string | null;
 }
 
 export type ArbitrageSignalType = typeof ArbitrageSignalType[keyof typeof ArbitrageSignalType];
@@ -171,5 +178,29 @@ export const GetScanResultsAsset = {
   SOL: 'SOL',
   BNB: 'BNB',
   ALL: 'ALL',
+} as const;
+
+export type GetAllMarketsParams = {
+/**
+ * Filter by category
+ */
+category?: GetAllMarketsCategory;
+/**
+ * Free-text search within question text
+ */
+search?: string;
+};
+
+export type GetAllMarketsCategory = typeof GetAllMarketsCategory[keyof typeof GetAllMarketsCategory];
+
+
+export const GetAllMarketsCategory = {
+  ALL: 'ALL',
+  CRYPTO: 'CRYPTO',
+  POLITICS: 'POLITICS',
+  SPORTS: 'SPORTS',
+  ECONOMY: 'ECONOMY',
+  TECH: 'TECH',
+  OTHER: 'OTHER',
 } as const;
 

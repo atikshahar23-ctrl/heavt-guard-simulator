@@ -11,11 +11,14 @@ export interface PolymarketMarket {
   endDate: string | null;
   volume: number | null;
   assetTag: string;
+  category: string;
+  slug: string | null;
 }
 
 const POLYMARKET_API = "https://clob.polymarket.com/markets";
 
 export type AssetFilter = "BTC" | "ETH" | "SOL" | "BNB" | "ALL";
+export type CategoryFilter = "ALL" | "CRYPTO" | "POLITICS" | "SPORTS" | "ECONOMY" | "TECH" | "OTHER";
 
 // Word-boundary patterns prevent false positives like "FiveThirtyEight" matching "ETH"
 const ASSET_PATTERNS: Record<AssetFilter, RegExp> = {
@@ -26,13 +29,35 @@ const ASSET_PATTERNS: Record<AssetFilter, RegExp> = {
   ALL: /bitcoin|\bbtc\b|ethereum|\beth\b|solana|\bsol\b|\bbnb\b|binance coin/i,
 };
 
-/** Detect which asset tag applies to a question */
+/** Detect which crypto asset tag applies to a question */
 function detectAssetTag(question: string): string {
   if (/bitcoin|\bbtc\b/i.test(question)) return "BTC";
   if (/ethereum|\beth\b/i.test(question)) return "ETH";
   if (/solana|\bsol\b/i.test(question)) return "SOL";
   if (/\bbnb\b|binance coin/i.test(question)) return "BNB";
   return "CRYPTO";
+}
+
+/** Detect broad market category from question text */
+export function detectCategory(question: string, tags?: string[]): CategoryFilter {
+  const q = question.toLowerCase();
+
+  // Crypto (check first — most specific for this platform)
+  if (/bitcoin|\bbtc\b|ethereum|\beth\b|solana|\bsol\b|\bbnb\b|binance|crypto|defi|\bnft\b|blockchain|altcoin|token|\bxrp\b|\bdoge\b|\bshib\b|\bada\b|\bavax\b|\blink\b|\bmatic\b|\bdot\b/i.test(question)) return "CRYPTO";
+
+  // Politics / Elections
+  if (/president|election|senator|congress|parliament|minister|prime minister|governor|mayor|vote|ballot|democrat|republican|trump|biden|kamala|harris|macron|modi|zelensky|putin|sunak|scholz|war|ceasefire|nato|ukraine|gaza|israel|geopolit|sanction|treaty|referendum|impeach/i.test(question)) return "POLITICS";
+
+  // Sports
+  if (/\bnfl\b|\bnba\b|\bnhl\b|\bmlb\b|\bncaa\b|\bnascar\b|soccer|football|basketball|baseball|hockey|tennis|golf|mma|ufc|boxing|olympics|world cup|champion|superbowl|super bowl|formula one|\bf1\b|formula 1|wimbledon|grand slam|serie a|premier league|la liga|bundesliga|champions league/i.test(question)) return "SPORTS";
+
+  // Economy / Finance (non-crypto)
+  if (/\bgdp\b|inflation|federal reserve|\bfed\b|interest rate|recession|unemployment|\bcpi\b|\bpce\b|fiscal|monetary|treasury|bond yield|debt ceiling|ipo|merger|acquisition|earnings|\bsec\b|nasdaq|s&p|dow jones|\bfdi\b/i.test(question)) return "ECONOMY";
+
+  // Tech / AI
+  if (/artificial intelligence|\bai\b|chatgpt|openai|google|apple|microsoft|meta|tesla|amazon|nvidia|spacex|starlink|elon musk|sam altman|gpt-|llm|regulation|antitrust|big tech|social media/i.test(question)) return "TECH";
+
+  return "OTHER";
 }
 
 /** Extract a dollar target price from a contract question using regex */
@@ -46,23 +71,23 @@ export function extractTargetPrice(question: string): number | null {
 
 export interface FetchPolymarketOptions {
   asset?: AssetFilter;
+  category?: CategoryFilter;
   search?: string;
   requireTargetPrice?: boolean;
   filterResolved?: boolean;
+  /** When true, skip the crypto asset filter entirely (returns all categories) */
+  allCategories?: boolean;
 }
 
-// ── In-memory page cache (TTL: 5 min) ────────────────────────────────────────
+// ── In-memory page cache (TTL: 2 min) ────────────────────────────────────────
 let _cachedPages: Record<string, unknown>[] | null = null;
 let _cacheExpiresAt = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes for fresher data
 
-function invalidateCache(): void {
+export function invalidatePolymarketCache(): void {
   _cachedPages = null;
   _cacheExpiresAt = 0;
 }
-
-// Expose for tests / manual invalidation
-export { invalidateCache as invalidatePolymarketCache };
 
 /** Fetch all pages from Polymarket, following next_cursor pagination */
 async function fetchAllPages(): Promise<Record<string, unknown>[]> {
@@ -76,7 +101,7 @@ async function fetchAllPages(): Promise<Record<string, unknown>[]> {
   const all: Record<string, unknown>[] = [];
   let cursor: string | undefined = undefined;
   let page = 0;
-  const MAX_PAGES = 6; // ~3 000 markets max
+  const MAX_PAGES = 6;
 
   const fetchStart = Date.now();
 
@@ -112,19 +137,24 @@ async function fetchAllPages(): Promise<Record<string, unknown>[]> {
 export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}): Promise<PolymarketMarket[]> {
   const {
     asset = "ALL",
+    category,
     search,
     requireTargetPrice = false,
     filterResolved = false,
+    allCategories = false,
   } = opts;
 
-  const pattern = ASSET_PATTERNS[asset];
+  const assetPattern = allCategories ? null : ASSET_PATTERNS[asset];
   const rawMarkets = await fetchAllPages();
   const markets: PolymarketMarket[] = [];
 
   for (const market of rawMarkets) {
     const question = (market["question"] as string) ?? "";
 
-    if (!pattern.test(question)) continue;
+    // Asset filter (skip if allCategories mode)
+    if (assetPattern && !assetPattern.test(question)) continue;
+
+    // Text search filter
     if (search && !question.toLowerCase().includes(search.toLowerCase())) continue;
 
     const tokens = (market["tokens"] as Record<string, unknown>[]) ?? [];
@@ -139,6 +169,13 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
     const targetPrice = extractTargetPrice(question);
     if (requireTargetPrice && !targetPrice) continue;
 
+    const detectedCategory = detectCategory(question);
+
+    // Category filter for all-categories mode
+    if (category && category !== "ALL" && detectedCategory !== category) continue;
+
+    const slug = (market["market_slug"] as string) ?? (market["slug"] as string) ?? null;
+
     markets.push({
       conditionId: (market["condition_id"] as string) ?? (market["conditionId"] as string) ?? "",
       question,
@@ -149,7 +186,9 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
       active: (market["active"] as boolean) ?? true,
       endDate: (market["end_date_iso"] as string) ?? (market["endDate"] as string) ?? null,
       volume: market["volume"] != null ? parseFloat(market["volume"] as string) : null,
-      assetTag: detectAssetTag(question),
+      assetTag: allCategories ? detectedCategory : detectAssetTag(question),
+      category: detectedCategory,
+      slug,
     });
   }
 

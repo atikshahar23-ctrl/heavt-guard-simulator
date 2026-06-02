@@ -1,0 +1,3 @@
+- [Polymarket fetcher architecture](polymarket-fetcher.md) — in-memory cache (2-min TTL), MAX_PAGES=6 (~3000 markets), word-boundary regex for assets, category detection for all types
+- [Vite HMR + Orval codegen conflict](vite-orval-hmr.md) — Orval `clean: true` deletes generated files mid-serve; Vite caches the 404. Fix: restart the Vite workflow after codegen.
+- [All-categories browse endpoint](all-categories-endpoint.md) — `/api/markets/all` uses `allCategories: true` flag to skip asset filter; separate from `/api/crypto/polymarket` which is crypto-only

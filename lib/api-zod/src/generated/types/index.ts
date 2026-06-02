@@ -11,6 +11,8 @@ export * from './arbitrageSignalSeverity';
 export * from './arbitrageSignalType';
 export * from './binanceData';
 export * from './errorResponse';
+export * from './getAllMarketsCategory';
+export * from './getAllMarketsParams';
 export * from './getBinanceDataParams';
 export * from './getPolymarketMarketsAsset';
 export * from './getPolymarketMarketsParams';

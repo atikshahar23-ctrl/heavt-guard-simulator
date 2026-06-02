@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { fetchBinanceData, fetchAllBinanceData } from "../lib/binance";
-import { fetchPolymarketMarkets, type AssetFilter } from "../lib/polymarket";
+import { fetchPolymarketMarkets, type AssetFilter, type CategoryFilter } from "../lib/polymarket";
 import { runScan, buildRecommendations } from "../lib/scanner";
 import {
   GetBinanceDataQueryParams,
@@ -11,6 +11,8 @@ import {
   GetScanResultsQueryParams,
   GetScanResultsResponse,
   GetRecommendationsResponse,
+  GetAllMarketsQueryParams,
+  GetAllMarketsResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -77,6 +79,28 @@ router.get("/crypto/recommendations", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "Recommendations build failed");
     res.status(502).json({ error: "Failed to build recommendations" });
+  }
+});
+
+router.get("/markets/all", async (req, res): Promise<void> => {
+  const query = GetAllMarketsQueryParams.safeParse(req.query);
+
+  try {
+    const category = (query.success ? (query.data.category ?? "ALL") : "ALL") as CategoryFilter;
+    const search = query.success ? (query.data.search ?? undefined) : undefined;
+
+    const markets = await fetchPolymarketMarkets({
+      allCategories: true,
+      category,
+      search,
+      requireTargetPrice: false,
+      filterResolved: false,
+    });
+
+    res.json(GetAllMarketsResponse.parse(markets));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch all markets");
+    res.status(502).json({ error: "Failed to fetch markets" });
   }
 });
 

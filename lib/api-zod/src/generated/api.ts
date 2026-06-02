@@ -73,7 +73,9 @@ export const GetPolymarketMarketsResponseItem = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
-  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH')
+  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
+  "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
 })
 export const GetPolymarketMarketsResponse = zod.array(GetPolymarketMarketsResponseItem)
 
@@ -109,7 +111,9 @@ export const GetScanResultsResponse = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
-  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH')
+  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
+  "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
 }),
   "distanceToTargetPercent": zod.number(),
   "signal": zod.object({
@@ -131,6 +135,34 @@ export const GetScanResultsResponse = zod.object({
 
 
 /**
+ * Returns all active Polymarket prediction markets across all categories — crypto, politics, sports, economy, tech, and more
+ * @summary Browse all Polymarket markets (all categories)
+ */
+export const getAllMarketsQueryCategoryDefault = `ALL`;
+
+export const GetAllMarketsQueryParams = zod.object({
+  "category": zod.enum(['ALL', 'CRYPTO', 'POLITICS', 'SPORTS', 'ECONOMY', 'TECH', 'OTHER']).default(getAllMarketsQueryCategoryDefault).describe('Filter by category'),
+  "search": zod.coerce.string().optional().describe('Free-text search within question text')
+})
+
+export const GetAllMarketsResponseItem = zod.object({
+  "conditionId": zod.string(),
+  "question": zod.string(),
+  "yesPrice": zod.number(),
+  "noPrice": zod.number(),
+  "yesProbabilityPercent": zod.number(),
+  "targetPrice": zod.number().nullable(),
+  "active": zod.boolean(),
+  "endDate": zod.string().nullish(),
+  "volume": zod.number().nullish(),
+  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
+  "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
+})
+export const GetAllMarketsResponse = zod.array(GetAllMarketsResponseItem)
+
+
+/**
  * Returns the top actionable signals ranked by severity and confidence across all assets
  * @summary Get top-ranked arbitrage recommendations
  */
@@ -148,7 +180,9 @@ export const GetRecommendationsResponseItem = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
-  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH')
+  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
+  "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
 }),
   "signal": zod.object({
   "type": zod.enum(['overbought_sentiment', 'underpriced_probability', 'neutral']),

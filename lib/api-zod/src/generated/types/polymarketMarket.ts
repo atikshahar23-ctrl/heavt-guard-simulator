@@ -21,4 +21,11 @@ export interface PolymarketMarket {
   volume?: number | null;
   /** Which asset this market relates to e.g. BTC, ETH */
   assetTag: string;
+  /** Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER */
+  category: string;
+  /**
+     * Polymarket market slug for direct URL linking
+     * @nullable
+     */
+  slug?: string | null;
 }

@@ -18,6 +18,7 @@ import type {
 import type {
   BinanceData,
   ErrorResponse,
+  GetAllMarketsParams,
   GetBinanceDataParams,
   GetPolymarketMarketsParams,
   GetScanResultsParams,
@@ -438,6 +439,91 @@ export function useGetScanResults<TData = Awaited<ReturnType<typeof getScanResul
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetScanResultsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAllMarketsUrl = (params?: GetAllMarketsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/markets/all?${stringifiedParams}` : `/api/markets/all`
+}
+
+/**
+ * Returns all active Polymarket prediction markets across all categories — crypto, politics, sports, economy, tech, and more
+ * @summary Browse all Polymarket markets (all categories)
+ */
+export const getAllMarkets = async (params?: GetAllMarketsParams, options?: RequestInit): Promise<PolymarketMarket[]> => {
+
+  return customFetch<PolymarketMarket[]>(getGetAllMarketsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAllMarketsQueryKey = (params?: GetAllMarketsParams,) => {
+    return [
+    `/api/markets/all`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAllMarketsQueryOptions = <TData = Awaited<ReturnType<typeof getAllMarkets>>, TError = ErrorType<ErrorResponse>>(params?: GetAllMarketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAllMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAllMarketsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAllMarkets>>> = ({ signal }) => getAllMarkets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAllMarkets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAllMarketsQueryResult = NonNullable<Awaited<ReturnType<typeof getAllMarkets>>>
+export type GetAllMarketsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Browse all Polymarket markets (all categories)
+ */
+
+export function useGetAllMarkets<TData = Awaited<ReturnType<typeof getAllMarkets>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetAllMarketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAllMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAllMarketsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

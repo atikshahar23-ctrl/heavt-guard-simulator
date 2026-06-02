@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Markets from "@/pages/markets";
+import Browse from "@/pages/browse";
 import Binance from "@/pages/binance";
 import Recommendations from "@/pages/recommendations";
 import Layout from "@/components/layout";
@@ -16,6 +17,7 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/browse" component={Browse} />
         <Route path="/markets" component={Markets} />
         <Route path="/binance" component={Binance} />
         <Route path="/recommendations" component={Recommendations} />
