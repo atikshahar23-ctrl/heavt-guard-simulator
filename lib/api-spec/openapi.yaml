@@ -283,6 +283,9 @@ components:
           type: ["string", "null"]
         volume:
           type: ["number", "null"]
+        volume24hr:
+          type: ["number", "null"]
+          description: 24-hour trading volume in USDT
         assetTag:
           type: string
           description: Which asset this market relates to e.g. BTC, ETH

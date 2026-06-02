@@ -94,7 +94,7 @@ router.get("/markets/all", async (req, res): Promise<void> => {
       category,
       search,
       requireTargetPrice: false,
-      filterResolved: true,
+      filterResolved: false, // Gamma API already returns only open/active markets
     });
 
     res.json(GetAllMarketsResponse.parse(markets));

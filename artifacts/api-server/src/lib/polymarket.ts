@@ -10,17 +10,18 @@ export interface PolymarketMarket {
   active: boolean;
   endDate: string | null;
   volume: number | null;
+  volume24hr: number | null;
   assetTag: string;
   category: string;
   slug: string | null;
 }
 
-const POLYMARKET_API = "https://clob.polymarket.com/markets";
+// Gamma API — what Polymarket's own frontend uses; returns only open/active markets
+const GAMMA_API = "https://gamma-api.polymarket.com/markets";
 
 export type AssetFilter = "BTC" | "ETH" | "SOL" | "BNB" | "ALL";
 export type CategoryFilter = "ALL" | "CRYPTO" | "POLITICS" | "SPORTS" | "ECONOMY" | "TECH" | "OTHER";
 
-// Word-boundary patterns prevent false positives like "FiveThirtyEight" matching "ETH"
 const ASSET_PATTERNS: Record<AssetFilter, RegExp> = {
   BTC: /bitcoin|\bbtc\b/i,
   ETH: /ethereum|\beth\b/i,
@@ -29,7 +30,6 @@ const ASSET_PATTERNS: Record<AssetFilter, RegExp> = {
   ALL: /bitcoin|\bbtc\b|ethereum|\beth\b|solana|\bsol\b|\bbnb\b|binance coin/i,
 };
 
-/** Detect which crypto asset tag applies to a question */
 function detectAssetTag(question: string): string {
   if (/bitcoin|\bbtc\b/i.test(question)) return "BTC";
   if (/ethereum|\beth\b/i.test(question)) return "ETH";
@@ -38,29 +38,16 @@ function detectAssetTag(question: string): string {
   return "CRYPTO";
 }
 
-/** Detect broad market category from question text */
-export function detectCategory(question: string, tags?: string[]): CategoryFilter {
+export function detectCategory(question: string, _tags?: string[]): CategoryFilter {
   const q = question.toLowerCase();
-
-  // Crypto (check first — most specific for this platform)
   if (/bitcoin|\bbtc\b|ethereum|\beth\b|solana|\bsol\b|\bbnb\b|binance|crypto|defi|\bnft\b|blockchain|altcoin|token|\bxrp\b|\bdoge\b|\bshib\b|\bada\b|\bavax\b|\blink\b|\bmatic\b|\bdot\b/i.test(question)) return "CRYPTO";
-
-  // Politics / Elections
   if (/president|election|senator|congress|parliament|minister|prime minister|governor|mayor|vote|ballot|democrat|republican|trump|biden|kamala|harris|macron|modi|zelensky|putin|sunak|scholz|war|ceasefire|nato|ukraine|gaza|israel|geopolit|sanction|treaty|referendum|impeach/i.test(question)) return "POLITICS";
-
-  // Sports
-  if (/\bnfl\b|\bnba\b|\bnhl\b|\bmlb\b|\bncaa\b|\bnascar\b|soccer|football|basketball|baseball|hockey|tennis|golf|mma|ufc|boxing|olympics|world cup|champion|superbowl|super bowl|formula one|\bf1\b|formula 1|wimbledon|grand slam|serie a|premier league|la liga|bundesliga|champions league/i.test(question)) return "SPORTS";
-
-  // Economy / Finance (non-crypto)
+  if (/\bnfl\b|\bnba\b|\bnhl\b|\bmlb\b|\bncaa\b|\bnascar\b|soccer|football|basketball|baseball|hockey|tennis|golf|mma|ufc|boxing|olympics|world cup|champion|superbowl|super bowl|formula one|\bf1\b|formula 1|wimbledon|grand slam|serie a|premier league|la liga|bundesliga|champions league|mlbb|esport|valorant|cs2|dota|league of legends/i.test(question)) return "SPORTS";
   if (/\bgdp\b|inflation|federal reserve|\bfed\b|interest rate|recession|unemployment|\bcpi\b|\bpce\b|fiscal|monetary|treasury|bond yield|debt ceiling|ipo|merger|acquisition|earnings|\bsec\b|nasdaq|s&p|dow jones|\bfdi\b/i.test(question)) return "ECONOMY";
-
-  // Tech / AI
   if (/artificial intelligence|\bai\b|chatgpt|openai|google|apple|microsoft|meta|tesla|amazon|nvidia|spacex|starlink|elon musk|sam altman|gpt-|llm|regulation|antitrust|big tech|social media/i.test(question)) return "TECH";
-
   return "OTHER";
 }
 
-/** Extract a dollar target price from a contract question using regex */
 export function extractTargetPrice(question: string): number | null {
   const match = /\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?[kK])/.exec(question);
   if (!match) return null;
@@ -75,21 +62,24 @@ export interface FetchPolymarketOptions {
   search?: string;
   requireTargetPrice?: boolean;
   filterResolved?: boolean;
-  /** When true, skip the crypto asset filter entirely (returns all categories) */
   allCategories?: boolean;
 }
 
-// ── In-memory page cache (TTL: 2 min) ────────────────────────────────────────
+// ── In-memory page cache (TTL: 3 min) ────────────────────────────────────────
 let _cachedPages: Record<string, unknown>[] | null = null;
 let _cacheExpiresAt = 0;
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes for fresher data
+const CACHE_TTL_MS = 3 * 60 * 1000;
 
 export function invalidatePolymarketCache(): void {
   _cachedPages = null;
   _cacheExpiresAt = 0;
 }
 
-/** Fetch all pages from Polymarket, following next_cursor pagination */
+/**
+ * Fetch active open markets from Polymarket Gamma API.
+ * Returns markets sorted by volume (most liquid first).
+ * Filters: active=true, closed=false — only genuinely open markets.
+ */
 async function fetchAllPages(): Promise<Record<string, unknown>[]> {
   const now = Date.now();
   if (_cachedPages && now < _cacheExpiresAt) {
@@ -97,41 +87,53 @@ async function fetchAllPages(): Promise<Record<string, unknown>[]> {
     return _cachedPages;
   }
 
-  const PAGE_SIZE = 500;
-  const all: Record<string, unknown>[] = [];
-  let cursor: string | undefined = undefined;
-  let page = 0;
-  const MAX_PAGES = 6;
-
+  // Gamma API caps at 100 per request — fetch 20 pages in parallel for 2000 markets
+  const PAGE_SIZE = 100;
+  const TOTAL_PAGES = 20;
   const fetchStart = Date.now();
 
-  do {
-    const url = new URL(POLYMARKET_API);
+  const buildUrl = (offset: number) => {
+    const url = new URL(GAMMA_API);
     url.searchParams.set("active", "true");
+    url.searchParams.set("closed", "false");
+    url.searchParams.set("order", "volume");
+    url.searchParams.set("ascending", "false");
     url.searchParams.set("limit", String(PAGE_SIZE));
-    if (cursor) url.searchParams.set("next_cursor", cursor);
+    url.searchParams.set("offset", String(offset));
+    return url.toString();
+  };
 
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      logger.error({ status: response.status, page }, "Polymarket API error");
-      throw new Error(`Polymarket API returned ${response.status}`);
-    }
+  const pageResults = await Promise.all(
+    Array.from({ length: TOTAL_PAGES }, (_, i) =>
+      fetch(buildUrl(i * PAGE_SIZE))
+        .then(r => {
+          if (!r.ok) throw new Error(`Gamma API page ${i} returned ${r.status}`);
+          return r.json() as Promise<Record<string, unknown>[]>;
+        })
+        .catch(err => {
+          logger.warn({ page: i, err: String(err) }, "Polymarket Gamma page failed, skipping");
+          return [] as Record<string, unknown>[];
+        })
+    )
+  );
 
-    const json = await response.json() as Record<string, unknown>;
-    const items = (json["data"] ?? json) as Record<string, unknown>[];
-    all.push(...items);
+  const all = pageResults.flat().filter(m => m && typeof m["question"] === "string");
 
-    const next = json["next_cursor"] as string | undefined;
-    cursor = next && next !== "LTE=" ? next : undefined;
-    page++;
-  } while (cursor && page < MAX_PAGES);
+  // Deduplicate by conditionId
+  const seen = new Set<string>();
+  const deduped = all.filter(m => {
+    const id = (m["conditionId"] as string) ?? (m["id"] as string) ?? "";
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 
   const elapsed = Date.now() - fetchStart;
-  logger.info({ total: all.length, pages: page, ms: elapsed }, "Polymarket pages fetched (cold)");
+  logger.info({ total: deduped.length, ms: elapsed }, "Polymarket Gamma pages fetched (cold)");
 
-  _cachedPages = all;
+  _cachedPages = deduped;
   _cacheExpiresAt = now + CACHE_TTL_MS;
-  return all;
+  return deduped;
 }
 
 export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}): Promise<PolymarketMarket[]> {
@@ -150,45 +152,59 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
 
   for (const market of rawMarkets) {
     const question = (market["question"] as string) ?? "";
+    if (!question) continue;
 
-    // Asset filter (skip if allCategories mode)
+    // Asset filter (skip in allCategories mode)
     if (assetPattern && !assetPattern.test(question)) continue;
 
     // Text search filter
     if (search && !question.toLowerCase().includes(search.toLowerCase())) continue;
 
-    const tokens = (market["tokens"] as Record<string, unknown>[]) ?? [];
-    if (tokens.length < 2) continue;
+    // Gamma API returns outcomePrices as a JSON-encoded string: '["0.72", "0.28"]'
+    const rawPrices = market["outcomePrices"];
+    let outcomePrices: string[];
+    try {
+      outcomePrices = typeof rawPrices === "string"
+        ? (JSON.parse(rawPrices) as string[])
+        : (rawPrices as string[]);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(outcomePrices) || outcomePrices.length < 2) continue;
 
-    const yesPrice = parseFloat((tokens[0]["price"] as string) ?? "0");
-    const noPrice = parseFloat((tokens[1]["price"] as string) ?? "0");
+    const yesPrice = parseFloat(outcomePrices[0] ?? "0");
+    const noPrice = parseFloat(outcomePrices[1] ?? "0");
+    if (isNaN(yesPrice) || isNaN(noPrice)) continue;
+
     const yesProbabilityPercent = yesPrice * 100;
 
+    // Skip near-resolved markets when filterResolved is set
     if (filterResolved && (yesPrice <= 0.05 || yesPrice >= 0.95)) continue;
-
-    // Filter markets marked inactive by Polymarket
-    if (filterResolved && market["active"] === false) continue;
 
     const targetPrice = extractTargetPrice(question);
     if (requireTargetPrice && !targetPrice) continue;
 
     const detectedCategory = detectCategory(question);
 
-    // Category filter for all-categories mode
     if (category && category !== "ALL" && detectedCategory !== category) continue;
 
-    const slug = (market["market_slug"] as string) ?? (market["slug"] as string) ?? null;
+    const slug = (market["slug"] as string) ?? null;
+    const conditionId = (market["conditionId"] as string) ?? (market["condition_id"] as string) ?? "";
+
+    const rawVol = market["volumeNum"] ?? market["volume"];
+    const rawVol24h = market["volume24hr"];
 
     markets.push({
-      conditionId: (market["condition_id"] as string) ?? (market["conditionId"] as string) ?? "",
+      conditionId,
       question,
       yesPrice,
       noPrice,
       yesProbabilityPercent,
       targetPrice,
-      active: (market["active"] as boolean) ?? true,
-      endDate: (market["end_date_iso"] as string) ?? (market["endDate"] as string) ?? null,
-      volume: market["volume"] != null ? parseFloat(market["volume"] as string) : null,
+      active: true,
+      endDate: (market["endDateIso"] as string) ?? (market["endDate"] as string) ?? null,
+      volume: rawVol != null ? parseFloat(rawVol as string) : null,
+      volume24hr: rawVol24h != null ? parseFloat(rawVol24h as string) : null,
       assetTag: allCategories ? detectedCategory : detectAssetTag(question),
       category: detectedCategory,
       slug,

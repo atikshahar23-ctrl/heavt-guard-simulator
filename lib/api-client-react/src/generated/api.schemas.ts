@@ -36,6 +36,11 @@ export interface PolymarketMarket {
   endDate?: string | null;
   /** @nullable */
   volume?: number | null;
+  /**
+     * 24-hour trading volume in USDT
+     * @nullable
+     */
+  volume24hr?: number | null;
   /** Which asset this market relates to e.g. BTC, ETH */
   assetTag: string;
   /** Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER */

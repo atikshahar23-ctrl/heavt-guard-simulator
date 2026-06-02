@@ -73,6 +73,7 @@ export const GetPolymarketMarketsResponseItem = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
+  "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
   "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
@@ -111,6 +112,7 @@ export const GetScanResultsResponse = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
+  "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
   "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
@@ -155,6 +157,7 @@ export const GetAllMarketsResponseItem = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
+  "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
   "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
@@ -180,6 +183,7 @@ export const GetRecommendationsResponseItem = zod.object({
   "active": zod.boolean(),
   "endDate": zod.string().nullish(),
   "volume": zod.number().nullish(),
+  "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
   "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
