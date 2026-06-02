@@ -10,6 +10,9 @@ export interface BinanceData {
 }
 
 const BINANCE_FUTURES_API = "https://fapi.binance.com/fapi/v1/premiumIndex";
+// Public market-data mirror that is not geo-blocked (futures fapi returns 451
+// in many deployment regions). Used as a fallback for mark price.
+const BINANCE_SPOT_FALLBACK = "https://data-api.binance.vision/api/v3/ticker/price";
 
 export const ASSET_SYMBOLS: Record<string, string> = {
   BTC: "BTCUSDT",
@@ -20,14 +23,55 @@ export const ASSET_SYMBOLS: Record<string, string> = {
 
 export const ALL_SYMBOLS = Object.entries(ASSET_SYMBOLS);
 
-export async function fetchBinanceData(symbol = "BTCUSDT"): Promise<BinanceData> {
-  const url = new URL(BINANCE_FUTURES_API);
+/**
+ * Spot-price fallback for regions where the futures API (fapi) is geo-blocked
+ * with HTTP 451. Spot price is a close proxy for the futures mark price; the
+ * funding rate is unavailable from this endpoint so it is reported as 0.
+ */
+async function fetchSpotFallback(symbol: string): Promise<BinanceData> {
+  const url = new URL(BINANCE_SPOT_FALLBACK);
   url.searchParams.set("symbol", symbol);
 
   const response = await fetch(url.toString());
   if (!response.ok) {
-    logger.error({ status: response.status, symbol }, "Binance API error");
-    throw new Error(`Binance API returned ${response.status} for ${symbol}`);
+    logger.error({ status: response.status, symbol }, "Binance spot fallback error");
+    throw new Error(`Binance spot fallback returned ${response.status} for ${symbol}`);
+  }
+
+  const data = (await response.json()) as Record<string, unknown>;
+  const markPrice = parseFloat(data["price"] as string);
+  if (!Number.isFinite(markPrice)) {
+    logger.error({ symbol, price: data["price"] }, "Binance spot fallback returned non-numeric price");
+    throw new Error(`Binance spot fallback returned invalid price for ${symbol}`);
+  }
+
+  return {
+    symbol,
+    asset: symbol.replace("USDT", ""),
+    markPrice,
+    fundingRate: 0,
+    fundingRatePercent: 0,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchBinanceData(symbol = "BTCUSDT"): Promise<BinanceData> {
+  const url = new URL(BINANCE_FUTURES_API);
+  url.searchParams.set("symbol", symbol);
+
+  let response: Response;
+  try {
+    response = await fetch(url.toString());
+  } catch (err) {
+    logger.warn({ err, symbol }, "Binance futures fetch failed, using spot fallback");
+    return fetchSpotFallback(symbol);
+  }
+
+  if (!response.ok) {
+    // 451 (geo-blocked) and other upstream failures: fall back to spot price so
+    // signals keep working in regions where the futures API is unavailable.
+    logger.warn({ status: response.status, symbol }, "Binance futures unavailable, using spot fallback");
+    return fetchSpotFallback(symbol);
   }
 
   const data = await response.json() as Record<string, unknown>;

@@ -3,4 +3,5 @@
 - [All-categories browse endpoint](all-categories-endpoint.md) — `/api/markets/all` uses `allCategories: true` flag to skip asset filter; separate from `/api/crypto/polymarket` which is crypto-only
 - [Polymarket filterResolved quirks](polymarket-filter-resolved.md) — end_date_iso is unreliable (all old markets return past dates). Use probability >=0.95 / <=0.05 + active===false to filter. Some old markets stay active:true in Polymarket's API indefinitely.
 - [Gold luxury theme](gold-theme.md) — primary: HSL 43 74% 52% (gold), background: 0 0% 4% (near-black). Scrollbar, sidebar accent line, and text-primary glow use gold. Font: Inter + Space Mono.
-- [Refresh cadence coupling](refresh-cadence.md) — frontend refetchInterval must not be faster than the server's stock cache TTL (stocks.ts CACHE_TTL_MS), or polls just re-serve cached data. Keep them aligned (currently 30s).
+- [Binance futures geo-block](binance-geoblock.md) — fapi.binance.com returns 451 in deployment region (works in dev); crypto signals vanish in prod. Fall back to non-geo-blocked data-api.binance.vision spot price.
+- [Refresh cadence coupling](refresh-cadence.md) — frontend poll interval must stay >= server cache TTL; fast-refresh toggle floors cache-backed queries at the TTL, only real-time Binance stream truly speeds up.
