@@ -1,6 +1,20 @@
 import { Link, useLocation } from "wouter";
 import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-react";
-import { Activity, LayoutDashboard, LineChart, CandlestickChart, Zap, Globe } from "lucide-react";
+import { usePortfolio } from "@/contexts/portfolio-context";
+import { Activity, LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy } from "lucide-react";
+
+function PortfolioMiniBalance() {
+  const { cash, polyPositions, binancePositions } = usePortfolio();
+  const openCount = polyPositions.length + binancePositions.length;
+  return (
+    <div className="flex items-center justify-between mt-0.5">
+      <span className="text-[9px] font-mono text-primary/70 tracking-wider">${cash.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+      {openCount > 0 && (
+        <span className="text-[9px] font-mono bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">{openCount} pos</span>
+      )}
+    </div>
+  );
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -15,6 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/recommendations", label: "Trade Desk", icon: Zap },
     { href: "/browse", label: "Live Markets", icon: Globe },
+    { href: "/simulator", label: "Simulator", icon: Trophy, extra: <PortfolioMiniBalance /> },
     { href: "/markets", label: "Crypto Markets", icon: LineChart },
     { href: "/binance", label: "Binance", icon: CandlestickChart },
   ];
@@ -48,9 +63,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded transition-all text-xs font-medium tracking-wide ${
+                className={`flex flex-col px-3 py-2 rounded transition-all ${
                   isActive
-                    ? 'text-primary font-semibold'
+                    ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 style={isActive ? {
@@ -59,8 +74,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   paddingLeft: '10px',
                 } : {}}
               >
-                <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} />
-                {link.label}
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} />
+                  <span className={`text-xs font-medium tracking-wide ${isActive ? 'font-semibold' : ''}`}>{link.label}</span>
+                </div>
+                {link.extra}
               </Link>
             );
           })}
@@ -82,7 +100,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto relative">
-        {/* Subtle radial gradient for depth */}
         <div
           className="absolute inset-0 pointer-events-none opacity-30"
           style={{

@@ -8,7 +8,9 @@ import Markets from "@/pages/markets";
 import Browse from "@/pages/browse";
 import Binance from "@/pages/binance";
 import Recommendations from "@/pages/recommendations";
+import Simulator from "@/pages/simulator";
 import Layout from "@/components/layout";
+import { PortfolioProvider } from "@/contexts/portfolio-context";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +23,7 @@ function Router() {
         <Route path="/markets" component={Markets} />
         <Route path="/binance" component={Binance} />
         <Route path="/recommendations" component={Recommendations} />
+        <Route path="/simulator" component={Simulator} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -28,19 +31,20 @@ function Router() {
 }
 
 function App() {
-  // Force dark mode on body
   if (typeof document !== "undefined") {
     document.documentElement.classList.add("dark");
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <PortfolioProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </PortfolioProvider>
     </QueryClientProvider>
   );
 }
