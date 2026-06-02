@@ -44,41 +44,79 @@ export interface Recommendation {
   markPrice: number;
   distanceToTargetPercent: number;
   confidence: ConfidenceLevel;
+  /** Probability mispricing in percentage points */
+  edge: number;
+  /** Return multiplier if position wins (e.g. 8.5 = 8.5×) */
+  potentialReturn: number;
+  /** Price to pay per contract */
+  entryPrice: number;
+}
+
+// ── Signal helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Estimate a "rational" probability based purely on price distance.
+ * This is intentionally simple — just a heuristic reference point.
+ */
+function rationalProbability(distancePct: number): number {
+  if (distancePct < 1) return 60;
+  if (distancePct < 2) return 45;
+  if (distancePct < 5) return 30;
+  if (distancePct < 10) return 18;
+  if (distancePct < 20) return 10;
+  if (distancePct < 40) return 5;
+  return 2;
 }
 
 function classifySignal(
-  distanceToTargetPercent: number,
+  absDistancePct: number,
   yesProbabilityPercent: number,
 ): ArbitrageSignal {
-  if (distanceToTargetPercent > 10 && yesProbabilityPercent > 30) {
+  const rational = rationalProbability(absDistancePct);
+
+  // Crowd is overconfident — target is far but probability is high
+  if (absDistancePct > 10 && yesProbabilityPercent > 30) {
     const severity: SignalSeverity =
-      distanceToTargetPercent > 25 && yesProbabilityPercent > 50
-        ? "high"
-        : distanceToTargetPercent > 15
-          ? "medium"
-          : "low";
+      absDistancePct > 25 && yesProbabilityPercent > 50 ? "high"
+        : absDistancePct > 15 ? "medium"
+        : "low";
     return {
       type: "overbought_sentiment",
-      message: `Target is ${distanceToTargetPercent.toFixed(1)}% away but crowd assigns ${yesProbabilityPercent.toFixed(1)}% probability — crowd may be overconfident.`,
+      message: `Target is ${absDistancePct.toFixed(1)}% away from current price, but the crowd gives it ${yesProbabilityPercent.toFixed(1)}% probability — significantly above the rational ${rational}%.`,
       severity,
     };
   }
 
-  if (distanceToTargetPercent < 2 && yesProbabilityPercent < 10) {
+  // Target is close but crowd isn't pricing it
+  if (absDistancePct < 2 && yesProbabilityPercent < 10) {
     const severity: SignalSeverity =
-      distanceToTargetPercent < 0.5 && yesProbabilityPercent < 5 ? "high" : "medium";
+      absDistancePct < 0.5 && yesProbabilityPercent < 5 ? "high" : "medium";
     return {
       type: "underpriced_probability",
-      message: `Target is only ${distanceToTargetPercent.toFixed(1)}% away but crowd assigns just ${yesProbabilityPercent.toFixed(1)}% — market may be underpriced.`,
+      message: `Target is only ${absDistancePct.toFixed(1)}% from current price, yet the crowd assigns just ${yesProbabilityPercent.toFixed(1)}% — far below the rational ${rational}%.`,
       severity,
     };
   }
 
   return {
     type: "neutral",
-    message: `Distance ${distanceToTargetPercent.toFixed(1)}%, probability ${yesProbabilityPercent.toFixed(1)}% — no clear mispricing detected.`,
+    message: `Distance ${absDistancePct.toFixed(1)}%, probability ${yesProbabilityPercent.toFixed(1)}% — crowd estimate is close to rational.`,
     severity: "low",
   };
+}
+
+function computeEdge(signal: ArbitrageSignal, absDistancePct: number, yesProbabilityPercent: number): number {
+  const rational = rationalProbability(absDistancePct);
+  if (signal.type === "overbought_sentiment") return Math.max(0, yesProbabilityPercent - rational);
+  if (signal.type === "underpriced_probability") return Math.max(0, rational - yesProbabilityPercent);
+  return 0;
+}
+
+function computeConfidence(signal: ArbitrageSignal, edge: number): ConfidenceLevel {
+  if (signal.severity === "high" && edge > 25) return "HIGH";
+  if (signal.severity === "high" || (signal.severity === "medium" && edge > 15)) return "HIGH";
+  if (signal.severity === "medium" || edge > 10) return "MEDIUM";
+  return "LOW";
 }
 
 /** Map a market's assetTag to the closest Binance mark price */
@@ -89,12 +127,7 @@ function resolveMarkPrice(assetTag: string, binanceAssets: BinanceData[]): Binan
     : binanceAssets.find((b) => b.symbol === "BTCUSDT");
 }
 
-function computeConfidence(signal: ArbitrageSignal, distanceToTargetPercent: number): ConfidenceLevel {
-  if (signal.severity === "high") return "HIGH";
-  if (signal.severity === "medium") return "MEDIUM";
-  if (signal.type !== "neutral" && distanceToTargetPercent < 5) return "MEDIUM";
-  return "LOW";
-}
+// ── Public scan API ───────────────────────────────────────────────────────────
 
 export async function runScan(opts: { asset?: AssetFilter; search?: string } = {}): Promise<ScanResult> {
   const { asset = "ALL" } = opts;
@@ -159,12 +192,17 @@ export async function buildRecommendations(): Promise<Recommendation[]> {
   const actionable = scan.markets.filter((m) => m.signal.type !== "neutral");
 
   const recommendations: Recommendation[] = actionable.map((m, i) => {
-    const action: ActionType =
-      m.signal.type === "overbought_sentiment" ? "BUY_NO" : "BUY_YES";
+    const absDistance = Math.abs(m.distanceToTargetPercent);
+    const action: ActionType = m.signal.type === "overbought_sentiment" ? "BUY_NO" : "BUY_YES";
+
+    const entryPrice = action === "BUY_YES" ? m.market.yesPrice : m.market.noPrice;
+    const potentialReturn = entryPrice > 0 ? parseFloat((1 / entryPrice).toFixed(2)) : 0;
+    const edge = computeEdge(m.signal, absDistance, m.market.yesProbabilityPercent);
+    const confidence = computeConfidence(m.signal, edge);
 
     const rationale = m.signal.type === "overbought_sentiment"
-      ? `Crowd assigns ${m.market.yesProbabilityPercent.toFixed(1)}% to a target ${Math.abs(m.distanceToTargetPercent).toFixed(1)}% away from the ${m.market.assetTag} mark price. Buying NO shares exploits this overconfidence.`
-      : `Target is only ${Math.abs(m.distanceToTargetPercent).toFixed(1)}% from current ${m.market.assetTag} price but the crowd only gives ${m.market.yesProbabilityPercent.toFixed(1)}% probability. YES shares appear underpriced.`;
+      ? `The crowd assigns ${m.market.yesProbabilityPercent.toFixed(1)}% probability to a ${m.market.assetTag} target that is ${absDistance.toFixed(1)}% away. Rational probability at this distance is ~${rationalProbability(absDistance)}%. The crowd is overconfident by ${edge.toFixed(0)} pts — buying NO at $${entryPrice.toFixed(3)} gives a potential ${potentialReturn.toFixed(1)}× return.`
+      : `${m.market.assetTag} is only ${absDistance.toFixed(1)}% away from the target price, but the crowd prices it at just ${m.market.yesProbabilityPercent.toFixed(1)}%. Rational probability is ~${rationalProbability(absDistance)}% — the crowd is underestimating by ${edge.toFixed(0)} pts. Buying YES at $${entryPrice.toFixed(3)} gives a potential ${potentialReturn.toFixed(1)}× return.`;
 
     return {
       rank: i + 1,
@@ -175,13 +213,21 @@ export async function buildRecommendations(): Promise<Recommendation[]> {
       binanceSymbol: m.binanceSymbol,
       markPrice: m.markPrice,
       distanceToTargetPercent: m.distanceToTargetPercent,
-      confidence: computeConfidence(m.signal, Math.abs(m.distanceToTargetPercent)),
+      confidence,
+      edge,
+      potentialReturn,
+      entryPrice,
     };
   });
 
-  // Final rank: HIGH confidence first, then by severity
+  // Sort: HIGH confidence first, then by edge (larger edge = better opportunity)
   const confidenceOrder: Record<ConfidenceLevel, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-  recommendations.sort((a, b) => confidenceOrder[a.confidence] - confidenceOrder[b.confidence]);
+  recommendations.sort((a, b) => {
+    const confDiff = confidenceOrder[a.confidence] - confidenceOrder[b.confidence];
+    if (confDiff !== 0) return confDiff;
+    return b.edge - a.edge;
+  });
+
   recommendations.forEach((r, i) => { r.rank = i + 1; });
 
   return recommendations.slice(0, 20);

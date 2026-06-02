@@ -158,7 +158,10 @@ export const GetRecommendationsResponseItem = zod.object({
   "binanceSymbol": zod.string(),
   "markPrice": zod.number(),
   "distanceToTargetPercent": zod.number(),
-  "confidence": zod.enum(['HIGH', 'MEDIUM', 'LOW'])
+  "confidence": zod.enum(['HIGH', 'MEDIUM', 'LOW']),
+  "edge": zod.number().describe('Probability mispricing in percentage points — how far off the crowd is from rational probability'),
+  "potentialReturn": zod.number().describe('Return multiplier if position is correct (e.g. 8.5 means 8.5x your entry)'),
+  "entryPrice": zod.number().describe('The price to pay per contract (yesPrice for BUY_YES, noPrice for BUY_NO)')
 })
 export const GetRecommendationsResponse = zod.array(GetRecommendationsResponseItem)
 

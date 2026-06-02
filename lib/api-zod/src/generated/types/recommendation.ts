@@ -20,4 +20,10 @@ export interface Recommendation {
   markPrice: number;
   distanceToTargetPercent: number;
   confidence: RecommendationConfidence;
+  /** Probability mispricing in percentage points — how far off the crowd is from rational probability */
+  edge: number;
+  /** Return multiplier if position is correct (e.g. 8.5 means 8.5x your entry) */
+  potentialReturn: number;
+  /** The price to pay per contract (yesPrice for BUY_YES, noPrice for BUY_NO) */
+  entryPrice: number;
 }

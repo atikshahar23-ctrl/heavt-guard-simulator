@@ -333,6 +333,9 @@ components:
         - markPrice
         - distanceToTargetPercent
         - confidence
+        - edge
+        - potentialReturn
+        - entryPrice
       properties:
         rank:
           type: integer
@@ -354,3 +357,12 @@ components:
         confidence:
           type: string
           enum: [HIGH, MEDIUM, LOW]
+        edge:
+          type: number
+          description: Probability mispricing in percentage points — how far off the crowd is from rational probability
+        potentialReturn:
+          type: number
+          description: Return multiplier if position is correct (e.g. 8.5 means 8.5x your entry)
+        entryPrice:
+          type: number
+          description: The price to pay per contract (yesPrice for BUY_YES, noPrice for BUY_NO)
