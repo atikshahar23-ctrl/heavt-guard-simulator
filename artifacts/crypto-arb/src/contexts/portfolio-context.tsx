@@ -47,6 +47,7 @@ export interface ClosedTrade {
 
 interface PortfolioState {
   cash: number;
+  totalDeposited: number;
   polyPositions: PolyPosition[];
   binancePositions: BinancePosition[];
   stockPositions: StockPosition[];
@@ -54,7 +55,7 @@ interface PortfolioState {
 }
 
 interface PortfolioContextValue extends PortfolioState {
-  totalDeposited: number;
+  addFunds: (amountUsd: number) => string | null;
   openPolyPosition: (
     market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">,
     amountUsd: number
@@ -77,6 +78,7 @@ const STORAGE_KEY = "arb_scan_portfolio";
 function loadState(): PortfolioState {
   const fresh: PortfolioState = {
     cash: STARTING_BALANCE,
+    totalDeposited: STARTING_BALANCE,
     polyPositions: [],
     binancePositions: [],
     stockPositions: [],
@@ -88,6 +90,7 @@ function loadState(): PortfolioState {
       const parsed = JSON.parse(raw) as Partial<PortfolioState>;
       return {
         cash: parsed.cash ?? STARTING_BALANCE,
+        totalDeposited: parsed.totalDeposited ?? STARTING_BALANCE,
         polyPositions: parsed.polyPositions ?? [],
         binancePositions: parsed.binancePositions ?? [],
         stockPositions: parsed.stockPositions ?? [],
@@ -112,6 +115,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  const addFunds = useCallback((amountUsd: number) => {
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) return "Enter a positive amount";
+    if (amountUsd > 10_000_000) return "Amount too large";
+    setState((prev) => ({
+      ...prev,
+      cash: prev.cash + amountUsd,
+      totalDeposited: prev.totalDeposited + amountUsd,
+    }));
+    return null;
+  }, []);
 
   const openPolyPosition = useCallback(
     (market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">, amountUsd: number) => {
@@ -279,6 +293,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const resetPortfolio = useCallback(() => {
     const fresh: PortfolioState = {
       cash: STARTING_BALANCE,
+      totalDeposited: STARTING_BALANCE,
       polyPositions: [],
       binancePositions: [],
       stockPositions: [],
@@ -291,7 +306,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     <PortfolioContext.Provider
       value={{
         ...state,
-        totalDeposited: STARTING_BALANCE,
+        addFunds,
         openPolyPosition,
         closePolyPosition,
         openBinancePosition,

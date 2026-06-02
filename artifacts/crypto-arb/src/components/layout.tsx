@@ -1,7 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
-import { Activity, LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy, TrendingUp, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy, TrendingUp } from "lucide-react";
+import { Jarvis } from "@/components/jarvis";
+import logoUrl from "@/assets/logo-heavy-guard.png";
 
 function PortfolioMiniBalance() {
   const { cash, polyPositions, binancePositions, stockPositions } = usePortfolio();
@@ -43,16 +45,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(43 74% 52%), transparent)' }} />
 
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: 'hsl(43 74% 52% / 0.15)', border: '1px solid hsl(43 74% 52% / 0.4)' }}>
-              <ShieldCheck className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold tracking-widest text-primary font-mono uppercase leading-tight">HEAVY GUARD<br />SYSTEM</h1>
-              <p className="text-[9px] text-muted-foreground tracking-[0.2em] uppercase font-mono mt-0.5">Sentinel Terminal</p>
-            </div>
-          </div>
+        <div className="px-5 py-6 border-b border-border flex flex-col items-center gap-2">
+          <img
+            src={logoUrl}
+            alt="HEAVY GUARD SYSTEM"
+            draggable={false}
+            className="w-40 h-auto select-none"
+            style={{ filter: 'drop-shadow(0 0 14px hsl(43 74% 52% / 0.22))' }}
+          />
+          <p className="text-[9px] text-muted-foreground tracking-[0.32em] uppercase font-mono">Sentinel Terminal</p>
         </div>
 
         {/* Nav */}
@@ -111,6 +112,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* JARVIS advisory assistant */}
+      <Jarvis />
     </div>
   );
 }

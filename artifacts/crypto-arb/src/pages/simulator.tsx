@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
-  ChartCandlestick, BarChart3, Trophy, History, X,
+  ChartCandlestick, BarChart3, Trophy, History, X, Plus,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
 } from "lucide-react";
 
@@ -42,10 +42,10 @@ function PortfolioSummary({
   unrealizedPnl: number;
   totalPositionValue: number;
 }) {
-  const { cash, tradeHistory, resetPortfolio, polyPositions, binancePositions, stockPositions } = usePortfolio();
+  const { cash, totalDeposited, addFunds, tradeHistory, resetPortfolio, polyPositions, binancePositions, stockPositions } = usePortfolio();
   const totalValue = cash + totalPositionValue;
-  const totalPnl = totalValue - STARTING_BALANCE;
-  const totalPnlPct = (totalPnl / STARTING_BALANCE) * 100;
+  const totalPnl = totalValue - totalDeposited;
+  const totalPnlPct = totalDeposited > 0 ? (totalPnl / totalDeposited) * 100 : 0;
   const realizedPnl = tradeHistory.reduce((s, t) => s + t.pnl, 0);
   const openCount = polyPositions.length + binancePositions.length + stockPositions.length;
   const wins = tradeHistory.filter(t => t.pnl > 0).length;
@@ -53,9 +53,21 @@ function PortfolioSummary({
   const invested = totalPositionValue;
   const investedPct = totalValue > 0 ? (invested / totalValue) * 100 : 0;
 
-  // progress toward / against the $10k baseline (visualised 0%..200% of starting)
-  const progress = Math.min(100, Math.max(0, (totalValue / (STARTING_BALANCE * 2)) * 100));
+  // progress toward / against the deposited baseline (visualised 0%..200% of deposited)
+  const progress = Math.min(100, Math.max(0, (totalValue / (totalDeposited * 2)) * 100));
   const gain = totalPnl >= 0;
+
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
+  const [depositError, setDepositError] = useState<string | null>(null);
+
+  const doDeposit = (amount: number) => {
+    const err = addFunds(amount);
+    if (err) { setDepositError(err); return; }
+    setDepositError(null);
+    setCustomAmount("");
+    setShowDeposit(false);
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-background p-5 md:p-6 space-y-5">
@@ -73,21 +85,88 @@ function PortfolioSummary({
           </div>
           <div className={`text-sm font-mono mt-1 ${pnlColor(totalPnl)}`}>
             {totalPnl >= 0 ? '+' : '-'}{fmtUsd(totalPnl)} all-time PnL
+            <span className="text-muted-foreground"> · {fmtUsd(totalDeposited)} deposited</span>
           </div>
         </div>
-        <button
-          onClick={() => { if (confirm("Reset all positions and balance to $10,000?")) resetPortfolio(); }}
-          className="self-start lg:self-auto flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground hover:text-red-400 transition-colors border border-border rounded-md px-3 py-1.5"
-        >
-          <RotateCcw className="h-3 w-3" /> Reset Account
-        </button>
+        <div className="flex items-center gap-2 self-start lg:self-auto">
+          <button
+            onClick={() => { setDepositError(null); setShowDeposit(true); }}
+            className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-primary-foreground bg-primary hover:opacity-90 transition-opacity rounded-md px-3 py-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Deposit
+          </button>
+          <button
+            onClick={() => { if (confirm("Reset all positions and balance to $10,000?")) resetPortfolio(); }}
+            className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground hover:text-red-400 transition-colors border border-border rounded-md px-3 py-1.5"
+          >
+            <RotateCcw className="h-3 w-3" /> Reset
+          </button>
+        </div>
       </div>
+
+      {/* Deposit dialog */}
+      {showDeposit && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowDeposit(false)}
+        >
+          <div
+            className="w-[340px] max-w-full rounded-2xl border border-primary/30 bg-card p-5 space-y-4"
+            style={{ boxShadow: "0 0 40px hsl(43 74% 52% / 0.18)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-black font-mono uppercase tracking-widest text-primary">
+                <Wallet className="h-4 w-4" /> Add Funds
+              </div>
+              <button onClick={() => setShowDeposit(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground font-mono">Top up your simulator cash. Current available: {fmtUsd(cash)}.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[1000, 5000, 10000].map((amt) => (
+                <button
+                  key={amt}
+                  onClick={() => doDeposit(amt)}
+                  className="rounded-lg border border-border bg-secondary/40 hover:border-primary/50 hover:text-primary transition-colors py-2 text-xs font-mono font-bold"
+                >
+                  +${amt.toLocaleString()}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); doDeposit(Number(customAmount)); }}
+              className="flex items-center gap-2"
+            >
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-sm">$</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  placeholder="Custom"
+                  className="w-full h-9 rounded-lg bg-secondary/40 border border-border pl-7 pr-3 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+                />
+              </div>
+              <button
+                type="submit"
+                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-mono font-bold hover:opacity-90 transition-opacity"
+              >
+                Add
+              </button>
+            </form>
+            {depositError && <p className="text-[11px] text-red-400 font-mono">{depositError}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Progress vs starting balance */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-          <span>Progress vs ${fmt(STARTING_BALANCE, 0)} start</span>
-          <span>{fmt((totalValue / STARTING_BALANCE) * 100, 0)}%</span>
+          <span>Progress vs ${fmt(totalDeposited, 0)} deposited</span>
+          <span>{fmt(totalDeposited > 0 ? (totalValue / totalDeposited) * 100 : 0, 0)}%</span>
         </div>
         <div className="relative h-2.5 rounded-full bg-secondary overflow-hidden">
           {/* baseline marker at 50% (== starting balance) */}
@@ -98,7 +177,7 @@ function PortfolioSummary({
           />
         </div>
         <div className="flex justify-between text-[9px] font-mono text-muted-foreground/60">
-          <span>$0</span><span>${fmt(STARTING_BALANCE, 0)}</span><span>${fmt(STARTING_BALANCE * 2, 0)}</span>
+          <span>$0</span><span>${fmt(totalDeposited, 0)}</span><span>${fmt(totalDeposited * 2, 0)}</span>
         </div>
       </div>
 
@@ -535,7 +614,7 @@ function StockRecommendationsStrip({
 function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices: Record<string, number> }) {
   const { stockPositions, cash, openStockPosition, closeStockPosition } = usePortfolio();
   const { data: stockRecs } = useGetStockRecommendations({
-    query: { queryKey: getGetStockRecommendationsQueryKey(), refetchInterval: 60000 },
+    query: { queryKey: getGetStockRecommendationsQueryKey(), refetchInterval: 30000 },
   });
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<"ALL" | StockQuote["category"]>("ALL");
@@ -757,16 +836,16 @@ export default function SimulatorPage() {
   const { polyPositions, binancePositions, stockPositions, cash } = usePortfolio();
 
   const { data: binanceData, isLoading: binanceLoading } = useGetBinanceMulti({
-    query: { queryKey: getGetBinanceMultiQueryKey(), refetchInterval: 15000 }
+    query: { queryKey: getGetBinanceMultiQueryKey(), refetchInterval: 5000 }
   });
 
   const { data: allMarketsData, isLoading: marketsLoading } = useGetAllMarkets(
     {},
-    { query: { queryKey: getGetAllMarketsQueryKey({}), refetchInterval: 60000 } }
+    { query: { queryKey: getGetAllMarketsQueryKey({}), refetchInterval: 30000 } }
   );
 
   const { data: stocksData, isLoading: stocksLoading } = useGetStocks({
-    query: { queryKey: getGetStocksQueryKey(), refetchInterval: 60000 }
+    query: { queryKey: getGetStocksQueryKey(), refetchInterval: 30000 }
   });
 
   const binancePrices = useMemo(() => {

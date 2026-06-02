@@ -243,10 +243,10 @@ async function fetchOneQuote(def: TickerDef): Promise<StockQuote | null> {
   }
 }
 
-// ── In-memory cache (TTL: 60s) ───────────────────────────────────────────────
+// ── In-memory cache (TTL: 30s) ───────────────────────────────────────────────
 let _cached: StockQuote[] | null = null;
 let _cacheExpiresAt = 0;
-const CACHE_TTL_MS = 60 * 1000;
+const CACHE_TTL_MS = 30 * 1000;
 const CONCURRENCY = 10;
 
 export async function fetchStockQuotes(): Promise<StockQuote[]> {
