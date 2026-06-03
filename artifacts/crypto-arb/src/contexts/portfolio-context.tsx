@@ -87,7 +87,36 @@ interface PortfolioState {
   tradeHistory: ClosedTrade[];
 }
 
+/** A named, fully-isolated paper-trading account. */
+export interface Wallet extends PortfolioState {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+interface WalletsState {
+  wallets: Wallet[];
+  activeWalletId: string;
+}
+
+/** Lightweight wallet summary surfaced to the switcher / progress UIs. */
+export interface WalletSummary {
+  id: string;
+  name: string;
+  cash: number;
+  totalDeposited: number;
+  openPositions: number;
+}
+
 interface PortfolioContextValue extends PortfolioState {
+  /** All wallets (summary form) and the active selection. */
+  wallets: WalletSummary[];
+  activeWalletId: string;
+  activeWalletName: string;
+  createWallet: (name: string) => string | null;
+  renameWallet: (id: string, name: string) => string | null;
+  deleteWallet: (id: string) => string | null;
+  switchWallet: (id: string) => void;
   addFunds: (amountUsd: number) => string | null;
   openPolyPosition: (
     market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">,
@@ -123,9 +152,10 @@ interface PortfolioContextValue extends PortfolioState {
 }
 
 const STORAGE_KEY = "arb_scan_portfolio";
+const WALLETS_KEY = "arb_scan_wallets_v2";
 
-function loadState(): PortfolioState {
-  const fresh: PortfolioState = {
+function freshState(): PortfolioState {
+  return {
     cash: STARTING_BALANCE,
     totalDeposited: STARTING_BALANCE,
     polyPositions: [],
@@ -133,44 +163,159 @@ function loadState(): PortfolioState {
     stockPositions: [],
     tradeHistory: [],
   };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<PortfolioState>;
-      return {
-        cash: parsed.cash ?? STARTING_BALANCE,
-        totalDeposited: parsed.totalDeposited ?? STARTING_BALANCE,
-        polyPositions: parsed.polyPositions ?? [],
-        binancePositions: parsed.binancePositions ?? [],
-        stockPositions: (parsed.stockPositions ?? []).map((p) => ({ ...p, leverage: p.leverage ?? 1, direction: p.direction ?? "LONG" })),
-        tradeHistory: parsed.tradeHistory ?? [],
-      };
-    }
-  } catch {}
-  return fresh;
 }
 
-function saveState(state: PortfolioState) {
+function normalizeState(parsed: Partial<PortfolioState>): PortfolioState {
+  return {
+    cash: parsed.cash ?? STARTING_BALANCE,
+    totalDeposited: parsed.totalDeposited ?? STARTING_BALANCE,
+    polyPositions: parsed.polyPositions ?? [],
+    binancePositions: parsed.binancePositions ?? [],
+    stockPositions: (parsed.stockPositions ?? []).map((p) => ({ ...p, leverage: p.leverage ?? 1, direction: p.direction ?? "LONG" })),
+    tradeHistory: parsed.tradeHistory ?? [],
+  };
+}
+
+function makeWallet(name: string, state: PortfolioState): Wallet {
+  return { id: crypto.randomUUID(), name, createdAt: new Date().toISOString(), ...state };
+}
+
+/**
+ * Load the multi-wallet book. Prefers the v2 key; if absent, migrates any legacy
+ * single-portfolio (`arb_scan_portfolio`) into a wallet named "ראשי" so existing
+ * balances and history carry over seamlessly.
+ */
+function loadWallets(): WalletsState {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const raw = localStorage.getItem(WALLETS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<WalletsState>;
+      const wallets = (parsed.wallets ?? [])
+        .filter((w): w is Wallet => !!w && typeof w.id === "string")
+        .map((w) => ({
+          id: w.id,
+          name: w.name || "ארנק",
+          createdAt: w.createdAt || new Date().toISOString(),
+          ...normalizeState(w),
+        }));
+      if (wallets.length > 0) {
+        const activeWalletId = wallets.some((w) => w.id === parsed.activeWalletId)
+          ? parsed.activeWalletId!
+          : wallets[0].id;
+        return { wallets, activeWalletId };
+      }
+    }
   } catch {}
+
+  // Migration path: wrap a legacy single portfolio (or a fresh book) into "ראשי".
+  let initial = freshState();
+  try {
+    const legacy = localStorage.getItem(STORAGE_KEY);
+    if (legacy) initial = normalizeState(JSON.parse(legacy) as Partial<PortfolioState>);
+  } catch {}
+  const main = makeWallet("ראשי", initial);
+  return { wallets: [main], activeWalletId: main.id };
+}
+
+function saveWallets(state: WalletsState) {
+  try {
+    localStorage.setItem(WALLETS_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function portfolioOf(w: Wallet): PortfolioState {
+  return {
+    cash: w.cash,
+    totalDeposited: w.totalDeposited,
+    polyPositions: w.polyPositions,
+    binancePositions: w.binancePositions,
+    stockPositions: w.stockPositions,
+    tradeHistory: w.tradeHistory,
+  };
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PortfolioState>(loadState);
+  const [book, setBook] = useState<WalletsState>(loadWallets);
 
-  // Mirror of the latest committed state for deterministic synchronous reads.
+  const activeWallet =
+    book.wallets.find((w) => w.id === book.activeWalletId) ?? book.wallets[0];
+  const state = portfolioOf(activeWallet);
+
+  // Mirror of the active wallet's committed state for deterministic synchronous reads.
   // Re-synced every render so updater-based mutations (closes) stay reflected,
   // and optimistically advanced inside open* helpers so sequential opens within
   // a single tick (e.g. the Auto-Trader loop) see decremented cash immediately.
-  const stateRef = useRef(state);
+  const stateRef = useRef<PortfolioState>(state);
   stateRef.current = state;
 
+  // Drop-in replacement for the legacy React state setter: every mutation is
+  // routed to the ACTIVE wallet only, so each wallet stays fully isolated while
+  // all the existing open/close/guard helpers below keep operating on a plain
+  // PortfolioState exactly as before.
+  const setState = useCallback(
+    (updater: PortfolioState | ((prev: PortfolioState) => PortfolioState)) => {
+      setBook((prevBook) => {
+        const wallets = prevBook.wallets.map((w) => {
+          if (w.id !== prevBook.activeWalletId) return w;
+          const prevPortfolio = portfolioOf(w);
+          const next = typeof updater === "function" ? updater(prevPortfolio) : updater;
+          return { ...w, ...next };
+        });
+        return { ...prevBook, wallets };
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
-    saveState(state);
-  }, [state]);
+    saveWallets(book);
+  }, [book]);
+
+  const switchWallet = useCallback((id: string) => {
+    setBook((prev) =>
+      prev.wallets.some((w) => w.id === id) ? { ...prev, activeWalletId: id } : prev,
+    );
+  }, []);
+
+  const createWallet = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return "יש להזין שם ארנק";
+    if (trimmed.length > 40) return "שם הארנק ארוך מדי";
+    const wallet = makeWallet(trimmed, freshState());
+    setBook((prev) => ({
+      wallets: [...prev.wallets, wallet],
+      activeWalletId: wallet.id,
+    }));
+    return null;
+  }, []);
+
+  const renameWallet = useCallback((id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return "יש להזין שם ארנק";
+    if (trimmed.length > 40) return "שם הארנק ארוך מדי";
+    setBook((prev) => ({
+      ...prev,
+      wallets: prev.wallets.map((w) => (w.id === id ? { ...w, name: trimmed } : w)),
+    }));
+    return null;
+  }, []);
+
+  const deleteWallet = useCallback((id: string) => {
+    let error: string | null = null;
+    setBook((prev) => {
+      if (prev.wallets.length <= 1) {
+        error = "לא ניתן למחוק את הארנק האחרון";
+        return prev;
+      }
+      const wallets = prev.wallets.filter((w) => w.id !== id);
+      const activeWalletId =
+        prev.activeWalletId === id ? wallets[0].id : prev.activeWalletId;
+      return { wallets, activeWalletId };
+    });
+    return error;
+  }, []);
 
   const addFunds = useCallback((amountUsd: number) => {
     if (!Number.isFinite(amountUsd) || amountUsd <= 0) return "Enter a positive amount";
@@ -631,10 +776,26 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const walletSummaries: WalletSummary[] = book.wallets.map((w) => ({
+    id: w.id,
+    name: w.name,
+    cash: w.cash,
+    totalDeposited: w.totalDeposited,
+    openPositions:
+      w.polyPositions.length + w.binancePositions.length + w.stockPositions.length,
+  }));
+
   return (
     <PortfolioContext.Provider
       value={{
         ...state,
+        wallets: walletSummaries,
+        activeWalletId: activeWallet.id,
+        activeWalletName: activeWallet.name,
+        createWallet,
+        renameWallet,
+        deleteWallet,
+        switchWallet,
         addFunds,
         openPolyPosition,
         closePolyPosition,

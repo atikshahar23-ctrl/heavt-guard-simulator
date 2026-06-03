@@ -259,6 +259,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /stocks/search:
+    get:
+      operationId: getStockSearch
+      tags: [stocks]
+      summary: Search the entire real stock market by symbol or name
+      description: Free Yahoo Finance search proxy that resolves ANY tradable symbol (equities, ETFs, indices) beyond the curated universe, so any real-market instrument can be charted and traded
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query — ticker or company name, e.g. "tesla" or "nvda"
+      responses:
+        "200":
+          description: Matching tradable symbols
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockSearchResult"
+        "400":
+          description: Missing or invalid query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Failed to search stocks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /stocks/recommendations:
     get:
       operationId: getStockRecommendations
@@ -770,6 +805,24 @@ components:
           description: Where the price sits within its 1-month range (0 = monthly low, 100 = monthly high)
         tradingViewSymbol:
           type: string
+
+    StockSearchResult:
+      type: object
+      required:
+        - symbol
+        - name
+        - exchange
+        - type
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        exchange:
+          type: string
+        type:
+          type: string
+          description: Instrument type, e.g. EQUITY, ETF, INDEX
 
     InfluencerSignal:
       type: object

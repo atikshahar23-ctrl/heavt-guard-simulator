@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { TopControls } from "@/components/top-controls";
+import { WalletSwitcher } from "@/components/wallet-switcher";
 import logoUrl from "@/assets/logo-heavy-guard.png";
 
 function PortfolioMiniBalance() {
@@ -153,6 +154,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="h-4 w-4" />
           </button>
           <span className="text-[11px] font-black font-mono text-primary tracking-widest uppercase">HEAVY GUARD</span>
+          <div className="ml-auto">
+            <WalletSwitcher compact />
+          </div>
         </div>
         {/* Scrollable page area */}
         <div className="flex-1 overflow-y-auto relative min-h-0">

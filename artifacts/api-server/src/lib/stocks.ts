@@ -436,3 +436,64 @@ export async function buildStockRecommendations(): Promise<StockRecommendation[]
 
   return actionable.slice(0, 24).map(({ _score, ...rest }, i) => ({ rank: i + 1, ...rest }));
 }
+
+// ── Universal symbol search ────────────────────────────────────────────────────
+
+export interface StockSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: string;
+}
+
+const YAHOO_SEARCH = "https://query1.finance.yahoo.com/v1/finance/search";
+const _searchCache = new Map<string, { data: StockSearchResult[]; expiresAt: number }>();
+const SEARCH_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Resolve any real-market symbol via Yahoo Finance search (free, no key). Returns
+ * tradable equities / ETFs / indices matching the query — the gateway to the whole
+ * market beyond the curated universe. Results feed straight into /stocks/klines.
+ */
+export async function searchStocks(query: string): Promise<StockSearchResult[]> {
+  const q = query.trim();
+  if (q.length < 1) return [];
+  const key = q.toLowerCase();
+  const now = Date.now();
+  const cached = _searchCache.get(key);
+  if (cached && now < cached.expiresAt) return cached.data;
+
+  const url = `${YAHOO_SEARCH}?q=${encodeURIComponent(q)}&quotesCount=12&newsCount=0&listsCount=0`;
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!res.ok) throw new Error(`Yahoo search ${res.status}`);
+
+  const json = (await res.json()) as {
+    quotes?: {
+      symbol?: string;
+      shortname?: string;
+      longname?: string;
+      exchDisp?: string;
+      quoteType?: string;
+      isYahooFinance?: boolean;
+    }[];
+  };
+
+  const allowed = new Set(["EQUITY", "ETF", "INDEX", "MUTUALFUND", "CURRENCY", "CRYPTOCURRENCY"]);
+  const out: StockSearchResult[] = [];
+  for (const item of json.quotes ?? []) {
+    const symbol = item.symbol?.trim();
+    if (!symbol) continue;
+    if (!/^[A-Z0-9.\-^=]{1,15}$/i.test(symbol)) continue;
+    const type = (item.quoteType ?? "").toUpperCase();
+    if (type && !allowed.has(type)) continue;
+    out.push({
+      symbol: symbol.toUpperCase(),
+      name: item.longname ?? item.shortname ?? symbol,
+      exchange: item.exchDisp ?? "",
+      type: type || "EQUITY",
+    });
+  }
+
+  _searchCache.set(key, { data: out, expiresAt: now + SEARCH_TTL_MS });
+  return out;
+}

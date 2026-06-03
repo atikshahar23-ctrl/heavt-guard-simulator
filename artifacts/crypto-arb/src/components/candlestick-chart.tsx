@@ -8,6 +8,7 @@ import {
   type CandlestickData,
   type UTCTimestamp,
 } from "lightweight-charts";
+import { applyTAOverlays, type TAHandle } from "../lib/ta";
 
 const INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1D"] as const;
 type Interval = typeof INTERVALS[number];
@@ -46,10 +47,14 @@ export function CandlestickChart({ symbol }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const taRef = useRef<TAHandle | null>(null);
+  const candlesRef = useRef<CandlestickData<UTCTimestamp>[]>([]);
   const [period, setPeriod] = useState<Interval>("5m");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
   const [live, setLive] = useState(false);
+  const [ta, setTa] = useState(true);
+  const [bars, setBars] = useState(0);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -109,6 +114,8 @@ export function CandlestickChart({ symbol }: Props) {
       .then((data) => {
         seriesRef.current?.setData(data);
         chartRef.current?.timeScale().fitContent();
+        candlesRef.current = data;
+        setBars((b) => b + 1);
         setLoading(false);
       })
       .catch(() => {
@@ -116,6 +123,19 @@ export function CandlestickChart({ symbol }: Props) {
         setLoading(false);
       });
   }, [symbol, period]);
+
+  // TA overlays — recomputed only on full data load (`bars`) or toggle, never on a
+  // WS tick, so the live streaming path stays fast and untouched.
+  useEffect(() => {
+    taRef.current?.remove();
+    taRef.current = null;
+    if (!ta || !chartRef.current || !seriesRef.current || candlesRef.current.length === 0) return;
+    taRef.current = applyTAOverlays(chartRef.current, seriesRef.current, candlesRef.current);
+    return () => {
+      taRef.current?.remove();
+      taRef.current = null;
+    };
+  }, [bars, ta]);
 
   // Live updates: prefer a zero-cost Binance kline WebSocket (sub-second, browser
   // direct so no server geo-block). Fall back to REST polling only if the socket
@@ -222,6 +242,15 @@ export function CandlestickChart({ symbol }: Props) {
           <span className={`w-1.5 h-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50"}`} />
           {live ? "LIVE" : "···"}
         </span>
+        <button
+          onClick={() => setTa((v) => !v)}
+          title="Expert technical analysis: EMA, support/resistance, buy/sell & reversal signals"
+          className={`px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors ${
+            ta ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          TA
+        </button>
         {INTERVALS.map((iv) => (
           <button
             key={iv}

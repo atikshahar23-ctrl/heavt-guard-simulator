@@ -227,6 +227,23 @@ export const GetStockKlinesResponse = zod.array(GetStockKlinesResponseItem)
 
 
 /**
+ * Free Yahoo Finance search proxy that resolves ANY tradable symbol (equities, ETFs, indices) beyond the curated universe, so any real-market instrument can be charted and traded
+ * @summary Search the entire real stock market by symbol or name
+ */
+export const GetStockSearchQueryParams = zod.object({
+  "q": zod.coerce.string().describe('Search query — ticker or company name, e.g. \"tesla\" or \"nvda\"')
+})
+
+export const GetStockSearchResponseItem = zod.object({
+  "symbol": zod.string(),
+  "name": zod.string(),
+  "exchange": zod.string(),
+  "type": zod.string().describe('Instrument type, e.g. EQUITY, ETF, INDEX')
+})
+export const GetStockSearchResponse = zod.array(GetStockSearchResponseItem)
+
+
+/**
  * Returns momentum-based BUY/SELL recommendations across the stock universe, ranked by conviction
  * @summary Get ranked stock trade recommendations
  */

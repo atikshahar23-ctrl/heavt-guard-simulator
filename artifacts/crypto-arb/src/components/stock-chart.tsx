@@ -9,6 +9,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { useGetStockKlines, getGetStockKlinesQueryKey } from "@workspace/api-client-react";
+import { applyTAOverlays, type TAHandle } from "../lib/ta";
 
 const RANGES = [
   { key: "1d", label: "1D" },
@@ -28,7 +29,9 @@ export function StockChart({ symbol }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const taRef = useRef<TAHandle | null>(null);
   const [range, setRange] = useState<RangeKey>("1mo");
+  const [ta, setTa] = useState(true);
 
   const { data, isLoading, isError } = useGetStockKlines(
     { symbol, range },
@@ -103,10 +106,39 @@ export function StockChart({ symbol }: Props) {
     chartRef.current?.timeScale().fitContent();
   }, [data]);
 
+  // TA overlays (EMA / S-R / signals). Recomputed only on full data load or toggle
+  // — never on a tick — so the live path stays untouched.
+  useEffect(() => {
+    taRef.current?.remove();
+    taRef.current = null;
+    if (!ta || !chartRef.current || !seriesRef.current || !data || data.length === 0) return;
+    const candles = data.map((c) => ({
+      time: c.time as UTCTimestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    taRef.current = applyTAOverlays(chartRef.current, seriesRef.current, candles);
+    return () => {
+      taRef.current?.remove();
+      taRef.current = null;
+    };
+  }, [data, ta]);
+
   return (
     <div className="flex flex-col h-full bg-[hsl(0_0%_4%)] rounded-lg border border-border overflow-hidden">
       <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border shrink-0 bg-card/20">
         <span className="text-[10px] font-mono text-muted-foreground mr-2 uppercase tracking-widest">Chart</span>
+        <button
+          onClick={() => setTa((v) => !v)}
+          title="Expert technical analysis: EMA, support/resistance, buy/sell & reversal signals"
+          className={`px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors ${
+            ta ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          TA
+        </button>
         {RANGES.map((r) => (
           <button
             key={r.key}

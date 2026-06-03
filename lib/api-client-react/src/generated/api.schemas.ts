@@ -252,6 +252,14 @@ export interface StockRecommendation {
   tradingViewSymbol: string;
 }
 
+export interface StockSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  /** Instrument type, e.g. EQUITY, ETF, INDEX */
+  type: string;
+}
+
 export type InfluencerSignalDirection = typeof InfluencerSignalDirection[keyof typeof InfluencerSignalDirection];
 
 
@@ -494,5 +502,12 @@ range?: string;
  * Yahoo interval, e.g. 5m, 15m, 1h, 1d (default 1d)
  */
 interval?: string;
+};
+
+export type GetStockSearchParams = {
+/**
+ * Search query — ticker or company name, e.g. "tesla" or "nvda"
+ */
+q: string;
 };
 

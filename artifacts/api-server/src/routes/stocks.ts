@@ -1,15 +1,37 @@
 import { Router, type IRouter } from "express";
-import { fetchStockQuotes, buildStockRecommendations, fetchStockKlines } from "../lib/stocks";
+import {
+  fetchStockQuotes,
+  buildStockRecommendations,
+  fetchStockKlines,
+  searchStocks,
+} from "../lib/stocks";
 import { fetchInfluencerSignals } from "../lib/influencers";
 import {
   GetStocksResponse,
   GetStockRecommendationsResponse,
   GetStockKlinesResponse,
   GetStockKlinesQueryParams,
+  GetStockSearchResponse,
+  GetStockSearchQueryParams,
   GetInfluencerSignalsResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+router.get("/stocks/search", async (req, res): Promise<void> => {
+  const parsed = GetStockSearchQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid query parameters" });
+    return;
+  }
+  try {
+    const data = await searchStocks(parsed.data.q);
+    res.json(GetStockSearchResponse.parse(data));
+  } catch (err) {
+    req.log.error({ err }, "Failed to search stocks");
+    res.status(502).json({ error: "Failed to search stocks" });
+  }
+});
 
 router.get("/stocks/klines", async (req, res): Promise<void> => {
   const parsed = GetStockKlinesQueryParams.safeParse(req.query);

@@ -24,6 +24,7 @@ import type {
   GetPolymarketMarketsParams,
   GetScanResultsParams,
   GetStockKlinesParams,
+  GetStockSearchParams,
   HealthStatus,
   InfluencerSignal,
   MarketMovers,
@@ -34,7 +35,8 @@ import type {
   ScanResult,
   StockCandle,
   StockQuote,
-  StockRecommendation
+  StockRecommendation,
+  StockSearchResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -696,6 +698,91 @@ export function useGetStockKlines<TData = Awaited<ReturnType<typeof getStockKlin
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStockKlinesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStockSearchUrl = (params: GetStockSearchParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/stocks/search?${stringifiedParams}` : `/api/stocks/search`
+}
+
+/**
+ * Free Yahoo Finance search proxy that resolves ANY tradable symbol (equities, ETFs, indices) beyond the curated universe, so any real-market instrument can be charted and traded
+ * @summary Search the entire real stock market by symbol or name
+ */
+export const getStockSearch = async (params: GetStockSearchParams, options?: RequestInit): Promise<StockSearchResult[]> => {
+
+  return customFetch<StockSearchResult[]>(getGetStockSearchUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockSearchQueryKey = (params?: GetStockSearchParams,) => {
+    return [
+    `/api/stocks/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStockSearchQueryOptions = <TData = Awaited<ReturnType<typeof getStockSearch>>, TError = ErrorType<ErrorResponse>>(params: GetStockSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStockSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockSearchQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockSearch>>> = ({ signal }) => getStockSearch(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockSearch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStockSearchQueryResult = NonNullable<Awaited<ReturnType<typeof getStockSearch>>>
+export type GetStockSearchQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Search the entire real stock market by symbol or name
+ */
+
+export function useGetStockSearch<TData = Awaited<ReturnType<typeof getStockSearch>>, TError = ErrorType<ErrorResponse>>(
+ params: GetStockSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStockSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStockSearchQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

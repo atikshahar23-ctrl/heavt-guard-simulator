@@ -3,10 +3,12 @@ import {
   useGetRecommendations, getGetRecommendationsQueryKey, Recommendation,
   useGetStockRecommendations, getGetStockRecommendationsQueryKey, StockRecommendation,
 } from "@workspace/api-client-react";
-import { RefreshCw, TrendingUp, TrendingDown, Activity, Zap, Target, AlertTriangle, ExternalLink, LineChart } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, Activity, Zap, Target, AlertTriangle, ExternalLink, LineChart, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePortfolio } from "@/contexts/portfolio-context";
+import { recommendLevels } from "@/lib/recommend-levels";
 
 const STOCK_CATEGORY_LABEL: Record<string, string> = {
   TECH: "Technology",
@@ -392,6 +394,42 @@ function StockActionLabel({ action }: { action: StockRecommendation['action'] })
   );
 }
 
+function StockQuickExecute({ rec }: { rec: StockRecommendation }) {
+  const { cash, openStockPosition, activeWalletName } = usePortfolio();
+  const [done, setDone] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (rec.action === 'HOLD') return null;
+
+  function run() {
+    const direction = rec.action === 'SELL' ? 'SHORT' : 'LONG';
+    const amount = Math.min(2000, Math.max(0, cash * 0.1));
+    if (amount < 1) { setErr('אין מספיק מזומן'); return; }
+    const { sl, tp } = recommendLevels(rec.price, direction, { slPct: 0.03, tpPct: 0.06 });
+    const e = openStockPosition(
+      { symbol: rec.symbol, name: rec.name, direction, entryPrice: rec.price, slPrice: sl, tpPrice: tp, source: 'Quick Trade' },
+      amount,
+    );
+    if (e) { setErr(e); return; }
+    setErr(null);
+    setDone(`→ ${activeWalletName}`);
+    setTimeout(() => setDone(null), 3000);
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={run}
+        className="w-full flex items-center justify-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-2 rounded border border-primary/40 bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+      >
+        <Zap className="h-3 w-3" /> מסחר מהיר
+      </button>
+      {done && <p className="flex items-center justify-center gap-1 text-[9px] font-mono text-emerald-400"><Check className="h-2.5 w-2.5" />בוצע {done}</p>}
+      {err && <p className="text-[9px] font-mono text-red-400 text-center">{err}</p>}
+    </div>
+  );
+}
+
 function StockTradeCard({ rec, isTop }: { rec: StockRecommendation; isTop: boolean }) {
   const isBuy = rec.action === 'BUY';
   const isSell = rec.action === 'SELL';
@@ -469,6 +507,7 @@ function StockTradeCard({ rec, isTop }: { rec: StockRecommendation; isTop: boole
           >
             View Chart <ExternalLink className="h-3 w-3" />
           </a>
+          <StockQuickExecute rec={rec} />
         </div>
       </div>
     </div>

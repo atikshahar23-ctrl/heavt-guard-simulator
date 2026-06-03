@@ -10,6 +10,7 @@ import {
   TrendingUp, TrendingDown, Search, RefreshCw, LineChart, Newspaper, Sparkles, Star, CandlestickChart,
 } from "lucide-react";
 import { StockDetailPanel } from "@/components/stock-detail-panel";
+import { UniversalStockSearch } from "@/components/universal-stock-search";
 
 type Outlook = { tone: "bull" | "bear" | "neutral"; verdict: string; detail: string };
 
@@ -246,6 +247,15 @@ export default function StocksPage() {
           <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin text-primary" : ""}`} />
           {isFetching ? "Updating..." : `${countdown}s`}
         </div>
+      </div>
+
+      {/* Universal market search — chart & trade ANY real-market symbol */}
+      <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3 md:p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] font-bold tracking-widest uppercase text-primary">כל שוק המניות</span>
+          <span className="text-[10px] text-muted-foreground">— חפש כל מניה, תעודת סל או מדד בעולם וסחר בו</span>
+        </div>
+        <UniversalStockSearch />
       </div>
 
       {/* Filters */}

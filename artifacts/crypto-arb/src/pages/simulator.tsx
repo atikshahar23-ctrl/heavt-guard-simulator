@@ -16,6 +16,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { CandlestickChart } from "@/components/candlestick-chart";
 import { OrderBook } from "@/components/order-book";
+import { WalletSwitcher } from "@/components/wallet-switcher";
+import { WalletProgress } from "@/components/wallet-progress";
+import { QuickTradeButton } from "@/components/quick-trade-button";
 import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
   ChartCandlestick, BarChart3, Trophy, History, X, Plus,
@@ -937,6 +940,7 @@ export default function SimulatorPage() {
           <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25 shrink-0">VIRTUAL</span>
         </div>
         <div className="flex items-center gap-3 ml-auto text-[11px] font-mono">
+          <WalletSwitcher />
           <div className="flex items-center gap-1">
             <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-muted-foreground">Cash:</span>
@@ -992,6 +996,12 @@ export default function SimulatorPage() {
         )}
         {tab === "stocks" && (
           <div className="h-full overflow-y-auto px-4 md:px-6 py-4 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+              <WalletProgress />
+              <div className="rounded-xl border border-primary/25 bg-primary/[0.03] p-4 flex flex-col justify-center">
+                <QuickTradeButton />
+              </div>
+            </div>
             {stocksLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-48" />)}
