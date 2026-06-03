@@ -10,6 +10,7 @@ import {
   usePortfolio, STARTING_BALANCE,
 } from "@/contexts/portfolio-context";
 import { useRefresh } from "@/contexts/refresh-context";
+import { recommendLevels } from "@/lib/recommend-levels";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -260,6 +261,14 @@ function BinanceFuturesTerminal({ binancePrices }: { binancePrices: Record<strin
     setTpInput("");
   }, [notional, currentPrice, leverage, selectedAsset, slPrice, tpPrice, openBinancePosition]);
 
+  const applyRec = useCallback((direction: "LONG" | "SHORT") => {
+    if (!currentPrice) { setTradeError("Price unavailable"); return; }
+    const { sl, tp } = recommendLevels(currentPrice, direction);
+    setSlInput(String(sl));
+    setTpInput(String(tp));
+    setTradeError("");
+  }, [currentPrice]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Asset selector strip */}
@@ -338,6 +347,30 @@ function BinanceFuturesTerminal({ binancePrices }: { binancePrices: Record<strin
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* One-click recommended SL/TP */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider flex items-center gap-1">
+                <Lightbulb className="h-2.5 w-2.5 text-primary" />Auto SL/TP
+              </span>
+              <button
+                type="button"
+                onClick={() => applyRec("LONG")}
+                disabled={!currentPrice}
+                className="flex-1 py-1 text-[10px] font-mono font-bold rounded border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-40 transition-all"
+              >
+                For LONG
+              </button>
+              <button
+                type="button"
+                onClick={() => applyRec("SHORT")}
+                disabled={!currentPrice}
+                className="flex-1 py-1 text-[10px] font-mono font-bold rounded border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 transition-all"
+              >
+                For SHORT
+              </button>
+              <span className="text-[9px] text-muted-foreground font-mono hidden sm:inline">1.5% risk · 2R</span>
             </div>
 
             {/* Notional + SL + TP */}
@@ -569,6 +602,8 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
   const [category, setCategory] = useState<"ALL" | StockQuote["category"]>("ALL");
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [leverages, setLeverages] = useState<Record<string, Leverage>>({});
+  const [slInputs, setSlInputs] = useState<Record<string, string>>({});
+  const [tpInputs, setTpInputs] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const CATEGORIES: ("ALL" | StockQuote["category"])[] = ["ALL", "TECH", "ENERGY", "RESOURCES", "LARGE_CAP", "INDEX"];
@@ -589,9 +624,31 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
     const price = stockPrices[stock.symbol] ?? stock.price;
     if (!price) { setErrors(e => ({ ...e, [stock.symbol]: "Price unavailable" })); return; }
     const leverage = leverages[stock.symbol] ?? 1;
-    const err = openStockPosition({ symbol: stock.symbol, name: stock.name, entryPrice: price }, amt, leverage);
+    const slRaw = parseFloat(slInputs[stock.symbol] ?? "");
+    const tpRaw = parseFloat(tpInputs[stock.symbol] ?? "");
+    const err = openStockPosition({
+      symbol: stock.symbol,
+      name: stock.name,
+      entryPrice: price,
+      slPrice: Number.isFinite(slRaw) ? slRaw : undefined,
+      tpPrice: Number.isFinite(tpRaw) ? tpRaw : undefined,
+    }, amt, leverage);
     if (err) { setErrors(e => ({ ...e, [stock.symbol]: err })); }
-    else { setAmounts(a => ({ ...a, [stock.symbol]: "" })); setErrors(e => ({ ...e, [stock.symbol]: "" })); }
+    else {
+      setAmounts(a => ({ ...a, [stock.symbol]: "" }));
+      setSlInputs(s => ({ ...s, [stock.symbol]: "" }));
+      setTpInputs(t => ({ ...t, [stock.symbol]: "" }));
+      setErrors(e => ({ ...e, [stock.symbol]: "" }));
+    }
+  }
+
+  function applyRecStock(stock: StockQuote) {
+    const price = stockPrices[stock.symbol] ?? stock.price;
+    if (!price) { setErrors(e => ({ ...e, [stock.symbol]: "Price unavailable" })); return; }
+    const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.03, tpPct: 0.06 });
+    setSlInputs(s => ({ ...s, [stock.symbol]: String(sl) }));
+    setTpInputs(t => ({ ...t, [stock.symbol]: String(tp) }));
+    setErrors(e => ({ ...e, [stock.symbol]: "" }));
   }
 
   return (
@@ -621,6 +678,20 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
                     <div className="text-[10px] text-muted-foreground font-mono">
                       Entry ${pos.entryPrice.toFixed(2)} → Now ${currentPrice.toFixed(2)} · Margin {fmtUsd(pos.cost)}
                     </div>
+                    {(pos.slPrice != null || pos.tpPrice != null) && (
+                      <div className="flex items-center gap-2 mt-1">
+                        {pos.slPrice != null && (
+                          <span className="flex items-center gap-0.5 text-[9px] font-mono text-red-400/80">
+                            <ShieldAlert className="h-2.5 w-2.5" />SL ${pos.slPrice.toLocaleString()}
+                          </span>
+                        )}
+                        {pos.tpPrice != null && (
+                          <span className="flex items-center gap-0.5 text-[9px] font-mono text-emerald-400/80">
+                            <Target className="h-2.5 w-2.5" />TP ${pos.tpPrice.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -699,6 +770,23 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
                     {price > 0 ? `${fmt((amt * lev) / price, 4)} sh${lev > 1 ? ` · ${fmtUsd(amt * lev)} exposure` : ''}` : ''} · {cash < amt ? <span className="text-red-400">Insufficient</span> : <span className="text-emerald-400">OK</span>}
                   </div>
                 )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Stop / Target</span>
+                  <button onClick={() => applyRecStock(stock)}
+                    className="flex items-center gap-1 text-[9px] font-mono font-bold text-primary hover:text-primary/80 transition-colors">
+                    <Lightbulb className="h-2.5 w-2.5" /> Auto SL/TP
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Input type="number" placeholder="SL price" value={slInputs[stock.symbol] ?? ""}
+                    onChange={e => setSlInputs(s => ({ ...s, [stock.symbol]: e.target.value }))}
+                    className="h-8 text-xs font-mono bg-secondary/30 border-red-500/20 focus:border-red-500/50" />
+                  <Input type="number" placeholder="TP price" value={tpInputs[stock.symbol] ?? ""}
+                    onChange={e => setTpInputs(t => ({ ...t, [stock.symbol]: e.target.value }))}
+                    className="h-8 text-xs font-mono bg-secondary/30 border-emerald-500/20 focus:border-emerald-500/50" />
+                </div>
               </div>
               {errors[stock.symbol] && <div className="text-[10px] text-red-400 font-mono">{errors[stock.symbol]}</div>}
               <button onClick={() => buy(stock)}
@@ -792,6 +880,10 @@ export default function SimulatorPage() {
   useEffect(() => {
     if (Object.keys(binancePrices).length > 0) checkSlTp(binancePrices);
   }, [binancePrices, checkSlTp]);
+
+  useEffect(() => {
+    if (Object.keys(stockPrices).length > 0) checkSlTp(stockPrices);
+  }, [stockPrices, checkSlTp]);
 
   const unrealizedPnl = useMemo(() => {
     const binancePnl = binancePositions.reduce((sum, pos) => {

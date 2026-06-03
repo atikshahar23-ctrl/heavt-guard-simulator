@@ -54,17 +54,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const SidebarContent = () => (
     <>
       <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(43 74% 52%), transparent)' }} />
-      <div className="px-5 py-5 border-b border-border flex flex-col items-center gap-2">
+      <div className="px-5 py-5 short:py-2.5 border-b border-border flex flex-col items-center gap-2 short:gap-1">
         <img
           src={logoUrl}
           alt="HEAVY GUARD SYSTEM"
           draggable={false}
-          className="w-36 h-auto select-none"
+          className="w-36 short:w-20 h-auto select-none transition-all"
           style={{ filter: 'drop-shadow(0 0 14px hsl(43 74% 52% / 0.22))' }}
         />
-        <p className="text-[9px] text-muted-foreground tracking-[0.32em] uppercase font-mono">Sentinel Terminal</p>
+        <p className="text-[9px] short:text-[8px] text-muted-foreground tracking-[0.32em] uppercase font-mono">Sentinel Terminal</p>
       </div>
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 p-3 short:p-2 space-y-0.5 overflow-y-auto">
         {links.map((link) => {
           const isActive = location === link.href;
           const Icon = link.icon;

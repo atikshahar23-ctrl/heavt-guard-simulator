@@ -76,6 +76,71 @@ export function Jarvis() {
     [stocks],
   );
 
+  // ── Proactive recommendations that pop up while the panel is closed ──
+  interface Tip { id: string; label: string; tone: "buy" | "crypto" | "sell"; text: string; links?: MsgLink[]; }
+  const tips = useMemo<Tip[]>(() => {
+    const out: Tip[] = [];
+    const buy = topBuys[0];
+    if (buy) {
+      out.push({
+        id: `buy-${buy.symbol}`,
+        label: `Buy ${buy.symbol} · ${buy.confidence}`,
+        tone: "buy",
+        text: `Strongest stock to buy: ${buy.symbol} (${buy.name}) — ${buy.confidence} confidence. ${buy.rationale}`,
+        links: [tvLink(buy.tradingViewSymbol), newsLink(buy.symbol, buy.name)],
+      });
+    }
+    const crypto = (cryptoRecs ?? []).filter((r) => r.action !== "WATCH")[0];
+    if (crypto) {
+      const dir = crypto.action === "BUY_YES" ? "BUY YES" : "BUY NO";
+      out.push({
+        id: `crypto-${crypto.binanceSymbol}`,
+        label: `${dir} ${crypto.binanceSymbol} · ${crypto.confidence}`,
+        tone: "crypto",
+        text: `Top crypto/Polymarket signal: ${dir} on ${crypto.binanceSymbol} (${crypto.confidence} confidence). ${crypto.rationale} Edge ~${crypto.edge.toFixed(1)} pts, potential ${crypto.potentialReturn.toFixed(1)}x.`,
+        links: [tvLink(crypto.binanceSymbol.replace("USDT", "USD"))],
+      });
+    }
+    const sell = topSells[0];
+    if (sell) {
+      out.push({
+        id: `sell-${sell.symbol}`,
+        label: `Avoid ${sell.symbol}`,
+        tone: "sell",
+        text: `Avoid / consider trimming: ${sell.symbol} (${sell.name}). ${sell.rationale}`,
+        links: [tvLink(sell.tradingViewSymbol), newsLink(sell.symbol, sell.name)],
+      });
+    }
+    return out;
+  }, [topBuys, topSells, cryptoRecs]);
+
+  const [tipIdx, setTipIdx] = useState(0);
+  const [mutedUntil, setMutedUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  // Rotate proactive tips and keep a clock so the muted window re-opens on its own.
+  useEffect(() => {
+    if (open || tips.length === 0) return;
+    const t = setInterval(() => {
+      setNow(Date.now());
+      setTipIdx((i) => i + 1);
+    }, 16000);
+    return () => clearInterval(t);
+  }, [open, tips.length]);
+
+  const currentTip = tips.length > 0 ? tips[tipIdx % tips.length] : null;
+  const showTip = !open && currentTip != null && now >= mutedUntil;
+
+  const openWithTip = useCallback((tip: Tip) => {
+    setMessages((prev) => [...prev, { id: uid(), role: "jarvis", text: tip.text, links: tip.links }]);
+    setOpen(true);
+  }, []);
+
+  const dismissTip = useCallback(() => {
+    setNow(Date.now());
+    setMutedUntil(Date.now() + 3 * 60 * 1000);
+  }, []);
+
   const respond = useCallback(
     (raw: string): Msg => {
       const q = raw.toLowerCase().trim();
@@ -188,19 +253,68 @@ export function Jarvis() {
 
   return (
     <>
-      {/* Toggle button */}
+      {/* Toggle button + proactive recommendation bubble */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full pl-2 pr-4 py-2 border border-primary/40 bg-card/95 backdrop-blur shadow-lg hover:border-primary transition-all group"
-          style={{ boxShadow: "0 0 24px hsl(43 74% 52% / 0.18)" }}
-        >
-          <span className="relative">
-            <img src={logoUrl} alt="JARVIS" className="h-8 w-8 object-contain" />
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-card animate-pulse" />
-          </span>
-          <span className="text-xs font-mono font-bold tracking-widest uppercase text-primary">JARVIS</span>
-        </button>
+        <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2 w-[min(320px,calc(100vw-2.5rem))]">
+          {showTip && currentTip && (
+            <div
+              className="relative w-full rounded-2xl border border-primary/30 bg-card/95 backdrop-blur shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300"
+              style={{ boxShadow: "0 0 32px hsl(43 74% 52% / 0.18)" }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsl(43 74% 52%), transparent)" }} />
+              <div className="flex items-start gap-2.5 p-3">
+                <img src={logoUrl} alt="JARVIS" className="h-8 w-8 object-contain shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-widest text-primary mb-1">
+                    <Sparkles className="h-3 w-3" /> JARVIS · Live tip
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span
+                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                        currentTip.tone === "buy"
+                          ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                          : currentTip.tone === "sell"
+                            ? "bg-red-500/15 text-red-400 border border-red-500/30"
+                            : "bg-primary/15 text-primary border border-primary/30"
+                      }`}
+                    >
+                      {currentTip.label}
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-snug text-foreground/85 line-clamp-3">{currentTip.text}</p>
+                  <button
+                    onClick={() => openWithTip(currentTip)}
+                    className="mt-2 inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                  >
+                    View details <Send className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+                <button
+                  onClick={dismissTip}
+                  aria-label="Dismiss tip"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => setOpen(true)}
+            className="self-end flex items-center gap-2 rounded-full pl-2 pr-4 py-2 border border-primary/40 bg-card/95 backdrop-blur shadow-lg hover:border-primary transition-all group"
+            style={{ boxShadow: "0 0 24px hsl(43 74% 52% / 0.18)" }}
+          >
+            <span className="relative">
+              <img src={logoUrl} alt="JARVIS" className="h-8 w-8 object-contain" />
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-card animate-pulse" />
+            </span>
+            <span className="text-xs font-mono font-bold tracking-widest uppercase text-primary">JARVIS</span>
+            {tips.length > 0 && !showTip && (
+              <span className="text-[9px] font-mono font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{tips.length}</span>
+            )}
+          </button>
+        </div>
       )}
 
       {/* Panel */}

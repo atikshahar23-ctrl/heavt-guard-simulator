@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   useGetScalpSignals, getGetScalpSignalsQueryKey,
   useGetMarketOverview, getGetMarketOverviewQueryKey,
+  useGetStocks, getGetStocksQueryKey,
 } from "@workspace/api-client-react";
 import type { ScalpSignal } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
@@ -26,6 +27,9 @@ export function AutoTraderEngine() {
   const { data: overview } = useGetMarketOverview({
     query: { queryKey: getGetMarketOverviewQueryKey(), refetchInterval: 30000, staleTime: 20000 },
   });
+  const { data: stocks } = useGetStocks({
+    query: { queryKey: getGetStocksQueryKey(), refetchInterval: 30000, staleTime: 20000 },
+  });
   const { data: signals } = useGetScalpSignals({
     query: {
       queryKey: getGetScalpSignalsQueryKey(),
@@ -37,14 +41,15 @@ export function AutoTraderEngine() {
 
   const cooldownRef = useRef<Record<string, number>>({});
 
-  // Build a live price map and run SL/TP auto-exit globally.
+  // Build a live price map (crypto + stocks) and run SL/TP auto-exit globally.
   const priceMap: Record<string, number> = {};
   for (const c of overview ?? []) priceMap[c.asset] = c.price;
+  for (const s of stocks ?? []) priceMap[s.symbol] = s.price;
 
   useEffect(() => {
     if (Object.keys(priceMap).length > 0) checkSlTp(priceMap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overview, checkSlTp]);
+  }, [overview, stocks, checkSlTp]);
 
   // Auto-trade evaluation.
   useEffect(() => {

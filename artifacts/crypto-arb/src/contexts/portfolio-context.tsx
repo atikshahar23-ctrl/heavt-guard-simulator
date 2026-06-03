@@ -39,7 +39,13 @@ export interface StockPosition {
   entryPrice: number;
   leverage: number;
   cost: number;
+  slPrice?: number;
+  tpPrice?: number;
   openedAt: string;
+  /** Opened automatically by the Auto-Trader engine. */
+  auto?: boolean;
+  /** Free-form source label. */
+  source?: string;
 }
 
 export interface ClosedTrade {
@@ -318,6 +324,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     setState((prev) => {
       let changed = false;
       let binancePositions = prev.binancePositions;
+      let stockPositions = prev.stockPositions;
       let cash = prev.cash;
       let tradeHistory = prev.tradeHistory;
 
@@ -361,8 +368,39 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         changed = true;
       }
 
+      // Stocks are always long.
+      for (const pos of prev.stockPositions) {
+        const price = prices[pos.symbol];
+        if (!price) continue;
+
+        const hitSL = pos.slPrice != null && price <= pos.slPrice;
+        const hitTP = pos.tpPrice != null && price >= pos.tpPrice;
+        if (!hitSL && !hitTP) continue;
+
+        const pnl = pos.shares * (price - pos.entryPrice);
+        const proceeds = Math.max(0, pos.cost + pnl);
+
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "STOCK",
+          description: `${hitTP ? "TP" : "SL"} ${pos.symbol}${pos.leverage > 1 ? ` ${pos.leverage}x` : ""} ${pos.shares.toFixed(2)} sh @ $${price.toFixed(2)} (entry $${pos.entryPrice.toFixed(2)})`,
+          cost: pos.cost,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: hitTP ? "TP" : "SL",
+        };
+
+        stockPositions = stockPositions.filter((p) => p.id !== pos.id);
+        cash = cash + proceeds;
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        changed = true;
+      }
+
       if (!changed) return prev;
-      return { ...prev, binancePositions, cash, tradeHistory };
+      return { ...prev, binancePositions, stockPositions, cash, tradeHistory };
     });
   }, []);
 
