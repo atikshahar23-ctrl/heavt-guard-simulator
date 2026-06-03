@@ -13,10 +13,13 @@ import Stocks from "@/pages/stocks";
 import Movers from "@/pages/movers";
 import Scalp from "@/pages/scalp";
 import QuickBets from "@/pages/quickbets";
+import History from "@/pages/history";
 import Layout from "@/components/layout";
 import { PortfolioProvider } from "@/contexts/portfolio-context";
 import { FavoritesProvider } from "@/contexts/favorites-context";
+import { AutoTraderProvider } from "@/contexts/autotrader-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
+import { AutoTraderEngine } from "@/components/autotrader-engine";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +32,7 @@ function Router() {
         <Route path="/movers" component={Movers} />
         <Route path="/scalp" component={Scalp} />
         <Route path="/quickbets" component={QuickBets} />
+        <Route path="/history" component={History} />
         <Route path="/markets" component={Markets} />
         <Route path="/binance" component={Binance} />
         <Route path="/recommendations" component={Recommendations} />
@@ -50,12 +54,15 @@ function App() {
       <RefreshProvider>
         <PortfolioProvider>
         <FavoritesProvider>
+        <AutoTraderProvider>
         <TooltipProvider>
+          <AutoTraderEngine />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
           <Toaster />
         </TooltipProvider>
+        </AutoTraderProvider>
         </FavoritesProvider>
         </PortfolioProvider>
       </RefreshProvider>

@@ -3,9 +3,18 @@ import { useGetScalpSignals, getGetScalpSignalsQueryKey } from "@workspace/api-c
 import type { ScalpSignal } from "@workspace/api-client-react";
 import {
   Zap, TrendingUp, TrendingDown, Minus, RefreshCw, Target, Shield, LogIn, Star,
+  Wallet, Bot, Settings2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useFavorites } from "@/contexts/favorites-context";
+import { usePortfolio } from "@/contexts/portfolio-context";
+import { useAutoTrader, type ScalpConfidence } from "@/contexts/autotrader-context";
+import { toast } from "@/hooks/use-toast";
 
 function fmtPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -26,6 +35,103 @@ function confColor(c: ScalpSignal["confidence"]): string {
   if (c === "HIGH") return "hsl(43 74% 52%)";
   if (c === "MEDIUM") return "#84cc16";
   return "#71717a";
+}
+
+function QuickInvest({ s }: { s: ScalpSignal }) {
+  const { cash, openBinancePosition } = usePortfolio();
+  const [open, setOpen] = useState(false);
+  const [margin, setMargin] = useState(100);
+  const [leverage, setLeverage] = useState(5);
+  const dir = s.direction as "LONG" | "SHORT";
+  const notional = margin * leverage;
+  const liqMove = (100 / leverage).toFixed(1);
+
+  function submit() {
+    if (!(margin > 0)) {
+      toast({ title: "Invalid amount", description: "Enter a margin greater than 0.", variant: "destructive" });
+      return;
+    }
+    if (margin > cash) {
+      toast({ title: "Insufficient balance", description: `You only have $${cash.toLocaleString(undefined, { maximumFractionDigits: 0 })} available.`, variant: "destructive" });
+      return;
+    }
+    const err = openBinancePosition({
+      asset: s.asset,
+      direction: dir,
+      notional,
+      entryPrice: s.entry,
+      leverage,
+      slPrice: s.stopLoss,
+      tpPrice: s.takeProfit,
+      source: "Scalp signal",
+    });
+    if (err) {
+      toast({ title: "Trade failed", description: err, variant: "destructive" });
+      return;
+    }
+    toast({ title: `${dir} ${s.asset} opened`, description: `${leverage}x · $${margin} margin · $${notional.toLocaleString()} notional @ $${fmtPrice(s.entry)}` });
+    setOpen(false);
+  }
+
+  const accent = dir === "LONG" ? "#22c55e" : "#ef4444";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="w-full mt-1 flex items-center justify-center gap-1.5 rounded py-1.5 text-xs font-mono font-bold tracking-wide transition-colors"
+          style={{ background: `${accent}1a`, color: accent, boxShadow: `inset 0 0 0 1px ${accent}40` }}
+        >
+          <Wallet className="h-3 w-3" /> Demo Trade {dir}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 space-y-3" align="end">
+        <div className="flex items-center justify-between">
+          <span className="font-mono font-bold text-sm" style={{ color: accent }}>{dir} {s.asset}</span>
+          <span className="text-[10px] font-mono text-muted-foreground">Bal ${cash.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Margin (USD)</label>
+          <Input
+            type="number"
+            value={margin}
+            min={1}
+            onChange={(e) => setMargin(Math.max(0, Number(e.target.value)))}
+            className="h-8 font-mono text-sm"
+          />
+          <div className="flex gap-1">
+            {[50, 100, 250, 500].map((v) => (
+              <button
+                key={v}
+                onClick={() => setMargin(v)}
+                className="flex-1 rounded bg-secondary/50 py-1 text-[10px] font-mono hover:bg-secondary"
+              >${v}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Leverage</label>
+            <span className="font-mono text-xs font-bold text-primary">{leverage}x</span>
+          </div>
+          <Slider value={[leverage]} min={1} max={50} step={1} onValueChange={(v) => setLeverage(v[0])} />
+        </div>
+
+        <div className="rounded bg-secondary/40 p-2 space-y-1 text-[10px] font-mono">
+          <div className="flex justify-between"><span className="text-muted-foreground">Notional</span><span className="text-foreground font-bold">${notional.toLocaleString()}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Entry</span><span className="text-foreground">${fmtPrice(s.entry)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Stop / Target</span><span><span className="text-red-400">${fmtPrice(s.stopLoss)}</span> / <span className="text-emerald-400">${fmtPrice(s.takeProfit)}</span></span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Liq. ≈ move</span><span className="text-amber-400">{liqMove}%</span></div>
+        </div>
+
+        <Button onClick={submit} className="w-full h-8 font-mono font-bold" style={{ background: accent, color: "#0a0a0a" }}>
+          Open {dir} · ${margin}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function SignalCard({ s }: { s: ScalpSignal }) {
@@ -115,6 +221,133 @@ function SignalCard({ s }: { s: ScalpSignal }) {
           </li>
         ))}
       </ul>
+
+      {/* Quick invest */}
+      {s.direction !== "NEUTRAL" && <QuickInvest s={s} />}
+    </div>
+  );
+}
+
+function AutoTraderPanel() {
+  const { settings, update, toggleEnabled } = useAutoTrader();
+  const { binancePositions } = usePortfolio();
+  const [open, setOpen] = useState(false);
+  const autoOpen = binancePositions.filter((p) => p.auto).length;
+  const confs: ScalpConfidence[] = ["LOW", "MEDIUM", "HIGH"];
+
+  return (
+    <div
+      className="rounded-lg border bg-card p-4 space-y-3 transition-colors"
+      style={{ borderColor: settings.enabled ? "hsl(43 74% 52% / 0.5)" : undefined }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: settings.enabled ? "hsl(43 74% 52% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
+          >
+            <Bot className="h-5 w-5" style={{ color: settings.enabled ? "hsl(43 74% 52%)" : "#71717a" }} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-black tracking-tight">Auto-Trader</h2>
+              <span
+                className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: settings.enabled ? "hsl(43 74% 52% / 0.15)" : "hsl(0 0% 100% / 0.06)",
+                  color: settings.enabled ? "hsl(43 74% 52%)" : "#71717a",
+                }}
+              >
+                {settings.enabled ? "ARMED" : "OFF"}
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              {settings.enabled
+                ? `Auto-opens demo trades from signals · ${autoOpen}/${settings.maxOpenPositions} open`
+                : "Let the system open demo trades for you from live scalp signals."}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Auto-Trader settings"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          <Switch checked={settings.enabled} onCheckedChange={toggleEnabled} />
+        </div>
+      </div>
+
+      {open && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-border/50">
+          <div className="space-y-1">
+            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Margin / trade (USD)</label>
+            <Input
+              type="number"
+              value={settings.marginPerTrade}
+              min={1}
+              onChange={(e) => update({ marginPerTrade: Math.max(0, Number(e.target.value)) })}
+              className="h-8 font-mono text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Max open positions</label>
+            <Input
+              type="number"
+              value={settings.maxOpenPositions}
+              min={1}
+              max={20}
+              onChange={(e) => update({ maxOpenPositions: Math.max(1, Math.min(20, Number(e.target.value))) })}
+              className="h-8 font-mono text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Leverage</label>
+              <span className="font-mono text-xs font-bold text-primary">{settings.leverage}x</span>
+            </div>
+            <Slider value={[settings.leverage]} min={1} max={50} step={1} onValueChange={(v) => update({ leverage: v[0] })} />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Min confidence</label>
+            <div className="flex gap-1">
+              {confs.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => update({ minConfidence: c })}
+                  className={`flex-1 rounded py-1.5 text-[10px] font-mono font-bold transition-colors ${
+                    settings.minConfidence === c ? "text-primary" : "text-muted-foreground hover:text-foreground bg-secondary/40"
+                  }`}
+                  style={settings.minConfidence === c ? { background: "hsl(43 74% 52% / 0.15)", boxShadow: "inset 0 0 0 1px hsl(43 74% 52% / 0.3)" } : {}}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded bg-secondary/30 px-2.5 py-2">
+            <span className="text-[11px] font-mono text-foreground">Longs</span>
+            <Switch checked={settings.allowLong} onCheckedChange={(v) => update({ allowLong: v })} />
+          </div>
+          <div className="flex items-center justify-between rounded bg-secondary/30 px-2.5 py-2">
+            <span className="text-[11px] font-mono text-foreground">Shorts</span>
+            <Switch checked={settings.allowShort} onCheckedChange={(v) => update({ allowShort: v })} />
+          </div>
+          <div className="flex items-center justify-between rounded bg-secondary/30 px-2.5 py-2 sm:col-span-2">
+            <span className="text-[11px] font-mono text-foreground">Favorites only</span>
+            <Switch checked={settings.favoritesOnly} onCheckedChange={(v) => update({ favoritesOnly: v })} />
+          </div>
+
+          <p className="sm:col-span-2 text-[9px] font-mono text-amber-400/80 leading-snug">
+            ⚠ Demo-only automation. Opens paper positions with virtual funds; 10-min cooldown per asset, exits on signal SL/TP.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -161,6 +394,9 @@ export default function ScalpPage() {
           ⚠ Educational signals from technical indicators — not financial advice. Always confirm with your own analysis and size positions responsibly.
         </p>
       </div>
+
+      {/* Auto-Trader */}
+      <AutoTraderPanel />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1.5">

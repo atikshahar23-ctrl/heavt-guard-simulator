@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 
 export const STARTING_BALANCE = 10_000;
 
@@ -25,6 +25,10 @@ export interface BinancePosition {
   slPrice?: number;
   tpPrice?: number;
   openedAt: string;
+  /** Opened automatically by the Auto-Trader engine. */
+  auto?: boolean;
+  /** Free-form source label, e.g. "Scalp signal". */
+  source?: string;
 }
 
 export interface StockPosition {
@@ -46,6 +50,11 @@ export interface ClosedTrade {
   proceeds: number;
   pnl: number;
   closedAt: string;
+  openedAt?: string;
+  /** Closed by an automatic SL/TP trigger or auto-traded position. */
+  auto?: boolean;
+  /** How the close happened: manual / SL / TP. */
+  exit?: "MANUAL" | "SL" | "TP";
 }
 
 interface PortfolioState {
@@ -117,6 +126,13 @@ const PortfolioContext = createContext<PortfolioContextValue | null>(null);
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PortfolioState>(loadState);
 
+  // Mirror of the latest committed state for deterministic synchronous reads.
+  // Re-synced every render so updater-based mutations (closes) stay reflected,
+  // and optimistically advanced inside open* helpers so sequential opens within
+  // a single tick (e.g. the Auto-Trader loop) see decremented cash immediately.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   useEffect(() => {
     saveState(state);
   }, [state]);
@@ -135,27 +151,26 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const openPolyPosition = useCallback(
     (market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">, amountUsd: number) => {
       if (amountUsd <= 0) return "Amount must be positive";
-      let error: string | null = null;
-      setState((prev) => {
-        if (prev.cash < amountUsd) {
-          error = "Insufficient balance";
-          return prev;
-        }
-        const shares = amountUsd / market.entryPrice;
-        const position: PolyPosition = {
-          ...market,
-          id: crypto.randomUUID(),
-          shares,
-          cost: amountUsd,
-          openedAt: new Date().toISOString(),
-        };
-        return {
-          ...prev,
-          cash: prev.cash - amountUsd,
-          polyPositions: [...prev.polyPositions, position],
-        };
-      });
-      return error;
+      if (stateRef.current.cash < amountUsd) return "Insufficient balance";
+      const shares = amountUsd / market.entryPrice;
+      const position: PolyPosition = {
+        ...market,
+        id: crypto.randomUUID(),
+        shares,
+        cost: amountUsd,
+        openedAt: new Date().toISOString(),
+      };
+      stateRef.current = {
+        ...stateRef.current,
+        cash: stateRef.current.cash - amountUsd,
+        polyPositions: [...stateRef.current.polyPositions, position],
+      };
+      setState((prev) => ({
+        ...prev,
+        cash: prev.cash - amountUsd,
+        polyPositions: [...prev.polyPositions, position],
+      }));
+      return null;
     },
     []
   );
@@ -169,7 +184,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const closed: ClosedTrade = {
         id: crypto.randomUUID(),
         type: "POLYMARKET",
-        description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${currentPrice.toFixed(3)} | ${pos.question.slice(0, 50)}`,
+        description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${currentPrice.toFixed(3)} | ${pos.question.slice(0, 200)}`,
         cost: pos.cost,
         proceeds,
         pnl,
@@ -179,7 +194,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         ...prev,
         cash: prev.cash + proceeds,
         polyPositions: prev.polyPositions.filter((p) => p.id !== id),
-        tradeHistory: [closed, ...prev.tradeHistory].slice(0, 50),
+        tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
       };
     });
   }, []);
@@ -188,24 +203,23 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     (pos: Omit<BinancePosition, "id" | "openedAt">) => {
       if (pos.notional <= 0) return "Amount must be positive";
       const margin = pos.notional / pos.leverage;
-      let error: string | null = null;
-      setState((prev) => {
-        if (prev.cash < margin) {
-          error = "Insufficient margin";
-          return prev;
-        }
-        const position: BinancePosition = {
-          ...pos,
-          id: crypto.randomUUID(),
-          openedAt: new Date().toISOString(),
-        };
-        return {
-          ...prev,
-          cash: prev.cash - margin,
-          binancePositions: [...prev.binancePositions, position],
-        };
-      });
-      return error;
+      if (stateRef.current.cash < margin) return "Insufficient margin";
+      const position: BinancePosition = {
+        ...pos,
+        id: crypto.randomUUID(),
+        openedAt: new Date().toISOString(),
+      };
+      stateRef.current = {
+        ...stateRef.current,
+        cash: stateRef.current.cash - margin,
+        binancePositions: [...stateRef.current.binancePositions, position],
+      };
+      setState((prev) => ({
+        ...prev,
+        cash: prev.cash - margin,
+        binancePositions: [...prev.binancePositions, position],
+      }));
+      return null;
     },
     []
   );
@@ -230,12 +244,15 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           proceeds: Math.max(0, proceeds),
           pnl,
           closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "MANUAL",
         };
         return {
           ...prev,
           cash: prev.cash + Math.max(0, proceeds),
           binancePositions: prev.binancePositions.filter((p) => p.id !== id),
-          tradeHistory: [closed, ...prev.tradeHistory].slice(0, 50),
+          tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
         };
       });
     },
@@ -247,28 +264,27 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       if (amountUsd <= 0) return "Amount must be positive";
       if (stock.entryPrice <= 0) return "Price unavailable";
       const lev = leverage >= 1 ? leverage : 1;
-      let error: string | null = null;
-      setState((prev) => {
-        if (prev.cash < amountUsd) {
-          error = "Insufficient balance";
-          return prev;
-        }
-        const shares = (amountUsd * lev) / stock.entryPrice;
-        const position: StockPosition = {
-          ...stock,
-          id: crypto.randomUUID(),
-          shares,
-          leverage: lev,
-          cost: amountUsd,
-          openedAt: new Date().toISOString(),
-        };
-        return {
-          ...prev,
-          cash: prev.cash - amountUsd,
-          stockPositions: [...prev.stockPositions, position],
-        };
-      });
-      return error;
+      if (stateRef.current.cash < amountUsd) return "Insufficient balance";
+      const shares = (amountUsd * lev) / stock.entryPrice;
+      const position: StockPosition = {
+        ...stock,
+        id: crypto.randomUUID(),
+        shares,
+        leverage: lev,
+        cost: amountUsd,
+        openedAt: new Date().toISOString(),
+      };
+      stateRef.current = {
+        ...stateRef.current,
+        cash: stateRef.current.cash - amountUsd,
+        stockPositions: [...stateRef.current.stockPositions, position],
+      };
+      setState((prev) => ({
+        ...prev,
+        cash: prev.cash - amountUsd,
+        stockPositions: [...prev.stockPositions, position],
+      }));
+      return null;
     },
     []
   );
@@ -292,7 +308,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         ...prev,
         cash: prev.cash + proceeds,
         stockPositions: prev.stockPositions.filter((p) => p.id !== id),
-        tradeHistory: [closed, ...prev.tradeHistory].slice(0, 50),
+        tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
       };
     });
   }, []);
@@ -334,11 +350,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           proceeds,
           pnl,
           closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: hitTP ? "TP" : "SL",
         };
 
         binancePositions = binancePositions.filter((p) => p.id !== pos.id);
         cash = cash + proceeds;
-        tradeHistory = [closed, ...tradeHistory].slice(0, 50);
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
         changed = true;
       }
 
