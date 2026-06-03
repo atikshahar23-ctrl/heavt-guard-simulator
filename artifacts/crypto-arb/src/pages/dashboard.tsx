@@ -155,7 +155,7 @@ export default function Dashboard() {
       </div>
 
       {/* Live prices row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="stagger grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="bg-card/50 border-primary/15 col-span-2 md:col-span-1">
           <CardHeader className="pb-1 pt-4 px-4">
             <CardTitle className="text-[10px] font-mono text-muted-foreground tracking-widest uppercase">BTC Mark Price</CardTitle>

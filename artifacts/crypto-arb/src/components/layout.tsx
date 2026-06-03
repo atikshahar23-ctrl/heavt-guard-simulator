@@ -72,8 +72,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Link
               key={link.href}
               href={link.href}
-              className={`flex flex-col px-3 py-2 rounded transition-all ${
-                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              className={`group flex flex-col px-3 py-2 rounded-md transition-all duration-200 ${
+                isActive
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
               }`}
               style={isActive ? {
                 background: 'hsl(43 74% 52% / 0.08)',
@@ -82,7 +84,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               } : {}}
             >
               <div className="flex items-center gap-3">
-                <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} />
+                <Icon className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${isActive ? 'text-primary' : 'group-hover:translate-x-0.5'}`} />
                 <span className={`text-xs font-medium tracking-wide ${isActive ? 'font-semibold' : ''}`}>{link.label}</span>
               </div>
               {link.extra}
@@ -158,7 +160,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               background: 'radial-gradient(ellipse at top right, hsl(43 74% 52% / 0.04) 0%, transparent 60%)',
             }}
           />
-          <div className="relative h-full">
+          <div key={location} className="relative h-full page-enter">
             {children}
           </div>
         </div>

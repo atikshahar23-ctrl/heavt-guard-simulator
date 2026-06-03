@@ -5,6 +5,7 @@
 - [Scalp signals architecture](scalp-signals.md) — RSI/EMA/ATR/swing on 15m top-30 coins; ATR-sized entry/SL/TP; sanitize klines + in-flight coalescing so one bad candle/hung fetch can't 502 the endpoint.
 - [Gold luxury theme](gold-theme.md) — primary: HSL 43 74% 52% (gold), background: 0 0% 4% (near-black). Scrollbar, sidebar accent line, and text-primary glow use gold. Font: Inter + Space Mono.
 - [SL/TP & responsive conventions](sltp-and-responsive.md) — recommendLevels=2R (crypto 1.5/3%, stock 3/6%); global checkSlTp price map must merge crypto+stock keys; use `short:` (max-height) not `landscape:` for rotation tweaks.
+- [Motion / polish system](motion-system.md) — app-wide animation lives in index.css; page-enter replayed via key={location}, opacity+transform only (no blur/will-change); focus rings scoped to controls, not global.
 - [Demo-trading & Auto-Trader engine](demo-trading-engine.md) — portfolio open* helpers validate against stateRef (not setState updater) for reliable returns; one headless AutoTraderEngine runs global SL/TP + auto-opens from scalp signals.
 - [Free no-key data sources](free-data-sources.md) — alternative.me F&G, binance.vision 24hr, CoinGecko trending, Google News RSS all work keyless; CryptoCompare/Reddit/CoinDesk don't.
 - [Binance futures geo-block](binance-geoblock.md) — fapi.binance.com returns 451 in deployment region (works in dev); crypto signals vanish in prod. Fall back to non-geo-blocked data-api.binance.vision spot price.
