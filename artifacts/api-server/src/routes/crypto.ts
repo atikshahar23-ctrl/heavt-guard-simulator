@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { fetchBinanceData, fetchAllBinanceData } from "../lib/binance";
 import { fetchPolymarketMarkets, type AssetFilter, type CategoryFilter } from "../lib/polymarket";
+import { fetchMarketMovers } from "../lib/movers";
 import { runScan, buildRecommendations } from "../lib/scanner";
 import {
   GetBinanceDataQueryParams,
@@ -13,6 +14,7 @@ import {
   GetRecommendationsResponse,
   GetAllMarketsQueryParams,
   GetAllMarketsResponse,
+  GetMarketMoversResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -79,6 +81,16 @@ router.get("/crypto/recommendations", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "Recommendations build failed");
     res.status(502).json({ error: "Failed to build recommendations" });
+  }
+});
+
+router.get("/crypto/movers", async (req, res): Promise<void> => {
+  try {
+    const movers = await fetchMarketMovers();
+    res.json(GetMarketMoversResponse.parse(movers));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch market movers");
+    res.status(502).json({ error: "Failed to fetch market movers" });
   }
 });
 

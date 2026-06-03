@@ -10,6 +10,6 @@ description: How the Polymarket data fetching, caching, and filtering pipeline w
 - **Asset filter**: Word-boundary regex (e.g. `/\bETH\b/i`) to avoid false positives like "FiveThirtyEight". Defined in `ASSET_PATTERNS`.
 - **All-categories mode**: Pass `allCategories: true` to `fetchPolymarketMarkets()` to skip the asset filter entirely and return all markets. Used by the `/api/markets/all` endpoint.
 - **Category detection**: `detectCategory(question)` checks crypto first (most specific for this platform), then politics, sports, economy, tech, other.
-- **Slug extraction**: From `market["market_slug"]` field in raw API response — used for Polymarket.com deep links (`https://polymarket.com/event/{slug}`).
+- **Deep-link slug (CRITICAL)**: `https://polymarket.com/event/{slug}` needs the PARENT EVENT slug, NOT the market slug. The market's own `market_slug`/`slug` produces broken/404 links. Extract `eventSlug` from `events[0].slug` in the raw market object and use that for all polymarket.com/event URLs. Frontend stores `eventSlug` (not `slug`) when persisting demo-trade positions so their links resolve too.
 
 **Why:** The crypto-only filter was causing the markets page to look sparse. Keeping crypto filter for scan/recommendations (performance + relevance) and all-categories for the Browse page gives both speed and completeness.

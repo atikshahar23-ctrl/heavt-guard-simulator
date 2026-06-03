@@ -14,6 +14,11 @@ export interface PolymarketMarket {
   assetTag: string;
   category: string;
   slug: string | null;
+  eventSlug: string | null;
+  oneDayPriceChange: number | null;
+  liquidity: number | null;
+  spread: number | null;
+  competitive: number | null;
 }
 
 // Gamma API — what Polymarket's own frontend uses; returns only open/active markets
@@ -191,8 +196,24 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
     const slug = (market["slug"] as string) ?? null;
     const conditionId = (market["conditionId"] as string) ?? (market["condition_id"] as string) ?? "";
 
+    // The public polymarket.com/event/<slug> URL uses the PARENT EVENT slug,
+    // not the market slug. The market slug points to a non-existent page.
+    const events = market["events"];
+    let eventSlug: string | null = null;
+    if (Array.isArray(events) && events.length > 0) {
+      const ev = events[0] as Record<string, unknown>;
+      eventSlug = (ev["slug"] as string) ?? null;
+    }
+
     const rawVol = market["volumeNum"] ?? market["volume"];
     const rawVol24h = market["volume24hr"];
+    const rawChange = market["oneDayPriceChange"];
+    const rawLiquidity = market["liquidityNum"] ?? market["liquidity"];
+    const rawSpread = market["spread"];
+    const rawCompetitive = market["competitive"];
+
+    const num = (v: unknown): number | null =>
+      v != null && Number.isFinite(parseFloat(v as string)) ? parseFloat(v as string) : null;
 
     markets.push({
       conditionId,
@@ -203,11 +224,16 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
       targetPrice,
       active: true,
       endDate: (market["endDateIso"] as string) ?? (market["endDate"] as string) ?? null,
-      volume: rawVol != null ? parseFloat(rawVol as string) : null,
-      volume24hr: rawVol24h != null ? parseFloat(rawVol24h as string) : null,
+      volume: num(rawVol),
+      volume24hr: num(rawVol24h),
       assetTag: allCategories ? detectedCategory : detectAssetTag(question),
       category: detectedCategory,
       slug,
+      eventSlug,
+      oneDayPriceChange: num(rawChange),
+      liquidity: num(rawLiquidity),
+      spread: num(rawSpread),
+      competitive: num(rawCompetitive),
     });
   }
 

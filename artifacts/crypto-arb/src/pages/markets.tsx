@@ -35,7 +35,7 @@ function assetBadgeCls(tag: string) {
 }
 
 function polyUrl(m: PolymarketMarket) {
-  if (m.slug) return `https://polymarket.com/event/${m.slug}`;
+  if (m.eventSlug) return `https://polymarket.com/event/${m.eventSlug}`;
   return `https://polymarket.com/markets`;
 }
 
@@ -73,7 +73,7 @@ function DemoTradePanel({ market, onClose }: DemoPanelProps) {
         conditionId: market.conditionId,
         question:    market.question,
         category:    market.category,
-        slug:        market.slug ?? null,
+        slug:        market.eventSlug ?? null,
         side,
         entryPrice,
       },

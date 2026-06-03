@@ -213,7 +213,7 @@ export default function BrowsePage() {
                     <tr
                       key={`${m.conditionId}-${idx}`}
                       className="border-t border-border/30 hover:bg-secondary/20 cursor-pointer group"
-                      onClick={() => openInPanel(m.slug, m.conditionId)}
+                      onClick={() => openInPanel(m.eventSlug, m.conditionId)}
                     >
                       <td className="px-3 py-2">
                         <CategoryBadge category={m.category} />
@@ -244,7 +244,7 @@ export default function BrowsePage() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         <a
-                          href={m.slug ? `https://polymarket.com/event/${m.slug}` : "https://polymarket.com"}
+                          href={m.eventSlug ? `https://polymarket.com/event/${m.eventSlug}` : "https://polymarket.com"}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}

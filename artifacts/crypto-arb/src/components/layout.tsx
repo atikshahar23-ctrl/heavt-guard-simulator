@@ -4,7 +4,7 @@ import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-re
 import { usePortfolio } from "@/contexts/portfolio-context";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
-  TrendingUp, Menu, X,
+  TrendingUp, Menu, X, Activity,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { TopControls } from "@/components/top-controls";
@@ -41,6 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/recommendations", label: "Trade Desk", icon: Zap },
     { href: "/stocks", label: "Stocks", icon: TrendingUp },
+    { href: "/movers", label: "Market Movers", icon: Activity },
     { href: "/browse", label: "Live Markets", icon: Globe },
     { href: "/simulator", label: "Simulator", icon: Trophy, extra: <PortfolioMiniBalance /> },
     { href: "/markets", label: "Crypto Markets", icon: LineChart },

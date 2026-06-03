@@ -784,7 +784,7 @@ export default function SimulatorPage() {
       yesPrice: m.yesPrice,
       noPrice: m.noPrice,
       assetTag: m.assetTag,
-      slug: m.slug ?? null,
+      slug: m.eventSlug ?? null,
     })),
     [allMarketsData]
   );

@@ -50,6 +50,31 @@ export interface PolymarketMarket {
      * @nullable
      */
   slug?: string | null;
+  /**
+     * Parent event slug — the correct slug for public polymarket.com/event URLs
+     * @nullable
+     */
+  eventSlug?: string | null;
+  /**
+     * 24-hour change in YES probability (price points, e.g. 0.05 = +5pt)
+     * @nullable
+     */
+  oneDayPriceChange?: number | null;
+  /**
+     * Market liquidity in USD
+     * @nullable
+     */
+  liquidity?: number | null;
+  /**
+     * Bid-ask spread (lower = tighter, more liquid)
+     * @nullable
+     */
+  spread?: number | null;
+  /**
+     * Polymarket competitiveness score 0-1 (higher = more two-sided action)
+     * @nullable
+     */
+  competitive?: number | null;
 }
 
 export type ArbitrageSignalType = typeof ArbitrageSignalType[keyof typeof ArbitrageSignalType];
@@ -214,6 +239,44 @@ export interface StockRecommendation {
   /** Where the price sits within its 1-month range (0 = monthly low, 100 = monthly high) */
   rangePositionPercent: number;
   tradingViewSymbol: string;
+}
+
+export interface MoverCoin {
+  symbol: string;
+  price: number;
+  changePercent: number;
+  /** @nullable */
+  quoteVolume?: number | null;
+}
+
+export interface TrendingCoin {
+  name: string;
+  symbol: string;
+  /** @nullable */
+  marketCapRank?: number | null;
+  /** @nullable */
+  thumb?: string | null;
+}
+
+export interface NewsItem {
+  title: string;
+  source: string;
+  url: string;
+  publishedAt: string;
+}
+
+export interface FearGreed {
+  value: number;
+  classification: string;
+}
+
+export interface MarketMovers {
+  fetchedAt: string;
+  fearGreed?: FearGreed | null;
+  gainers: MoverCoin[];
+  losers: MoverCoin[];
+  trending: TrendingCoin[];
+  news: NewsItem[];
 }
 
 export type GetBinanceDataParams = {

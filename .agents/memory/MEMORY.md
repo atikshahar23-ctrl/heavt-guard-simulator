@@ -3,6 +3,7 @@
 - [All-categories browse endpoint](all-categories-endpoint.md) — `/api/markets/all` uses `allCategories: true` flag to skip asset filter; separate from `/api/crypto/polymarket` which is crypto-only
 - [Polymarket filterResolved quirks](polymarket-filter-resolved.md) — end_date_iso is unreliable (all old markets return past dates). Use probability >=0.95 / <=0.05 + active===false to filter. Some old markets stay active:true in Polymarket's API indefinitely.
 - [Gold luxury theme](gold-theme.md) — primary: HSL 43 74% 52% (gold), background: 0 0% 4% (near-black). Scrollbar, sidebar accent line, and text-primary glow use gold. Font: Inter + Space Mono.
+- [Free no-key data sources](free-data-sources.md) — alternative.me F&G, binance.vision 24hr, CoinGecko trending, Google News RSS all work keyless; CryptoCompare/Reddit/CoinDesk don't.
 - [Binance futures geo-block](binance-geoblock.md) — fapi.binance.com returns 451 in deployment region (works in dev); crypto signals vanish in prod. Fall back to non-geo-blocked data-api.binance.vision spot price.
 - [Refresh cadence coupling](refresh-cadence.md) — frontend poll interval must stay >= server cache TTL; fast-refresh toggle floors cache-backed queries at the TTL, only real-time Binance stream truly speeds up.
 - [lightweight-charts v5 API](lightweight-charts-v5.md) — use addSeries(CandlestickSeries, opts) not addCandlestickSeries() (removed in v5). Klines from data-api.binance.vision (non-geo-blocked). ColorType.Solid for backgrounds.

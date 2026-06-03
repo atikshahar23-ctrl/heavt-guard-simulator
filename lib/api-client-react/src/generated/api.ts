@@ -23,6 +23,7 @@ import type {
   GetPolymarketMarketsParams,
   GetScanResultsParams,
   HealthStatus,
+  MarketMovers,
   PolymarketMarket,
   Recommendation,
   ScanResult,
@@ -760,6 +761,84 @@ export function useGetRecommendations<TData = Awaited<ReturnType<typeof getRecom
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetRecommendationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMarketMoversUrl = () => {
+
+
+
+
+  return `/api/crypto/movers`
+}
+
+/**
+ * Aggregates Fear & Greed index, top gainers/losers, trending coins, and latest crypto news headlines
+ * @summary Get market-moving intelligence
+ */
+export const getMarketMovers = async ( options?: RequestInit): Promise<MarketMovers> => {
+
+  return customFetch<MarketMovers>(getGetMarketMoversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketMoversQueryKey = () => {
+    return [
+    `/api/crypto/movers`
+    ] as const;
+    }
+
+
+export const getGetMarketMoversQueryOptions = <TData = Awaited<ReturnType<typeof getMarketMovers>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketMovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketMoversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketMovers>>> = ({ signal }) => getMarketMovers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketMovers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketMoversQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketMovers>>>
+export type GetMarketMoversQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get market-moving intelligence
+ */
+
+export function useGetMarketMovers<TData = Awaited<ReturnType<typeof getMarketMovers>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketMovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketMoversQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

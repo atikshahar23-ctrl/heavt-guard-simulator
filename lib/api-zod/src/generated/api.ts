@@ -76,7 +76,12 @@ export const GetPolymarketMarketsResponseItem = zod.object({
   "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
-  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking'),
+  "eventSlug": zod.string().nullish().describe('Parent event slug — the correct slug for public polymarket.com\/event URLs'),
+  "oneDayPriceChange": zod.number().nullish().describe('24-hour change in YES probability (price points, e.g. 0.05 = +5pt)'),
+  "liquidity": zod.number().nullish().describe('Market liquidity in USD'),
+  "spread": zod.number().nullish().describe('Bid-ask spread (lower = tighter, more liquid)'),
+  "competitive": zod.number().nullish().describe('Polymarket competitiveness score 0-1 (higher = more two-sided action)')
 })
 export const GetPolymarketMarketsResponse = zod.array(GetPolymarketMarketsResponseItem)
 
@@ -115,7 +120,12 @@ export const GetScanResultsResponse = zod.object({
   "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
-  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking'),
+  "eventSlug": zod.string().nullish().describe('Parent event slug — the correct slug for public polymarket.com\/event URLs'),
+  "oneDayPriceChange": zod.number().nullish().describe('24-hour change in YES probability (price points, e.g. 0.05 = +5pt)'),
+  "liquidity": zod.number().nullish().describe('Market liquidity in USD'),
+  "spread": zod.number().nullish().describe('Bid-ask spread (lower = tighter, more liquid)'),
+  "competitive": zod.number().nullish().describe('Polymarket competitiveness score 0-1 (higher = more two-sided action)')
 }),
   "distanceToTargetPercent": zod.number(),
   "signal": zod.object({
@@ -160,7 +170,12 @@ export const GetAllMarketsResponseItem = zod.object({
   "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
-  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking'),
+  "eventSlug": zod.string().nullish().describe('Parent event slug — the correct slug for public polymarket.com\/event URLs'),
+  "oneDayPriceChange": zod.number().nullish().describe('24-hour change in YES probability (price points, e.g. 0.05 = +5pt)'),
+  "liquidity": zod.number().nullish().describe('Market liquidity in USD'),
+  "spread": zod.number().nullish().describe('Bid-ask spread (lower = tighter, more liquid)'),
+  "competitive": zod.number().nullish().describe('Polymarket competitiveness score 0-1 (higher = more two-sided action)')
 })
 export const GetAllMarketsResponse = zod.array(GetAllMarketsResponseItem)
 
@@ -232,7 +247,12 @@ export const GetRecommendationsResponseItem = zod.object({
   "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
   "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
   "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
-  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking')
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking'),
+  "eventSlug": zod.string().nullish().describe('Parent event slug — the correct slug for public polymarket.com\/event URLs'),
+  "oneDayPriceChange": zod.number().nullish().describe('24-hour change in YES probability (price points, e.g. 0.05 = +5pt)'),
+  "liquidity": zod.number().nullish().describe('Market liquidity in USD'),
+  "spread": zod.number().nullish().describe('Bid-ask spread (lower = tighter, more liquid)'),
+  "competitive": zod.number().nullish().describe('Polymarket competitiveness score 0-1 (higher = more two-sided action)')
 }),
   "signal": zod.object({
   "type": zod.enum(['overbought_sentiment', 'underpriced_probability', 'neutral']),
@@ -248,5 +268,42 @@ export const GetRecommendationsResponseItem = zod.object({
   "entryPrice": zod.number().describe('The price to pay per contract (yesPrice for BUY_YES, noPrice for BUY_NO)')
 })
 export const GetRecommendationsResponse = zod.array(GetRecommendationsResponseItem)
+
+
+/**
+ * Aggregates Fear & Greed index, top gainers/losers, trending coins, and latest crypto news headlines
+ * @summary Get market-moving intelligence
+ */
+export const GetMarketMoversResponse = zod.object({
+  "fetchedAt": zod.string(),
+  "fearGreed": zod.union([zod.object({
+  "value": zod.number(),
+  "classification": zod.string()
+}),zod.null()]).optional(),
+  "gainers": zod.array(zod.object({
+  "symbol": zod.string(),
+  "price": zod.number(),
+  "changePercent": zod.number(),
+  "quoteVolume": zod.number().nullish()
+})),
+  "losers": zod.array(zod.object({
+  "symbol": zod.string(),
+  "price": zod.number(),
+  "changePercent": zod.number(),
+  "quoteVolume": zod.number().nullish()
+})),
+  "trending": zod.array(zod.object({
+  "name": zod.string(),
+  "symbol": zod.string(),
+  "marketCapRank": zod.number().nullish(),
+  "thumb": zod.string().nullish()
+})),
+  "news": zod.array(zod.object({
+  "title": zod.string(),
+  "source": zod.string(),
+  "url": zod.string(),
+  "publishedAt": zod.string()
+}))
+})
 
 

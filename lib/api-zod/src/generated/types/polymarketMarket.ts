@@ -33,4 +33,29 @@ export interface PolymarketMarket {
      * @nullable
      */
   slug?: string | null;
+  /**
+     * Parent event slug — the correct slug for public polymarket.com/event URLs
+     * @nullable
+     */
+  eventSlug?: string | null;
+  /**
+     * 24-hour change in YES probability (price points, e.g. 0.05 = +5pt)
+     * @nullable
+     */
+  oneDayPriceChange?: number | null;
+  /**
+     * Market liquidity in USD
+     * @nullable
+     */
+  liquidity?: number | null;
+  /**
+     * Bid-ask spread (lower = tighter, more liquid)
+     * @nullable
+     */
+  spread?: number | null;
+  /**
+     * Polymarket competitiveness score 0-1 (higher = more two-sided action)
+     * @nullable
+     */
+  competitive?: number | null;
 }
