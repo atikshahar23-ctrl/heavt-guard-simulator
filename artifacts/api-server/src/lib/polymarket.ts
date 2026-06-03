@@ -68,6 +68,8 @@ export interface FetchPolymarketOptions {
   requireTargetPrice?: boolean;
   filterResolved?: boolean;
   allCategories?: boolean;
+  /** Only return markets whose endDate is within this many hours from now. */
+  maxHoursToEnd?: number;
 }
 
 // ── In-memory page cache (TTL: 3 min) ────────────────────────────────────────
@@ -149,6 +151,7 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
     requireTargetPrice = false,
     filterResolved = false,
     allCategories = false,
+    maxHoursToEnd,
   } = opts;
 
   const assetPattern = allCategories ? null : ASSET_PATTERNS[asset];
@@ -193,6 +196,15 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
 
     if (category && category !== "ALL" && detectedCategory !== category) continue;
 
+    const endDateRaw = (market["endDateIso"] as string) ?? (market["endDate"] as string) ?? null;
+
+    // Short-term filter: only markets resolving within maxHoursToEnd hours.
+    if (maxHoursToEnd != null) {
+      if (!endDateRaw) continue;
+      const ms = new Date(endDateRaw).getTime() - Date.now();
+      if (!Number.isFinite(ms) || ms <= 0 || ms > maxHoursToEnd * 3600_000) continue;
+    }
+
     const slug = (market["slug"] as string) ?? null;
     const conditionId = (market["conditionId"] as string) ?? (market["condition_id"] as string) ?? "";
 
@@ -223,7 +235,7 @@ export async function fetchPolymarketMarkets(opts: FetchPolymarketOptions = {}):
       yesProbabilityPercent,
       targetPrice,
       active: true,
-      endDate: (market["endDateIso"] as string) ?? (market["endDate"] as string) ?? null,
+      endDate: endDateRaw,
       volume: num(rawVol),
       volume24hr: num(rawVol24h),
       assetTag: allCategories ? detectedCategory : detectAssetTag(question),

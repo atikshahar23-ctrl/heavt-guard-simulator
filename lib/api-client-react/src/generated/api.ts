@@ -17,6 +17,7 @@ import type {
 
 import type {
   BinanceData,
+  CoinTicker,
   ErrorResponse,
   GetAllMarketsParams,
   GetBinanceDataParams,
@@ -26,6 +27,7 @@ import type {
   MarketMovers,
   PolymarketMarket,
   Recommendation,
+  ScalpSignal,
   ScanResult,
   StockQuote,
   StockRecommendation
@@ -839,6 +841,240 @@ export function useGetMarketMovers<TData = Awaited<ReturnType<typeof getMarketMo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMarketMoversQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMarketOverviewUrl = () => {
+
+
+
+
+  return `/api/crypto/overview`
+}
+
+/**
+ * Returns the top USDT pairs by 24h quote volume (stablecoins and leveraged tokens excluded) from the Binance public mirror
+ * @summary Get the live top-50 coin universe
+ */
+export const getMarketOverview = async ( options?: RequestInit): Promise<CoinTicker[]> => {
+
+  return customFetch<CoinTicker[]>(getGetMarketOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketOverviewQueryKey = () => {
+    return [
+    `/api/crypto/overview`
+    ] as const;
+    }
+
+
+export const getGetMarketOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getMarketOverview>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketOverview>>> = ({ signal }) => getMarketOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketOverview>>>
+export type GetMarketOverviewQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the live top-50 coin universe
+ */
+
+export function useGetMarketOverview<TData = Awaited<ReturnType<typeof getMarketOverview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetScalpSignalsUrl = () => {
+
+
+
+
+  return `/api/crypto/scalp`
+}
+
+/**
+ * Computes RSI, EMA(9/21), ATR and swing structure on the 15m timeframe for top coins, returning ranked LONG/SHORT/NEUTRAL signals with entry, stop-loss and take-profit
+ * @summary Get short-timeframe scalp signals
+ */
+export const getScalpSignals = async ( options?: RequestInit): Promise<ScalpSignal[]> => {
+
+  return customFetch<ScalpSignal[]>(getGetScalpSignalsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetScalpSignalsQueryKey = () => {
+    return [
+    `/api/crypto/scalp`
+    ] as const;
+    }
+
+
+export const getGetScalpSignalsQueryOptions = <TData = Awaited<ReturnType<typeof getScalpSignals>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getScalpSignals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetScalpSignalsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScalpSignals>>> = ({ signal }) => getScalpSignals({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getScalpSignals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetScalpSignalsQueryResult = NonNullable<Awaited<ReturnType<typeof getScalpSignals>>>
+export type GetScalpSignalsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get short-timeframe scalp signals
+ */
+
+export function useGetScalpSignals<TData = Awaited<ReturnType<typeof getScalpSignals>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getScalpSignals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetScalpSignalsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetShortTermMarketsUrl = () => {
+
+
+
+
+  return `/api/crypto/shortterm`
+}
+
+/**
+ * Returns Polymarket crypto markets resolving within 48 hours, sorted soonest-first
+ * @summary Get short-term crypto prediction markets
+ */
+export const getShortTermMarkets = async ( options?: RequestInit): Promise<PolymarketMarket[]> => {
+
+  return customFetch<PolymarketMarket[]>(getGetShortTermMarketsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetShortTermMarketsQueryKey = () => {
+    return [
+    `/api/crypto/shortterm`
+    ] as const;
+    }
+
+
+export const getGetShortTermMarketsQueryOptions = <TData = Awaited<ReturnType<typeof getShortTermMarkets>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getShortTermMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetShortTermMarketsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getShortTermMarkets>>> = ({ signal }) => getShortTermMarkets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getShortTermMarkets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetShortTermMarketsQueryResult = NonNullable<Awaited<ReturnType<typeof getShortTermMarkets>>>
+export type GetShortTermMarketsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get short-term crypto prediction markets
+ */
+
+export function useGetShortTermMarkets<TData = Awaited<ReturnType<typeof getShortTermMarkets>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getShortTermMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetShortTermMarketsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

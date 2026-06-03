@@ -11,8 +11,11 @@ import Recommendations from "@/pages/recommendations";
 import Simulator from "@/pages/simulator";
 import Stocks from "@/pages/stocks";
 import Movers from "@/pages/movers";
+import Scalp from "@/pages/scalp";
+import QuickBets from "@/pages/quickbets";
 import Layout from "@/components/layout";
 import { PortfolioProvider } from "@/contexts/portfolio-context";
+import { FavoritesProvider } from "@/contexts/favorites-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
 
 const queryClient = new QueryClient();
@@ -24,6 +27,8 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/browse" component={Browse} />
         <Route path="/movers" component={Movers} />
+        <Route path="/scalp" component={Scalp} />
+        <Route path="/quickbets" component={QuickBets} />
         <Route path="/markets" component={Markets} />
         <Route path="/binance" component={Binance} />
         <Route path="/recommendations" component={Recommendations} />
@@ -44,12 +49,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <RefreshProvider>
         <PortfolioProvider>
+        <FavoritesProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
           <Toaster />
         </TooltipProvider>
+        </FavoritesProvider>
         </PortfolioProvider>
       </RefreshProvider>
     </QueryClientProvider>

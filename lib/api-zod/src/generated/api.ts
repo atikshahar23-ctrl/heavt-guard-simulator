@@ -307,3 +307,72 @@ export const GetMarketMoversResponse = zod.object({
 })
 
 
+/**
+ * Returns the top USDT pairs by 24h quote volume (stablecoins and leveraged tokens excluded) from the Binance public mirror
+ * @summary Get the live top-50 coin universe
+ */
+export const GetMarketOverviewResponseItem = zod.object({
+  "symbol": zod.string(),
+  "asset": zod.string(),
+  "price": zod.number(),
+  "changePercent": zod.number(),
+  "high24h": zod.number(),
+  "low24h": zod.number(),
+  "quoteVolume": zod.number(),
+  "trades": zod.number()
+})
+export const GetMarketOverviewResponse = zod.array(GetMarketOverviewResponseItem)
+
+
+/**
+ * Computes RSI, EMA(9/21), ATR and swing structure on the 15m timeframe for top coins, returning ranked LONG/SHORT/NEUTRAL signals with entry, stop-loss and take-profit
+ * @summary Get short-timeframe scalp signals
+ */
+export const GetScalpSignalsResponseItem = zod.object({
+  "symbol": zod.string(),
+  "asset": zod.string(),
+  "direction": zod.enum(['LONG', 'SHORT', 'NEUTRAL']),
+  "confidence": zod.enum(['HIGH', 'MEDIUM', 'LOW']),
+  "score": zod.number(),
+  "price": zod.number(),
+  "changePercent": zod.number(),
+  "rsi": zod.number(),
+  "emaFast": zod.number(),
+  "emaSlow": zod.number(),
+  "atr": zod.number(),
+  "entry": zod.number(),
+  "stopLoss": zod.number(),
+  "takeProfit": zod.number(),
+  "riskReward": zod.number(),
+  "reasons": zod.array(zod.string())
+})
+export const GetScalpSignalsResponse = zod.array(GetScalpSignalsResponseItem)
+
+
+/**
+ * Returns Polymarket crypto markets resolving within 48 hours, sorted soonest-first
+ * @summary Get short-term crypto prediction markets
+ */
+export const GetShortTermMarketsResponseItem = zod.object({
+  "conditionId": zod.string(),
+  "question": zod.string(),
+  "yesPrice": zod.number(),
+  "noPrice": zod.number(),
+  "yesProbabilityPercent": zod.number(),
+  "targetPrice": zod.number().nullable(),
+  "active": zod.boolean(),
+  "endDate": zod.string().nullish(),
+  "volume": zod.number().nullish(),
+  "volume24hr": zod.number().nullish().describe('24-hour trading volume in USDT'),
+  "assetTag": zod.string().describe('Which asset this market relates to e.g. BTC, ETH'),
+  "category": zod.string().describe('Broad category: CRYPTO, POLITICS, SPORTS, ECONOMY, TECH, OTHER'),
+  "slug": zod.string().nullish().describe('Polymarket market slug for direct URL linking'),
+  "eventSlug": zod.string().nullish().describe('Parent event slug — the correct slug for public polymarket.com\/event URLs'),
+  "oneDayPriceChange": zod.number().nullish().describe('24-hour change in YES probability (price points, e.g. 0.05 = +5pt)'),
+  "liquidity": zod.number().nullish().describe('Market liquidity in USD'),
+  "spread": zod.number().nullish().describe('Bid-ask spread (lower = tighter, more liquid)'),
+  "competitive": zod.number().nullish().describe('Polymarket competitiveness score 0-1 (higher = more two-sided action)')
+})
+export const GetShortTermMarketsResponse = zod.array(GetShortTermMarketsResponseItem)
+
+

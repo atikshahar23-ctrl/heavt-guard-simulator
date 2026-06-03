@@ -5,8 +5,9 @@ description: How the Polymarket data fetching, caching, and filtering pipeline w
 
 ## Rules
 
-- **Cache**: In-memory, 2-minute TTL (`CACHE_TTL_MS = 2 * 60 * 1000`). Single shared `_cachedPages` variable. All filter modes share the same raw page cache.
-- **Pagination**: Follows `next_cursor` up to `MAX_PAGES = 6` pages of 500 each (~3000 raw records). Stops at cursor `"LTE="`.
+- **Cache**: In-memory, 3-minute TTL. Single shared `_cachedPages` variable. All filter modes share the same raw page cache.
+- **Pagination**: Fixed parallel fetch — `TOTAL_PAGES` pages of `PAGE_SIZE` each fetched together via `Promise.all` (currently 20 × 100 ≈ 2000 raw records). Not cursor-based.
+- **Short-term filter**: `maxHoursToEnd` option keeps only markets whose end date is within N hours from now. For an all-crypto short-term feed (e.g. `/crypto/shortterm`) pass `allCategories: true` + `category: "CRYPTO"` so the 4-coin `ASSET_PATTERNS.ALL` regex doesn't drop valid markets (XRP, etc.).
 - **Asset filter**: Word-boundary regex (e.g. `/\bETH\b/i`) to avoid false positives like "FiveThirtyEight". Defined in `ASSET_PATTERNS`.
 - **All-categories mode**: Pass `allCategories: true` to `fetchPolymarketMarkets()` to skip the asset filter entirely and return all markets. Used by the `/api/markets/all` endpoint.
 - **Category detection**: `detectCategory(question)` checks crypto first (most specific for this platform), then politics, sports, economy, tech, other.

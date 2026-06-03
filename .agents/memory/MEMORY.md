@@ -1,7 +1,8 @@
-- [Polymarket fetcher architecture](polymarket-fetcher.md) — in-memory cache (2-min TTL), MAX_PAGES=6 (~3000 markets), word-boundary regex for assets, category detection for all types
+- [Polymarket fetcher architecture](polymarket-fetcher.md) — in-memory cache (3-min TTL), fixed parallel page fetch, word-boundary asset regex, allCategories+maxHoursToEnd for short-term crypto feed
 - [Vite HMR + Orval codegen conflict](vite-orval-hmr.md) — Orval `clean: true` deletes generated files mid-serve; Vite caches the 404. Fix: restart the Vite workflow after codegen.
 - [All-categories browse endpoint](all-categories-endpoint.md) — `/api/markets/all` uses `allCategories: true` flag to skip asset filter; separate from `/api/crypto/polymarket` which is crypto-only
 - [Polymarket filterResolved quirks](polymarket-filter-resolved.md) — end_date_iso is unreliable (all old markets return past dates). Use probability >=0.95 / <=0.05 + active===false to filter. Some old markets stay active:true in Polymarket's API indefinitely.
+- [Scalp signals architecture](scalp-signals.md) — RSI/EMA/ATR/swing on 15m top-30 coins; ATR-sized entry/SL/TP; sanitize klines + in-flight coalescing so one bad candle/hung fetch can't 502 the endpoint.
 - [Gold luxury theme](gold-theme.md) — primary: HSL 43 74% 52% (gold), background: 0 0% 4% (near-black). Scrollbar, sidebar accent line, and text-primary glow use gold. Font: Inter + Space Mono.
 - [Free no-key data sources](free-data-sources.md) — alternative.me F&G, binance.vision 24hr, CoinGecko trending, Google News RSS all work keyless; CryptoCompare/Reddit/CoinDesk don't.
 - [Binance futures geo-block](binance-geoblock.md) — fapi.binance.com returns 451 in deployment region (works in dev); crypto signals vanish in prod. Fall back to non-geo-blocked data-api.binance.vision spot price.

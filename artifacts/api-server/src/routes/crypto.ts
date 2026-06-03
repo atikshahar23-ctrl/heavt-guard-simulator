@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { fetchBinanceData, fetchAllBinanceData } from "../lib/binance";
+import { fetchBinanceData, fetchAllBinanceData, fetchMarketOverview } from "../lib/binance";
 import { fetchPolymarketMarkets, type AssetFilter, type CategoryFilter } from "../lib/polymarket";
 import { fetchMarketMovers } from "../lib/movers";
+import { fetchScalpSignals } from "../lib/scalp";
 import { runScan, buildRecommendations } from "../lib/scanner";
 import {
   GetBinanceDataQueryParams,
@@ -15,6 +16,9 @@ import {
   GetAllMarketsQueryParams,
   GetAllMarketsResponse,
   GetMarketMoversResponse,
+  GetMarketOverviewResponse,
+  GetScalpSignalsResponse,
+  GetShortTermMarketsResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -91,6 +95,46 @@ router.get("/crypto/movers", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "Failed to fetch market movers");
     res.status(502).json({ error: "Failed to fetch market movers" });
+  }
+});
+
+router.get("/crypto/overview", async (req, res): Promise<void> => {
+  try {
+    const overview = await fetchMarketOverview(50);
+    res.json(GetMarketOverviewResponse.parse(overview));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch market overview");
+    res.status(502).json({ error: "Failed to fetch market overview" });
+  }
+});
+
+router.get("/crypto/scalp", async (req, res): Promise<void> => {
+  try {
+    const signals = await fetchScalpSignals({ interval: "15m", coins: 30 });
+    res.json(GetScalpSignalsResponse.parse(signals));
+  } catch (err) {
+    req.log.error({ err }, "Failed to compute scalp signals");
+    res.status(502).json({ error: "Failed to compute scalp signals" });
+  }
+});
+
+router.get("/crypto/shortterm", async (req, res): Promise<void> => {
+  try {
+    const markets = await fetchPolymarketMarkets({
+      allCategories: true,
+      category: "CRYPTO",
+      filterResolved: false,
+      maxHoursToEnd: 48,
+    });
+    markets.sort((a, b) => {
+      const ta = a.endDate ? new Date(a.endDate).getTime() : Infinity;
+      const tb = b.endDate ? new Date(b.endDate).getTime() : Infinity;
+      return ta - tb;
+    });
+    res.json(GetShortTermMarketsResponse.parse(markets));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch short-term markets");
+    res.status(502).json({ error: "Failed to fetch short-term markets" });
   }
 });
 

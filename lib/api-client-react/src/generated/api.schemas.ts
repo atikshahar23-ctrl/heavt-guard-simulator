@@ -279,6 +279,54 @@ export interface MarketMovers {
   news: NewsItem[];
 }
 
+export interface CoinTicker {
+  symbol: string;
+  asset: string;
+  price: number;
+  changePercent: number;
+  high24h: number;
+  low24h: number;
+  quoteVolume: number;
+  trades: number;
+}
+
+export type ScalpSignalDirection = typeof ScalpSignalDirection[keyof typeof ScalpSignalDirection];
+
+
+export const ScalpSignalDirection = {
+  LONG: 'LONG',
+  SHORT: 'SHORT',
+  NEUTRAL: 'NEUTRAL',
+} as const;
+
+export type ScalpSignalConfidence = typeof ScalpSignalConfidence[keyof typeof ScalpSignalConfidence];
+
+
+export const ScalpSignalConfidence = {
+  HIGH: 'HIGH',
+  MEDIUM: 'MEDIUM',
+  LOW: 'LOW',
+} as const;
+
+export interface ScalpSignal {
+  symbol: string;
+  asset: string;
+  direction: ScalpSignalDirection;
+  confidence: ScalpSignalConfidence;
+  score: number;
+  price: number;
+  changePercent: number;
+  rsi: number;
+  emaFast: number;
+  emaSlow: number;
+  atr: number;
+  entry: number;
+  stopLoss: number;
+  takeProfit: number;
+  riskReward: number;
+  reasons: string[];
+}
+
 export type GetBinanceDataParams = {
 /**
  * Trading symbol (e.g. BTCUSDT, ETHUSDT)

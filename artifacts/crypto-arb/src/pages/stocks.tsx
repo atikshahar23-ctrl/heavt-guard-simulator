@@ -4,9 +4,10 @@ import {
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { useRefresh } from "@/contexts/refresh-context";
+import { useFavorites } from "@/contexts/favorites-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  TrendingUp, TrendingDown, Search, RefreshCw, ExternalLink, LineChart, Newspaper, Sparkles,
+  TrendingUp, TrendingDown, Search, RefreshCw, ExternalLink, LineChart, Newspaper, Sparkles, Star,
 } from "lucide-react";
 
 type Outlook = { tone: "bull" | "bear" | "neutral"; verdict: string; detail: string };
@@ -42,6 +43,7 @@ function stockOutlook(s: StockQuote): Outlook {
 
 const CATEGORIES = [
   { key: "ALL", label: "All" },
+  { key: "FAVORITES", label: "★ Favorites" },
   { key: "TECH", label: "Technology" },
   { key: "ENERGY", label: "Energy" },
   { key: "RESOURCES", label: "Resources" },
@@ -83,6 +85,9 @@ function StockRow({ s }: { s: StockQuote }) {
   const view = stockOutlook(s);
   const googleNews = `https://news.google.com/search?q=${encodeURIComponent(`${s.symbol} ${s.name} stock`)}`;
   const yahooNews = `https://finance.yahoo.com/quote/${encodeURIComponent(s.symbol)}/news`;
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favId = `stock:${s.symbol}`;
+  const fav = isFavorite(favId);
 
   return (
     <div className="rounded-lg border border-border bg-card hover:border-primary/30 transition-colors">
@@ -90,6 +95,16 @@ function StockRow({ s }: { s: StockQuote }) {
         {/* Name + symbol */}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleFavorite({ id: favId, kind: "stock", symbol: s.symbol, label: s.name })}
+              className="flex-shrink-0"
+              aria-label="Toggle favorite"
+            >
+              <Star
+                className="h-3.5 w-3.5 transition-colors"
+                style={{ color: fav ? "hsl(43 74% 52%)" : "#52525b", fill: fav ? "hsl(43 74% 52%)" : "transparent" }}
+              />
+            </button>
             <span className="font-mono font-bold text-sm text-foreground">{s.symbol}</span>
             <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground">
               {CATEGORY_LABEL[s.category] ?? s.category}
@@ -172,6 +187,7 @@ export default function StocksPage() {
   const [category, setCategory] = useState<CategoryKey>("ALL");
   const [search, setSearch] = useState("");
   const [countdown, setCountdown] = useState(intervalSeconds);
+  const { isFavorite } = useFavorites();
 
   const { data: stocks, isLoading, isFetching } = useGetStocks({
     query: { queryKey: getGetStocksQueryKey(), refetchInterval: stocksInterval },
@@ -190,9 +206,14 @@ export default function StocksPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (stocks ?? [])
-      .filter((s) => category === "ALL" || s.category === category)
+      .filter((s) =>
+        category === "ALL"
+          ? true
+          : category === "FAVORITES"
+            ? isFavorite(`stock:${s.symbol}`)
+            : s.category === category)
       .filter((s) => !q || s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
-  }, [stocks, category, search]);
+  }, [stocks, category, search, isFavorite]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};

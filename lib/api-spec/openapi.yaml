@@ -276,6 +276,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /crypto/overview:
+    get:
+      operationId: getMarketOverview
+      tags: [crypto]
+      summary: Get the live top-50 coin universe
+      description: Returns the top USDT pairs by 24h quote volume (stablecoins and leveraged tokens excluded) from the Binance public mirror
+      responses:
+        "200":
+          description: Live coin overview
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoinTicker"
+        "502":
+          description: Failed to fetch external data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /crypto/scalp:
+    get:
+      operationId: getScalpSignals
+      tags: [crypto]
+      summary: Get short-timeframe scalp signals
+      description: Computes RSI, EMA(9/21), ATR and swing structure on the 15m timeframe for top coins, returning ranked LONG/SHORT/NEUTRAL signals with entry, stop-loss and take-profit
+      responses:
+        "200":
+          description: Ranked scalp signals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScalpSignal"
+        "502":
+          description: Failed to fetch external data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /crypto/shortterm:
+    get:
+      operationId: getShortTermMarkets
+      tags: [crypto]
+      summary: Get short-term crypto prediction markets
+      description: Returns Polymarket crypto markets resolving within 48 hours, sorted soonest-first
+      responses:
+        "200":
+          description: Near-term crypto markets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PolymarketMarket"
+        "502":
+          description: Failed to fetch external data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -681,3 +747,89 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/NewsItem"
+
+    CoinTicker:
+      type: object
+      required:
+        - symbol
+        - asset
+        - price
+        - changePercent
+        - high24h
+        - low24h
+        - quoteVolume
+        - trades
+      properties:
+        symbol:
+          type: string
+        asset:
+          type: string
+        price:
+          type: number
+        changePercent:
+          type: number
+        high24h:
+          type: number
+        low24h:
+          type: number
+        quoteVolume:
+          type: number
+        trades:
+          type: number
+
+    ScalpSignal:
+      type: object
+      required:
+        - symbol
+        - asset
+        - direction
+        - confidence
+        - score
+        - price
+        - changePercent
+        - rsi
+        - emaFast
+        - emaSlow
+        - atr
+        - entry
+        - stopLoss
+        - takeProfit
+        - riskReward
+        - reasons
+      properties:
+        symbol:
+          type: string
+        asset:
+          type: string
+        direction:
+          type: string
+          enum: [LONG, SHORT, NEUTRAL]
+        confidence:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        score:
+          type: number
+        price:
+          type: number
+        changePercent:
+          type: number
+        rsi:
+          type: number
+        emaFast:
+          type: number
+        emaSlow:
+          type: number
+        atr:
+          type: number
+        entry:
+          type: number
+        stopLoss:
+          type: number
+        takeProfit:
+          type: number
+        riskReward:
+          type: number
+        reasons:
+          type: array
+          items:
+            type: string
