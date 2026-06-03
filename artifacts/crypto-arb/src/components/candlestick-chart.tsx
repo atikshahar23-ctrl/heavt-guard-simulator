@@ -49,6 +49,7 @@ export function CandlestickChart({ symbol }: Props) {
   const [period, setPeriod] = useState<Interval>("5m");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -103,7 +104,8 @@ export function CandlestickChart({ symbol }: Props) {
     if (!seriesRef.current) return;
     setLoading(true);
     setErr(false);
-    fetchKlines(symbol, period)
+    const restInterval = period === "1D" ? "1d" : period;
+    fetchKlines(symbol, restInterval)
       .then((data) => {
         seriesRef.current?.setData(data);
         chartRef.current?.timeScale().fitContent();
@@ -115,22 +117,111 @@ export function CandlestickChart({ symbol }: Props) {
       });
   }, [symbol, period]);
 
+  // Live updates: prefer a zero-cost Binance kline WebSocket (sub-second, browser
+  // direct so no server geo-block). Fall back to REST polling only if the socket
+  // never opens (e.g. blocked network).
   useEffect(() => {
-    const ms = period === "1m" ? 12000 : period === "5m" ? 30000 : 60000;
-    const id = window.setInterval(() => {
-      fetchKlines(symbol, period, 2)
-        .then((data) => {
-          data.forEach((c) => seriesRef.current?.update(c));
-        })
-        .catch(() => {});
-    }, ms);
-    return () => window.clearInterval(id);
+    const sym = (SYMBOL_MAP[symbol] ?? symbol).toLowerCase();
+    const wsInterval = period === "1D" ? "1d" : period;
+    let ws: WebSocket | null = null;
+    let pollId: number | null = null;
+    let reconnectId: number | null = null;
+    let closed = false;
+    setLive(false);
+
+    const startPolling = () => {
+      if (pollId != null) return;
+      const ms = period === "1m" ? 12000 : period === "5m" ? 30000 : 60000;
+      pollId = window.setInterval(() => {
+        fetchKlines(symbol, wsInterval, 2)
+          .then((data) => data.forEach((c) => seriesRef.current?.update(c)))
+          .catch(() => {});
+      }, ms);
+    };
+    const stopPolling = () => {
+      if (pollId != null) {
+        window.clearInterval(pollId);
+        pollId = null;
+      }
+    };
+
+    const connect = () => {
+      if (closed || typeof WebSocket === "undefined") {
+        startPolling();
+        return;
+      }
+      try {
+        ws = new WebSocket(
+          `wss://data-stream.binance.vision/ws/${sym}@kline_${wsInterval}`,
+        );
+      } catch {
+        startPolling();
+        return;
+      }
+      ws.onopen = () => {
+        stopPolling();
+        setLive(true);
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data as string) as {
+            k?: { t: number; o: string; h: string; l: string; c: string };
+          };
+          const k = msg.k;
+          if (!k) return;
+          seriesRef.current?.update({
+            time: Math.floor(k.t / 1000) as UTCTimestamp,
+            open: parseFloat(k.o),
+            high: parseFloat(k.h),
+            low: parseFloat(k.l),
+            close: parseFloat(k.c),
+          });
+        } catch {
+          /* ignore malformed frame */
+        }
+      };
+      ws.onclose = () => {
+        setLive(false);
+        if (closed) return;
+        startPolling();
+        reconnectId = window.setTimeout(connect, 3000);
+      };
+      ws.onerror = () => {
+        try {
+          ws?.close();
+        } catch {
+          /* noop */
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      stopPolling();
+      if (reconnectId != null) window.clearTimeout(reconnectId);
+      try {
+        ws?.close();
+      } catch {
+        /* noop */
+      }
+    };
   }, [symbol, period]);
 
   return (
     <div className="flex flex-col h-full bg-[hsl(0_0%_4%)]">
       <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border shrink-0 bg-card/20">
         <span className="text-[10px] font-mono text-muted-foreground mr-2 uppercase tracking-widest">Chart</span>
+        <span
+          className={`flex items-center gap-1 mr-2 text-[9px] font-mono font-bold uppercase tracking-wider ${
+            live ? "text-emerald-400" : "text-muted-foreground"
+          }`}
+          title={live ? "Live WebSocket stream" : "Polling fallback"}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50"}`} />
+          {live ? "LIVE" : "···"}
+        </span>
         {INTERVALS.map((iv) => (
           <button
             key={iv}

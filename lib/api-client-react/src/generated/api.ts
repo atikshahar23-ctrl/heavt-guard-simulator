@@ -23,6 +23,7 @@ import type {
   GetBinanceDataParams,
   GetPolymarketMarketsParams,
   GetScanResultsParams,
+  GetStockKlinesParams,
   HealthStatus,
   MarketMovers,
   MomentumCoin,
@@ -30,6 +31,7 @@ import type {
   Recommendation,
   ScalpSignal,
   ScanResult,
+  StockCandle,
   StockQuote,
   StockRecommendation
 } from './api.schemas';
@@ -608,6 +610,91 @@ export function useGetStocks<TData = Awaited<ReturnType<typeof getStocks>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStocksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStockKlinesUrl = (params: GetStockKlinesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/stocks/klines?${stringifiedParams}` : `/api/stocks/klines`
+}
+
+/**
+ * Server-side proxy of Yahoo Finance chart data (avoids browser CORS) returning candlesticks for one symbol
+ * @summary Get OHLC candles for a single stock
+ */
+export const getStockKlines = async (params: GetStockKlinesParams, options?: RequestInit): Promise<StockCandle[]> => {
+
+  return customFetch<StockCandle[]>(getGetStockKlinesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockKlinesQueryKey = (params?: GetStockKlinesParams,) => {
+    return [
+    `/api/stocks/klines`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStockKlinesQueryOptions = <TData = Awaited<ReturnType<typeof getStockKlines>>, TError = ErrorType<ErrorResponse>>(params: GetStockKlinesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStockKlines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockKlinesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockKlines>>> = ({ signal }) => getStockKlines(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockKlines>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStockKlinesQueryResult = NonNullable<Awaited<ReturnType<typeof getStockKlines>>>
+export type GetStockKlinesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get OHLC candles for a single stock
+ */
+
+export function useGetStockKlines<TData = Awaited<ReturnType<typeof getStockKlines>>, TError = ErrorType<ErrorResponse>>(
+ params: GetStockKlinesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStockKlines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStockKlinesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

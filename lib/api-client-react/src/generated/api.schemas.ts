@@ -196,6 +196,17 @@ export interface StockQuote {
   fetchedAt: string;
 }
 
+export interface StockCandle {
+  /** Candle open time in epoch seconds */
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  /** @nullable */
+  volume?: number | null;
+}
+
 export type StockRecommendationCategory = typeof StockRecommendationCategory[keyof typeof StockRecommendationCategory];
 
 
@@ -436,4 +447,19 @@ export const GetAllMarketsCategory = {
   TECH: 'TECH',
   OTHER: 'OTHER',
 } as const;
+
+export type GetStockKlinesParams = {
+/**
+ * Stock ticker, e.g. AAPL
+ */
+symbol: string;
+/**
+ * Yahoo range, e.g. 1d, 5d, 1mo, 6mo, 1y (default 1mo)
+ */
+range?: string;
+/**
+ * Yahoo interval, e.g. 5m, 15m, 1h, 1d (default 1d)
+ */
+interval?: string;
+};
 

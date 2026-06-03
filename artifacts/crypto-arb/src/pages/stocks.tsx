@@ -7,8 +7,9 @@ import { useRefresh } from "@/contexts/refresh-context";
 import { useFavorites } from "@/contexts/favorites-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  TrendingUp, TrendingDown, Search, RefreshCw, ExternalLink, LineChart, Newspaper, Sparkles, Star,
+  TrendingUp, TrendingDown, Search, RefreshCw, LineChart, Newspaper, Sparkles, Star, CandlestickChart,
 } from "lucide-react";
+import { StockDetailPanel } from "@/components/stock-detail-panel";
 
 type Outlook = { tone: "bull" | "bear" | "neutral"; verdict: string; detail: string };
 
@@ -79,9 +80,8 @@ const OUTLOOK_STYLE: Record<Outlook["tone"], string> = {
   neutral: "bg-secondary/50 text-muted-foreground border-border",
 };
 
-function StockRow({ s }: { s: StockQuote }) {
+function StockRow({ s, onOpen }: { s: StockQuote; onOpen: (s: StockQuote) => void }) {
   const up = s.changePercent >= 0;
-  const tvUrl = `https://www.tradingview.com/symbols/${s.tradingViewSymbol}/`;
   const view = stockOutlook(s);
   const googleNews = `https://news.google.com/search?q=${encodeURIComponent(`${s.symbol} ${s.name} stock`)}`;
   const yahooNews = `https://finance.yahoo.com/quote/${encodeURIComponent(s.symbol)}/news`;
@@ -90,13 +90,16 @@ function StockRow({ s }: { s: StockQuote }) {
   const fav = isFavorite(favId);
 
   return (
-    <div className="rounded-lg border border-border bg-card hover:border-primary/30 transition-colors">
+    <div
+      onClick={() => onOpen(s)}
+      className="rounded-lg border border-border bg-card hover:border-primary/30 transition-colors cursor-pointer"
+    >
       <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] items-center gap-3 px-4 pt-3 pb-2.5">
         {/* Name + symbol */}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => toggleFavorite({ id: favId, kind: "stock", symbol: s.symbol, label: s.name })}
+              onClick={(e) => { e.stopPropagation(); toggleFavorite({ id: favId, kind: "stock", symbol: s.symbol, label: s.name }); }}
               className="flex-shrink-0"
               aria-label="Toggle favorite"
             >
@@ -138,15 +141,13 @@ function StockRow({ s }: { s: StockQuote }) {
           <div className="text-[10px] text-muted-foreground font-mono">vol {fmtVolume(s.volume ?? null)}</div>
         </div>
 
-        {/* TradingView link */}
-        <a
-          href={tvUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* Open detail + trade panel */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpen(s); }}
           className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-1.5 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
         >
-          Chart <ExternalLink className="h-3 w-3" />
-        </a>
+          <CandlestickChart className="h-3 w-3" /> Chart & Trade
+        </button>
       </div>
 
       {/* Outlook for coming days + news */}
@@ -162,6 +163,7 @@ function StockRow({ s }: { s: StockQuote }) {
             href={googleNews}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors whitespace-nowrap"
           >
             <Newspaper className="h-3 w-3" /> Google News
@@ -170,6 +172,7 @@ function StockRow({ s }: { s: StockQuote }) {
             href={yahooNews}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors whitespace-nowrap"
           >
             <Newspaper className="h-3 w-3" /> Yahoo
@@ -187,6 +190,7 @@ export default function StocksPage() {
   const [category, setCategory] = useState<CategoryKey>("ALL");
   const [search, setSearch] = useState("");
   const [countdown, setCountdown] = useState(intervalSeconds);
+  const [selected, setSelected] = useState<StockQuote | null>(null);
   const { isFavorite } = useFavorites();
 
   const { data: stocks, isLoading, isFetching } = useGetStocks({
@@ -284,9 +288,11 @@ export default function StocksPage() {
         <div className="text-center py-16 text-muted-foreground text-sm">No stocks match your filters.</div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((s) => <StockRow key={s.symbol} s={s} />)}
+          {filtered.map((s) => <StockRow key={s.symbol} s={s} onOpen={setSelected} />)}
         </div>
       )}
+
+      {selected && <StockDetailPanel stock={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

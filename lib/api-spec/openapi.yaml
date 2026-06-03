@@ -212,6 +212,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /stocks/klines:
+    get:
+      operationId: getStockKlines
+      tags: [stocks]
+      summary: Get OHLC candles for a single stock
+      description: Server-side proxy of Yahoo Finance chart data (avoids browser CORS) returning candlesticks for one symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Stock ticker, e.g. AAPL
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Yahoo range, e.g. 1d, 5d, 1mo, 6mo, 1y (default 1mo)"
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Yahoo interval, e.g. 5m, 15m, 1h, 1d (default 1d)"
+      responses:
+        "200":
+          description: OHLC candles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockCandle"
+        "400":
+          description: Missing or invalid symbol
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Failed to fetch candles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /stocks/recommendations:
     get:
       operationId: getStockRecommendations
@@ -633,6 +680,29 @@ components:
           description: Symbol formatted for TradingView links (dot notation for class shares)
         fetchedAt:
           type: string
+
+    StockCandle:
+      type: object
+      required:
+        - time
+        - open
+        - high
+        - low
+        - close
+      properties:
+        time:
+          type: integer
+          description: Candle open time in epoch seconds
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        volume:
+          type: ["number", "null"]
 
     StockRecommendation:
       type: object

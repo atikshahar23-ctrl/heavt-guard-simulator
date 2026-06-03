@@ -279,6 +279,100 @@ export function invalidateStockCache(): void {
   _cacheExpiresAt = 0;
 }
 
+// ── Candlesticks (Yahoo chart proxy) ─────────────────────────────────────────
+
+export interface StockCandle {
+  time: number; // epoch seconds (candle open)
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+}
+
+const VALID_RANGE = new Set(["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"]);
+const VALID_INTERVAL = new Set(["1m", "5m", "15m", "30m", "1h", "1d", "1wk"]);
+
+// Yahoo only allows intraday intervals for short ranges; pick a sane default per range.
+function defaultIntervalFor(range: string): string {
+  if (range === "1d") return "5m";
+  if (range === "5d") return "15m";
+  if (range === "1mo") return "1d";
+  return "1d";
+}
+
+const _klineCache = new Map<string, { data: StockCandle[]; expiresAt: number }>();
+const KLINE_TTL_MS = 20 * 1000;
+
+export async function fetchStockKlines(
+  symbol: string,
+  range = "1mo",
+  interval?: string,
+): Promise<StockCandle[]> {
+  const sym = symbol.trim().toUpperCase();
+  if (!/^[A-Z0-9.\-^]{1,12}$/.test(sym)) throw new Error("Invalid symbol");
+  const r = VALID_RANGE.has(range) ? range : "1mo";
+  const iv = interval && VALID_INTERVAL.has(interval) ? interval : defaultIntervalFor(r);
+
+  const cacheKey = `${sym}|${r}|${iv}`;
+  const now = Date.now();
+  const cached = _klineCache.get(cacheKey);
+  if (cached && now < cached.expiresAt) return cached.data;
+
+  const url = `${YAHOO_CHART}/${encodeURIComponent(sym)}?interval=${iv}&range=${r}`;
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!res.ok) throw new Error(`Yahoo chart ${res.status}`);
+
+  const json = (await res.json()) as {
+    chart?: {
+      result?: {
+        timestamp?: number[];
+        indicators?: {
+          quote?: {
+            open?: (number | null)[];
+            high?: (number | null)[];
+            low?: (number | null)[];
+            close?: (number | null)[];
+            volume?: (number | null)[];
+          }[];
+        };
+      }[];
+    };
+  };
+
+  const result = json.chart?.result?.[0];
+  const ts = result?.timestamp ?? [];
+  const q = result?.indicators?.quote?.[0];
+  if (!q || ts.length === 0) throw new Error("No candle data");
+
+  const out: StockCandle[] = [];
+  for (let i = 0; i < ts.length; i++) {
+    const o = q.open?.[i];
+    const h = q.high?.[i];
+    const l = q.low?.[i];
+    const c = q.close?.[i];
+    if (
+      typeof o !== "number" ||
+      typeof h !== "number" ||
+      typeof l !== "number" ||
+      typeof c !== "number"
+    )
+      continue;
+    out.push({
+      time: ts[i],
+      open: o,
+      high: h,
+      low: l,
+      close: c,
+      volume: typeof q.volume?.[i] === "number" ? q.volume[i]! : null,
+    });
+  }
+
+  if (out.length === 0) throw new Error("No valid candles");
+  _klineCache.set(cacheKey, { data: out, expiresAt: now + KLINE_TTL_MS });
+  return out;
+}
+
 // ── Recommendations ───────────────────────────────────────────────────────────
 
 function rangePosition(q: StockQuote): number {

@@ -20,6 +20,7 @@ import { PortfolioProvider } from "@/contexts/portfolio-context";
 import { FavoritesProvider } from "@/contexts/favorites-context";
 import { AutoTraderProvider } from "@/contexts/autotrader-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
+import { LivePriceProvider } from "@/contexts/live-price-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RefreshProvider>
+        <LivePriceProvider>
         <PortfolioProvider>
         <FavoritesProvider>
         <AutoTraderProvider>
@@ -67,6 +69,7 @@ function App() {
         </AutoTraderProvider>
         </FavoritesProvider>
         </PortfolioProvider>
+        </LivePriceProvider>
       </RefreshProvider>
     </QueryClientProvider>
   );

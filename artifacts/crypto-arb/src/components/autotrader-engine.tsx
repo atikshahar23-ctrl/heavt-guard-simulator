@@ -10,6 +10,7 @@ import type { ScalpSignal, MomentumCoin, PolymarketMarket } from "@workspace/api
 import { usePortfolio, type TrailConfig } from "@/contexts/portfolio-context";
 import { useAutoTrader, type ScalpConfidence } from "@/contexts/autotrader-context";
 import { useFavorites } from "@/contexts/favorites-context";
+import { useLivePrices } from "@/contexts/live-price-context";
 import { toast } from "@/hooks/use-toast";
 
 const CONF_RANK: Record<ScalpConfidence, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
@@ -76,6 +77,9 @@ export function AutoTraderEngine() {
   } = usePortfolio();
   const { settings, update } = useAutoTrader();
   const { isFavorite } = useFavorites();
+  // Sub-second crypto prices from the free Binance WebSocket — lets SL/TP and the
+  // pre-liquidation guard react near-instantly instead of waiting on 30s polling.
+  const { get: getLivePrice, version: liveVersion } = useLivePrices();
 
   const { data: overview } = useGetMarketOverview({
     query: { queryKey: getGetMarketOverviewQueryKey(), refetchInterval: 30000, staleTime: 20000 },
@@ -123,6 +127,16 @@ export function AutoTraderEngine() {
   const priceMap: Record<string, number> = {};
   for (const c of overview ?? []) priceMap[c.asset] = c.price;
   for (const s of stocks ?? []) priceMap[s.symbol] = s.price;
+  // Overlay sub-second live crypto prices (freshest wins) for everything we may
+  // need to mark to market — open positions and the polled universe.
+  for (const pos of binancePositions) {
+    const lp = getLivePrice(pos.asset);
+    if (lp) priceMap[pos.asset] = lp.price;
+  }
+  for (const c of overview ?? []) {
+    const lp = getLivePrice(c.asset);
+    if (lp) priceMap[c.asset] = lp.price;
+  }
 
   // ── Risk pipeline: trail → pre-liquidation guard → SL/TP → drawdown kill-switch.
   // Guard runs before SL/TP so a position past its emergency threshold exits as
@@ -172,7 +186,7 @@ export function AutoTraderEngine() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overview, stocks, settings, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll]);
+  }, [overview, stocks, liveVersion, settings, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll]);
 
   // Auto-trade evaluation.
   useEffect(() => {

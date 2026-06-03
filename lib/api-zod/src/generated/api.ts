@@ -206,6 +206,27 @@ export const GetStocksResponse = zod.array(GetStocksResponseItem)
 
 
 /**
+ * Server-side proxy of Yahoo Finance chart data (avoids browser CORS) returning candlesticks for one symbol
+ * @summary Get OHLC candles for a single stock
+ */
+export const GetStockKlinesQueryParams = zod.object({
+  "symbol": zod.coerce.string().describe('Stock ticker, e.g. AAPL'),
+  "range": zod.coerce.string().optional().describe('Yahoo range, e.g. 1d, 5d, 1mo, 6mo, 1y (default 1mo)'),
+  "interval": zod.coerce.string().optional().describe('Yahoo interval, e.g. 5m, 15m, 1h, 1d (default 1d)')
+})
+
+export const GetStockKlinesResponseItem = zod.object({
+  "time": zod.number().describe('Candle open time in epoch seconds'),
+  "open": zod.number(),
+  "high": zod.number(),
+  "low": zod.number(),
+  "close": zod.number(),
+  "volume": zod.number().nullish()
+})
+export const GetStockKlinesResponse = zod.array(GetStockKlinesResponseItem)
+
+
+/**
  * Returns momentum-based BUY/SELL recommendations across the stock universe, ranked by conviction
  * @summary Get ranked stock trade recommendations
  */
