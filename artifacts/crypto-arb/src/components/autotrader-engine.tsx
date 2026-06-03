@@ -4,8 +4,9 @@ import {
   useGetMomentumCoins, getGetMomentumCoinsQueryKey,
   useGetMarketOverview, getGetMarketOverviewQueryKey,
   useGetStocks, getGetStocksQueryKey,
+  useGetShortTermMarkets, getGetShortTermMarketsQueryKey,
 } from "@workspace/api-client-react";
-import type { ScalpSignal, MomentumCoin } from "@workspace/api-client-react";
+import type { ScalpSignal, MomentumCoin, PolymarketMarket } from "@workspace/api-client-react";
 import { usePortfolio, type TrailConfig } from "@/contexts/portfolio-context";
 import { useAutoTrader, type ScalpConfidence } from "@/contexts/autotrader-context";
 import { useFavorites } from "@/contexts/favorites-context";
@@ -14,6 +15,28 @@ import { toast } from "@/hooks/use-toast";
 const CONF_RANK: Record<ScalpConfidence, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
 /** Don't re-open the same asset within this window after an auto action. */
 const COOLDOWN_MS = 10 * 60 * 1000;
+/** Don't re-bet the same Polymarket condition within this window. */
+const POLY_COOLDOWN_MS = 30 * 60 * 1000;
+
+const BTC_RE = /bitcoin|\bbtc\b/i;
+/** Words signalling the YES outcome means BTC goes UP. */
+const UP_RE = /\b(up|above|over|higher|exceed|surpass|reach|hit|greater|more than|at least|≥|>=|new (all[- ]?time )?high|all[- ]?time high|\bath\b|breakout|moon|rise|gain|close higher|end higher)\b/i;
+/** Words signalling the YES outcome means BTC goes DOWN. */
+const DOWN_RE = /\b(down|below|under|lower|dip|drop|fall|crash|less than|fewer|≤|<=|decline|sink|close lower|end lower)\b/i;
+
+/**
+ * Decide whether a market's YES outcome corresponds to BTC moving UP.
+ * Returns true (YES = up), false (YES = down) or null when undecidable.
+ */
+function yesMeansUp(question: string): boolean | null {
+  const up = UP_RE.test(question);
+  const down = DOWN_RE.test(question);
+  if (up && !down) return true;
+  if (down && !up) return false;
+  // "Up or Down" style markets list "up" first → YES = up by convention.
+  if (/up or down|higher or lower/i.test(question)) return true;
+  return null;
+}
 
 /** Normalized trade candidate from any signal source. */
 interface Candidate {
@@ -47,10 +70,11 @@ function realizedPnlToday(history: { pnl: number; closedAt: string }[]): number 
  */
 export function AutoTraderEngine() {
   const {
-    binancePositions, cash, totalDeposited, tradeHistory,
-    openBinancePosition, checkSlTp, updateTrailingStops,
+    binancePositions, stockPositions, polyPositions, cash, totalDeposited, tradeHistory,
+    openBinancePosition, openPolyPosition, closePolyPosition,
+    checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll,
   } = usePortfolio();
-  const { settings } = useAutoTrader();
+  const { settings, update } = useAutoTrader();
   const { isFavorite } = useFavorites();
 
   const { data: overview } = useGetMarketOverview({
@@ -58,6 +82,16 @@ export function AutoTraderEngine() {
   });
   const { data: stocks } = useGetStocks({
     query: { queryKey: getGetStocksQueryKey(), refetchInterval: 30000, staleTime: 20000 },
+  });
+
+  // Same-day crypto prediction markets — only polled while the BTC bot is armed.
+  const { data: shortTerm } = useGetShortTermMarkets({
+    query: {
+      queryKey: getGetShortTermMarketsQueryKey(),
+      refetchInterval: settings.polyEnabled ? 90000 : false,
+      staleTime: 60000,
+      enabled: settings.polyEnabled,
+    },
   });
 
   const useScalp = settings.strategy === "SCALP" || settings.strategy === "BOTH";
@@ -81,18 +115,64 @@ export function AutoTraderEngine() {
   });
 
   const cooldownRef = useRef<Record<string, number>>({});
+  const polyCooldownRef = useRef<Record<string, number>>({});
+  /** Running peak of total equity, for the max-drawdown kill-switch. */
+  const equityPeakRef = useRef<number>(0);
 
   // Build a live price map (crypto + stocks); trail first, then SL/TP exits.
   const priceMap: Record<string, number> = {};
   for (const c of overview ?? []) priceMap[c.asset] = c.price;
   for (const s of stocks ?? []) priceMap[s.symbol] = s.price;
 
+  // ── Risk pipeline: trail → pre-liquidation guard → SL/TP → drawdown kill-switch.
+  // Guard runs before SL/TP so a position past its emergency threshold exits as
+  // "LIQ" rather than slipping through as an ordinary SL.
   useEffect(() => {
     if (Object.keys(priceMap).length === 0) return;
     updateTrailingStops(priceMap);
+    if (settings.catastrophicExitEnabled) {
+      checkRiskGuards(priceMap, settings.maxLossPerTradePct);
+    }
     checkSlTp(priceMap);
+
+    // Portfolio kill-switch: track equity peak, flatten everything once the
+    // drawdown from that peak crosses the configured (unrecoverable) threshold.
+    if (settings.portfolioStopEnabled) {
+      let equity = cash;
+      for (const pos of binancePositions) {
+        const price = priceMap[pos.asset];
+        if (!price) { equity += pos.notional / pos.leverage; continue; }
+        const delta = pos.direction === "LONG"
+          ? (price - pos.entryPrice) / pos.entryPrice
+          : (pos.entryPrice - price) / pos.entryPrice;
+        equity += Math.max(0, pos.notional / pos.leverage + delta * pos.notional);
+      }
+      for (const pos of stockPositions) {
+        const price = priceMap[pos.symbol];
+        if (!price) { equity += pos.cost; continue; }
+        equity += Math.max(0, pos.cost + pos.shares * (price - pos.entryPrice));
+      }
+
+      if (equity > equityPeakRef.current) equityPeakRef.current = equity;
+      const peak = equityPeakRef.current;
+      const ddPct = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
+      const hasRisk = binancePositions.length > 0 || stockPositions.length > 0;
+
+      if (hasRisk && ddPct >= settings.portfolioMaxDrawdownPct) {
+        const closed = flattenAll(priceMap);
+        if (closed > 0) {
+          // Disarm so the engine can't immediately re-open into the crash.
+          update({ enabled: false });
+          toast({
+            variant: "destructive",
+            title: "Kill-switch · book flattened",
+            description: `Drawdown ${ddPct.toFixed(1)}% ≥ ${settings.portfolioMaxDrawdownPct}% — closed ${closed} position(s) and disarmed the auto-trader.`,
+          });
+        }
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overview, stocks, checkSlTp, updateTrailingStops]);
+  }, [overview, stocks, settings, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll]);
 
   // Auto-trade evaluation.
   useEffect(() => {
@@ -197,6 +277,94 @@ export function AutoTraderEngine() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signals, momentum, settings, cash, binancePositions, isFavorite, totalDeposited, tradeHistory]);
+
+  // ── Polymarket BTC auto-investor ────────────────────────────────────────────
+  // Focuses purely on same-day Bitcoin up/down markets. Direction comes from the
+  // live BTC 24h move; bets are sized per settings and exited on TP/SL.
+  useEffect(() => {
+    if (!settings.polyEnabled) return;
+
+    // Same-day BTC markets only (crypto feed → keep Bitcoin questions within horizon).
+    const horizonMs = settings.polyHorizonHours * 3600_000;
+    const nowMs = Date.now();
+    const btcMarkets = ((shortTerm ?? []) as PolymarketMarket[]).filter((m) => {
+      if (!BTC_RE.test(m.question)) return false;
+      if (!m.endDate) return false;
+      const ms = new Date(m.endDate).getTime() - nowMs;
+      return ms > 0 && ms <= horizonMs;
+    });
+    const liveById = new Map(btcMarkets.map((m) => [m.conditionId, m]));
+
+    // 1) Manage exits on open BTC bets (TP / SL — the irreversible-bet backstop).
+    for (const pos of polyPositions) {
+      const live = liveById.get(pos.conditionId);
+      if (!live) continue; // can't mark to market without a live quote
+      const price = pos.side === "YES" ? live.yesPrice : live.noPrice;
+      if (!Number.isFinite(price) || price <= 0) continue;
+      const pnlPct = ((price - pos.entryPrice) / pos.entryPrice) * 100;
+      if (pnlPct >= settings.polyTakeProfitPct || pnlPct <= -settings.polyStopLossPct) {
+        closePolyPosition(pos.id, price);
+        polyCooldownRef.current[pos.conditionId] = nowMs;
+        toast({
+          title: `BTC Bet · ${pnlPct >= 0 ? "Take-profit" : "Stop-loss"}`,
+          description: `${pos.side} @ ${pos.entryPrice.toFixed(2)} → ${price.toFixed(2)} (${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(0)}%)`,
+        });
+      }
+    }
+
+    // 2) Directional bias from the live BTC 24h move.
+    const btc = (overview ?? []).find((c) => c.asset === "BTC");
+    if (!btc) return;
+    const bias = btc.changePercent; // signed 24h %
+    if (Math.abs(bias) < settings.polyMinBiasPct) return;
+    const bullish = bias > 0;
+
+    if (settings.polyStakePerBet <= 0) return;
+    let openBets = polyPositions.length;
+    let availableCash = cash;
+    const openConditions = new Set(polyPositions.map((p) => p.conditionId));
+
+    // Rank candidates: liquid first, odds not already near-resolved.
+    const candidates = btcMarkets
+      .filter((m) => !openConditions.has(m.conditionId))
+      .filter((m) => nowMs - (polyCooldownRef.current[m.conditionId] ?? 0) > POLY_COOLDOWN_MS)
+      .sort((a, b) => (b.volume24hr ?? b.volume ?? 0) - (a.volume24hr ?? a.volume ?? 0));
+
+    for (const m of candidates) {
+      if (openBets >= settings.polyMaxOpenBets) break;
+      if (availableCash < settings.polyStakePerBet) break;
+
+      const yesUp = yesMeansUp(m.question);
+      if (yesUp == null) continue; // skip markets we can't classify
+      // Buy the side that expresses our directional view.
+      const side: "YES" | "NO" = bullish ? (yesUp ? "YES" : "NO") : (yesUp ? "NO" : "YES");
+      const entryPrice = side === "YES" ? m.yesPrice : m.noPrice;
+      // Avoid near-resolved odds (no edge / poor payout asymmetry).
+      if (!Number.isFinite(entryPrice) || entryPrice < 0.1 || entryPrice > 0.9) continue;
+
+      const err = openPolyPosition(
+        {
+          conditionId: m.conditionId,
+          question: m.question,
+          category: m.category,
+          slug: m.slug ?? null,
+          side,
+          entryPrice,
+        },
+        settings.polyStakePerBet,
+      );
+      if (err) continue;
+
+      polyCooldownRef.current[m.conditionId] = nowMs;
+      availableCash -= settings.polyStakePerBet;
+      openBets += 1;
+      toast({
+        title: `BTC Bet · ${side} (${bullish ? "bullish" : "bearish"})`,
+        description: `$${settings.polyStakePerBet} @ ${entryPrice.toFixed(2)} · ${m.question.slice(0, 80)}`,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shortTerm, overview, settings, polyPositions, cash]);
 
   return null;
 }

@@ -72,8 +72,8 @@ export interface ClosedTrade {
   openedAt?: string;
   /** Closed by an automatic SL/TP trigger or auto-traded position. */
   auto?: boolean;
-  /** How the close happened: manual / SL / TP. */
-  exit?: "MANUAL" | "SL" | "TP";
+  /** How the close happened: manual / SL / TP / LIQ (emergency risk exit). */
+  exit?: "MANUAL" | "SL" | "TP" | "LIQ";
 }
 
 interface PortfolioState {
@@ -105,6 +105,18 @@ interface PortfolioContextValue extends PortfolioState {
   checkSlTp: (prices: Record<string, number>) => void;
   /** Ratchet trailing stops on Binance positions toward the favorable price. */
   updateTrailingStops: (prices: Record<string, number>) => void;
+  /**
+   * Emergency pre-liquidation guard: force-close any leveraged Binance position
+   * whose unrealized loss has eaten this fraction (%) of its posted margin,
+   * before the exchange would liquidate it. Closes are tagged exit:"LIQ".
+   */
+  checkRiskGuards: (prices: Record<string, number>, maxLossPerTradePct: number) => void;
+  /**
+   * Portfolio kill-switch: immediately close every open Binance + stock position
+   * at the supplied prices (positions without a price are left untouched).
+   * Returns the number of positions closed.
+   */
+  flattenAll: (prices: Record<string, number>) => number;
   resetPortfolio: () => void;
 }
 
@@ -477,6 +489,133 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /**
+   * Emergency pre-liquidation guard. A leveraged position is liquidated once an
+   * adverse move wipes its margin (≈ 100/leverage % against entry). We exit
+   * earlier — as soon as the unrealized loss has consumed `maxLossPerTradePct`%
+   * of the posted margin — so the situation never becomes unrecoverable. Tagged
+   * exit:"LIQ". Runs after trailing/SL-TP as a last-resort backstop.
+   */
+  const checkRiskGuards = useCallback((prices: Record<string, number>, maxLossPerTradePct: number) => {
+    const lossFrac = maxLossPerTradePct / 100;
+    if (!(lossFrac > 0)) return;
+    setState((prev) => {
+      let changed = false;
+      let binancePositions = prev.binancePositions;
+      let cash = prev.cash;
+      let tradeHistory = prev.tradeHistory;
+
+      for (const pos of prev.binancePositions) {
+        const price = prices[pos.asset];
+        if (!price || !Number.isFinite(price)) continue;
+
+        const margin = pos.notional / pos.leverage;
+        const priceDelta =
+          pos.direction === "LONG"
+            ? (price - pos.entryPrice) / pos.entryPrice
+            : (pos.entryPrice - price) / pos.entryPrice;
+        const pnl = priceDelta * pos.notional;
+        // Only fire on losers whose loss has eaten the configured share of margin.
+        if (pnl >= 0 || -pnl < margin * lossFrac) continue;
+
+        const proceeds = Math.max(0, margin + pnl);
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "BINANCE",
+          description: `LIQ-GUARD ${pos.direction} ${pos.asset} ${pos.leverage}x @ $${price.toLocaleString()} (entry $${pos.entryPrice.toLocaleString()})`,
+          cost: margin,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "LIQ",
+        };
+
+        binancePositions = binancePositions.filter((p) => p.id !== pos.id);
+        cash = cash + proceeds;
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        changed = true;
+      }
+
+      if (!changed) return prev;
+      return { ...prev, binancePositions, cash, tradeHistory };
+    });
+  }, []);
+
+  /**
+   * Portfolio kill-switch. Closes every open Binance + stock position at the
+   * supplied live prices (positions lacking a price are left in place). Used by
+   * the engine's max-drawdown circuit breaker. Returns the count it flattened.
+   */
+  const flattenAll = useCallback((prices: Record<string, number>) => {
+    // Compute the next book deterministically from the latest committed state
+    // (stateRef) so the returned count is reliable for the caller's disarm
+    // decision, then mirror it into setState.
+    const prev = stateRef.current;
+    let cash = prev.cash;
+    let tradeHistory = prev.tradeHistory;
+    const keptBinance: BinancePosition[] = [];
+    const keptStocks: StockPosition[] = [];
+    let closedCount = 0;
+
+    for (const pos of prev.binancePositions) {
+      const price = prices[pos.asset];
+      if (!price || !Number.isFinite(price)) { keptBinance.push(pos); continue; }
+      const margin = pos.notional / pos.leverage;
+      const priceDelta =
+        pos.direction === "LONG"
+          ? (price - pos.entryPrice) / pos.entryPrice
+          : (pos.entryPrice - price) / pos.entryPrice;
+      const pnl = priceDelta * pos.notional;
+      const proceeds = Math.max(0, margin + pnl);
+      const closed: ClosedTrade = {
+        id: crypto.randomUUID(),
+        type: "BINANCE",
+        description: `KILL-SWITCH ${pos.direction} ${pos.asset} ${pos.leverage}x @ $${price.toLocaleString()} (entry $${pos.entryPrice.toLocaleString()})`,
+        cost: margin,
+        proceeds,
+        pnl,
+        closedAt: new Date().toISOString(),
+        openedAt: pos.openedAt,
+        auto: pos.auto,
+        exit: "LIQ",
+      };
+      tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+      cash += proceeds;
+      closedCount += 1;
+    }
+
+    for (const pos of prev.stockPositions) {
+      const price = prices[pos.symbol];
+      if (!price || !Number.isFinite(price)) { keptStocks.push(pos); continue; }
+      const pnl = pos.shares * (price - pos.entryPrice);
+      const proceeds = Math.max(0, pos.cost + pnl);
+      const closed: ClosedTrade = {
+        id: crypto.randomUUID(),
+        type: "STOCK",
+        description: `KILL-SWITCH ${pos.symbol}${pos.leverage > 1 ? ` ${pos.leverage}x` : ""} ${pos.shares.toFixed(2)} sh @ $${price.toFixed(2)} (entry $${pos.entryPrice.toFixed(2)})`,
+        cost: pos.cost,
+        proceeds,
+        pnl,
+        closedAt: new Date().toISOString(),
+        openedAt: pos.openedAt,
+        auto: pos.auto,
+        exit: "LIQ",
+      };
+      tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+      cash += proceeds;
+      closedCount += 1;
+    }
+
+    if (closedCount === 0) return 0;
+
+    const next = { ...prev, cash, binancePositions: keptBinance, stockPositions: keptStocks, tradeHistory };
+    stateRef.current = next;
+    setState(next);
+    return closedCount;
+  }, []);
+
   const resetPortfolio = useCallback(() => {
     setState({
       cash: STARTING_BALANCE,
@@ -501,6 +640,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         closeStockPosition,
         checkSlTp,
         updateTrailingStops,
+        checkRiskGuards,
+        flattenAll,
         resetPortfolio,
       }}
     >

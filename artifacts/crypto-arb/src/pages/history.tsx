@@ -160,6 +160,7 @@ export default function HistoryPage() {
   function exit(t: ClosedTrade) {
     if (t.exit === "TP") return { label: "TP", color: "#22c55e" };
     if (t.exit === "SL") return { label: "SL", color: "#ef4444" };
+    if (t.exit === "LIQ") return { label: "LIQ", color: "#f59e0b" };
     return { label: "Manual", color: "#a1a1aa" };
   }
 

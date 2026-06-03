@@ -3,7 +3,7 @@ import { useGetScalpSignals, getGetScalpSignalsQueryKey } from "@workspace/api-c
 import type { ScalpSignal } from "@workspace/api-client-react";
 import {
   Zap, TrendingUp, TrendingDown, Minus, RefreshCw, Target, Shield, LogIn, Star,
-  Wallet, Bot, Settings2,
+  Wallet, Bot, Settings2, ShieldAlert,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -423,8 +423,45 @@ function AutoTraderPanel() {
             </div>
           )}
 
+          {/* ── Risk Guardian — highest-level capital protection ── */}
+          <div className="sm:col-span-2 mt-1 flex items-center gap-2">
+            <ShieldAlert className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-primary">Risk Guardian</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          <div className="flex items-center justify-between rounded bg-secondary/30 px-2.5 py-2 sm:col-span-2">
+            <span className="text-[11px] font-mono text-foreground">Pre-liquidation emergency exit</span>
+            <Switch checked={settings.catastrophicExitEnabled} onCheckedChange={(v) => update({ catastrophicExitEnabled: v })} />
+          </div>
+
+          {settings.catastrophicExitEnabled && (
+            <div className="space-y-1.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Force-exit at loss of margin</label>
+                <span className="font-mono text-xs font-bold text-red-400">{settings.maxLossPerTradePct}%</span>
+              </div>
+              <Slider value={[settings.maxLossPerTradePct]} min={30} max={95} step={5} onValueChange={(v) => update({ maxLossPerTradePct: v[0] })} />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between rounded bg-secondary/30 px-2.5 py-2 sm:col-span-2">
+            <span className="text-[11px] font-mono text-foreground">Portfolio kill-switch (max drawdown)</span>
+            <Switch checked={settings.portfolioStopEnabled} onCheckedChange={(v) => update({ portfolioStopEnabled: v })} />
+          </div>
+
+          {settings.portfolioStopEnabled && (
+            <div className="space-y-1.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Flatten everything at drawdown</label>
+                <span className="font-mono text-xs font-bold text-red-400">{settings.portfolioMaxDrawdownPct}%</span>
+              </div>
+              <Slider value={[settings.portfolioMaxDrawdownPct]} min={5} max={60} step={5} onValueChange={(v) => update({ portfolioMaxDrawdownPct: v[0] })} />
+            </div>
+          )}
+
           <p className="sm:col-span-2 text-[9px] font-mono text-amber-400/80 leading-snug">
-            ⚠ Demo-only automation. Opens paper positions with virtual funds; 10-min cooldown per asset, exits on signal SL/TP or trailing stop.
+            ⚠ Demo-only automation. Opens paper positions with virtual funds; 10-min cooldown per asset, exits on signal SL/TP or trailing stop. The Risk Guardian force-closes losers before liquidation and flattens the book on a catastrophic drawdown.
           </p>
         </div>
       )}

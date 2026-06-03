@@ -33,6 +33,32 @@ export interface AutoTraderSettings {
   dailyStopEnabled: boolean;
   /** Daily max realized loss as a percent of deposited equity. */
   dailyMaxLossPct: number;
+
+  /* ── Risk Guardian (highest-level capital protection) ── */
+  /** Force-exit a leveraged position before it can be liquidated. */
+  catastrophicExitEnabled: boolean;
+  /** Emergency exit once a position's unrealized loss eats this % of its margin. */
+  maxLossPerTradePct: number;
+  /** Flatten the entire book when equity drawdown becomes unrecoverable. */
+  portfolioStopEnabled: boolean;
+  /** Max equity drawdown from the running peak (%) before the kill-switch fires. */
+  portfolioMaxDrawdownPct: number;
+
+  /* ── Polymarket BTC auto-investor (same-day up/down bets) ── */
+  /** Master switch for the Bitcoin prediction-market bot. */
+  polyEnabled: boolean;
+  /** USD staked per Polymarket bet. */
+  polyStakePerBet: number;
+  /** Hard cap on simultaneously open Polymarket bets. */
+  polyMaxOpenBets: number;
+  /** Minimum BTC 24h move (abs %) required before the bot takes a directional bet. */
+  polyMinBiasPct: number;
+  /** Only consider BTC markets resolving within this many hours (same-day focus). */
+  polyHorizonHours: number;
+  /** Close a bet once its value is up this % from entry. */
+  polyTakeProfitPct: number;
+  /** Close a bet once its value is down this % from entry (irreversible-bet exit). */
+  polyStopLossPct: number;
 }
 
 export const DEFAULT_SETTINGS: AutoTraderSettings = {
@@ -52,6 +78,19 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   trailDistancePct: 1.0,
   dailyStopEnabled: false,
   dailyMaxLossPct: 10,
+
+  catastrophicExitEnabled: true,
+  maxLossPerTradePct: 80,
+  portfolioStopEnabled: false,
+  portfolioMaxDrawdownPct: 25,
+
+  polyEnabled: false,
+  polyStakePerBet: 25,
+  polyMaxOpenBets: 4,
+  polyMinBiasPct: 0.6,
+  polyHorizonHours: 24,
+  polyTakeProfitPct: 40,
+  polyStopLossPct: 50,
 };
 
 const STORAGE_KEY = "arb_scan_autotrader";

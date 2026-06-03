@@ -15,12 +15,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { useState, useCallback } from "react";
-import { Search, X, ExternalLink, TrendingUp, TrendingDown, ChevronRight, FlaskConical, Trophy, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Search, X, ExternalLink, TrendingUp, TrendingDown, ChevronRight, FlaskConical, Trophy, AlertCircle, CheckCircle2, Bot } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePortfolio } from "@/contexts/portfolio-context";
+import { useAutoTrader } from "@/contexts/autotrader-context";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -319,6 +322,114 @@ function DemoTradePanel({ market, onClose }: DemoPanelProps) {
   );
 }
 
+/* ─── Bitcoin auto-investor panel ──────────────────────────── */
+
+function BtcBetBot() {
+  const { settings, update } = useAutoTrader();
+  const { polyPositions } = usePortfolio();
+  const openBets = polyPositions.length;
+  const armed = settings.polyEnabled;
+
+  return (
+    <Card
+      className="border-border transition-colors"
+      style={{ borderColor: armed ? "hsl(43 74% 52% / 0.5)" : undefined }}
+    >
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="h-8 w-8 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: armed ? "hsl(43 74% 52% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
+            >
+              <Bot className="h-4 w-4" style={{ color: armed ? "hsl(43 74% 52%)" : "#71717a" }} />
+            </div>
+            <div className="min-w-0">
+              <CardTitle className="text-sm flex items-center gap-2">
+                Bitcoin Auto-Investor
+                <span
+                  className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: armed ? "hsl(43 74% 52% / 0.15)" : "hsl(0 0% 100% / 0.06)",
+                    color: armed ? "hsl(43 74% 52%)" : "#71717a",
+                  }}
+                >
+                  {armed ? "ARMED" : "OFF"}
+                </span>
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                {armed
+                  ? `Same-day BTC up/down bets from live momentum · ${openBets} open`
+                  : "Auto-bets same-day Bitcoin up/down markets"}
+              </p>
+            </div>
+          </div>
+          <Switch checked={settings.polyEnabled} onCheckedChange={(v) => update({ polyEnabled: v })} />
+        </div>
+      </CardHeader>
+
+      {armed && (
+        <CardContent className="px-4 pb-4 pt-0 grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Stake / bet (USD)</label>
+            <Input
+              type="number"
+              value={settings.polyStakePerBet}
+              min={1}
+              className="h-8 bg-secondary/30 font-mono text-sm"
+              onChange={(e) => update({ polyStakePerBet: Math.max(1, Number(e.target.value)) })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Max open bets</label>
+            <Input
+              type="number"
+              value={settings.polyMaxOpenBets}
+              min={1}
+              className="h-8 bg-secondary/30 font-mono text-sm"
+              onChange={(e) => update({ polyMaxOpenBets: Math.max(1, Math.min(20, Number(e.target.value))) })}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Min BTC bias</label>
+              <span className="font-mono text-xs font-bold text-primary">{settings.polyMinBiasPct}%</span>
+            </div>
+            <Slider value={[settings.polyMinBiasPct]} min={0} max={5} step={0.1} onValueChange={(v) => update({ polyMinBiasPct: v[0] })} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Horizon</label>
+              <span className="font-mono text-xs font-bold text-primary">{settings.polyHorizonHours}h</span>
+            </div>
+            <Slider value={[settings.polyHorizonHours]} min={6} max={48} step={6} onValueChange={(v) => update({ polyHorizonHours: v[0] })} />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Take-profit</label>
+              <span className="font-mono text-xs font-bold text-emerald-400">+{settings.polyTakeProfitPct}%</span>
+            </div>
+            <Slider value={[settings.polyTakeProfitPct]} min={10} max={150} step={5} onValueChange={(v) => update({ polyTakeProfitPct: v[0] })} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Stop-loss</label>
+              <span className="font-mono text-xs font-bold text-red-400">-{settings.polyStopLossPct}%</span>
+            </div>
+            <Slider value={[settings.polyStopLossPct]} min={10} max={90} step={5} onValueChange={(v) => update({ polyStopLossPct: v[0] })} />
+          </div>
+
+          <p className="col-span-2 text-[9px] font-mono text-amber-400/80 leading-snug">
+            ⚠ Demo-only. Bets paper money on same-day Bitcoin markets — buys the up/down side aligned with BTC's 24h move, skips near-resolved odds, exits on TP/SL. 30-min cooldown per market.
+          </p>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 /* ─── Main Page ────────────────────────────────────────────── */
 
 export default function Markets() {
@@ -370,6 +481,8 @@ export default function Markets() {
               />
             </div>
           </div>
+
+          <BtcBetBot />
 
           <Card className="border-border">
             <CardHeader className="py-3 px-4">
