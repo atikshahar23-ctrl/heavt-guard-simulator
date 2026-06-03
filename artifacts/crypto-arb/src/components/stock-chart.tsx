@@ -80,12 +80,19 @@ export function StockChart({ symbol }: Props) {
     });
     seriesRef.current = series;
 
+    let disposed = false;
     const ro = new ResizeObserver(() => {
-      if (el) chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+      if (disposed || !el) return;
+      try {
+        chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+      } catch {
+        // chart was disposed between the resize event and this callback
+      }
     });
     ro.observe(el);
 
     return () => {
+      disposed = true;
       ro.disconnect();
       chart.remove();
       chartRef.current = null;

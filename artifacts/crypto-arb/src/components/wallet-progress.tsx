@@ -104,17 +104,22 @@ export function WalletProgress() {
       chart.timeScale().fitContent();
     }
 
+    let disposed = false;
     const ro = new ResizeObserver(() => {
-      if (containerRef.current) {
+      if (disposed || !containerRef.current) return;
+      try {
         chart.applyOptions({
           width: containerRef.current.clientWidth,
           height: containerRef.current.clientHeight || 200,
         });
+      } catch {
+        // chart was disposed between the resize event and this callback
       }
     });
     ro.observe(containerRef.current);
 
     return () => {
+      disposed = true;
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
