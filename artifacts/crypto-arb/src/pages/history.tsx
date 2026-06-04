@@ -81,7 +81,6 @@ function OpenPositions() {
   }, [overview]);
 
   const total = binancePositions.length + stockPositions.length + polyPositions.length;
-  if (total === 0) return null;
 
   // Group by bot
   const cryptoByBot = useMemo(() => {
@@ -103,6 +102,9 @@ function OpenPositions() {
     }
     return groups;
   }, [stockPositions]);
+
+  // Early return must come after all hooks (Rules of Hooks).
+  if (total === 0) return null;
 
   return (
     <div className="space-y-4">
