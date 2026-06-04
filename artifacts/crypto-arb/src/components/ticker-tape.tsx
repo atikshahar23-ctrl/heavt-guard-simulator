@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { useGetMarketOverview, getGetMarketOverviewQueryKey } from "@workspace/api-client-react";
+import {
+  useGetMarketOverview,
+  getGetMarketOverviewQueryKey,
+  useGetStocks,
+  getGetStocksQueryKey,
+} from "@workspace/api-client-react";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { TrendingUp, TrendingDown, Pause, Play } from "lucide-react";
 
@@ -9,22 +14,50 @@ function fmtPrice(p: number): string {
   return p.toFixed(4);
 }
 
+type Tick = { key: string; label: string; price: number; changePercent: number; kind: "index" | "stock" | "crypto" };
+
+/** Central large-caps to surface in the tape, in display order. */
+const CENTRAL_STOCKS = ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "TSLA", "META", "JPM"];
+
 /**
  * Slim Binance-style scrolling price tape across the top of the workspace.
- * Live WS price wins over the 30s poll; hover pauses the scroll for reading.
+ * Shows major indices, central stocks, and live crypto. Live WS price wins for
+ * crypto; hover or the pause button stops the scroll for reading.
  */
 export function TickerTape() {
   const { data: overview } = useGetMarketOverview({
     query: { queryKey: getGetMarketOverviewQueryKey(), refetchInterval: 30000, staleTime: 20000 },
   });
+  const { data: stocks } = useGetStocks({
+    query: { queryKey: getGetStocksQueryKey(), refetchInterval: 60000, staleTime: 45000 },
+  });
   const { get: getLive } = useLivePrices();
   const [paused, setPaused] = useState(false);
 
-  const coins = (overview ?? []).filter((c) => Number.isFinite(c.price) && c.price > 0);
-  if (coins.length === 0) return null;
+  const indices: Tick[] = (stocks ?? [])
+    .filter((s) => s.category === "INDEX" && Number.isFinite(s.price) && s.price > 0)
+    .map((s) => ({ key: `idx-${s.symbol}`, label: s.name, price: s.price, changePercent: s.changePercent, kind: "index" }));
+
+  const centralStocks: Tick[] = CENTRAL_STOCKS
+    .map((sym) => (stocks ?? []).find((s) => s.symbol === sym))
+    .filter((s): s is NonNullable<typeof s> => !!s && Number.isFinite(s.price) && s.price > 0)
+    .map((s) => ({ key: `stk-${s.symbol}`, label: s.symbol, price: s.price, changePercent: s.changePercent, kind: "stock" }));
+
+  const coins: Tick[] = (overview ?? [])
+    .filter((c) => Number.isFinite(c.price) && c.price > 0)
+    .map((c) => ({
+      key: `crypto-${c.asset}`,
+      label: c.asset,
+      price: getLive(c.asset)?.price ?? c.price,
+      changePercent: c.changePercent,
+      kind: "crypto",
+    }));
+
+  const ticks = [...indices, ...centralStocks, ...coins];
+  if (ticks.length === 0) return null;
 
   // Duplicate the row so the -50% scroll loops seamlessly.
-  const row = [...coins, ...coins];
+  const row = [...ticks, ...ticks];
 
   return (
     <div className="relative z-10 shrink-0 h-8 overflow-hidden border-b border-border/70 bg-[hsl(0_0%_3%)]">
@@ -40,16 +73,16 @@ export function TickerTape() {
         {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
       </button>
       <div className={`ticker-track flex h-full w-max items-center gap-6 whitespace-nowrap px-4${paused ? " ticker-paused" : ""}`}>
-        {row.map((c, i) => {
-          const live = getLive(c.asset)?.price ?? c.price;
-          const up = c.changePercent >= 0;
+        {row.map((t, i) => {
+          const up = t.changePercent >= 0;
           return (
-            <div key={`${c.asset}-${i}`} className="flex items-center gap-1.5 text-[11px] font-mono">
-              <span className="font-bold text-foreground/90 tracking-wide">{c.asset}</span>
-              <span className="text-foreground/70">${fmtPrice(live)}</span>
+            <div key={`${t.key}-${i}`} className="flex items-center gap-1.5 text-[11px] font-mono">
+              {t.kind === "index" && <span className="text-[8px] font-bold text-primary/70 tracking-widest">IDX</span>}
+              <span className="font-bold text-foreground/90 tracking-wide">{t.label}</span>
+              <span className="text-foreground/70">${fmtPrice(t.price)}</span>
               <span className={`flex items-center gap-0.5 font-semibold ${up ? "text-emerald-400" : "text-red-400"}`}>
                 {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {up ? "+" : ""}{c.changePercent.toFixed(2)}%
+                {up ? "+" : ""}{t.changePercent.toFixed(2)}%
               </span>
             </div>
           );

@@ -331,6 +331,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const openPolyPosition = useCallback(
     (market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">, amountUsd: number) => {
       if (amountUsd <= 0) return "Amount must be positive";
+      if (!Number.isFinite(market.entryPrice) || market.entryPrice <= 0 || market.entryPrice >= 1)
+        return "Invalid market price";
       if (stateRef.current.cash < amountUsd) return "Insufficient balance";
       const shares = amountUsd / market.entryPrice;
       const position: PolyPosition = {

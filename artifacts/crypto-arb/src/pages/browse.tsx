@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useGetAllMarkets, getGetAllMarketsQueryKey, GetAllMarketsCategory } from "@workspace/api-client-react";
-import { ExternalLink, Search, Globe, X, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import { useGetAllMarkets, getGetAllMarketsQueryKey, GetAllMarketsCategory, PolymarketMarket } from "@workspace/api-client-react";
+import { ExternalLink, Search, Globe, X, RefreshCw, ChevronUp, ChevronDown, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { usePortfolio } from "@/contexts/portfolio-context";
+import { toast } from "@/hooks/use-toast";
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   CRYPTO:   { label: "Crypto",    color: "text-orange-400",      bg: "bg-orange-500/15 border-orange-500/25" },
@@ -58,6 +60,38 @@ export default function BrowsePage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeBlocked, setIframeBlocked] = useState(false);
+  const { cash, openPolyPosition } = usePortfolio();
+
+  const placeDemoBet = useCallback((m: PolymarketMarket) => {
+    if (cash < 50) {
+      toast({ title: "אין מספיק מזומן", description: "צריך לפחות $50 פנויים להימור דמו.", variant: "destructive" });
+      return;
+    }
+    const yes = m.yesProbabilityPercent;
+    const side: "YES" | "NO" = yes <= 50 ? "YES" : "NO";
+    const entryPrice = side === "YES" ? m.yesPrice : m.noPrice;
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0 || entryPrice >= 1) {
+      toast({ title: "השוק לא סחיר", description: "המחיר קרוב מדי לסגירה — בחר שוק אחר להימור דמו.", variant: "destructive" });
+      return;
+    }
+    const stake = Math.min(200, Math.max(50, Math.floor(cash * 0.05)));
+    const err = openPolyPosition(
+      {
+        conditionId: m.conditionId,
+        question: m.question,
+        category: m.assetTag || m.category || "OTHER",
+        slug: m.eventSlug ?? m.slug ?? null,
+        side,
+        entryPrice,
+      },
+      stake,
+    );
+    if (err) {
+      toast({ title: "ההימור נכשל", description: err, variant: "destructive" });
+      return;
+    }
+    toast({ title: `הימור דמו נפתח: ${side} · $${stake}`, description: m.question });
+  }, [cash, openPolyPosition]);
 
   const { data: markets, isLoading, isFetching } = useGetAllMarkets(
     { category, search: debouncedSearch || undefined },
@@ -187,7 +221,7 @@ export default function BrowsePage() {
                   >
                     <div className="flex items-center justify-end gap-1">VOLUME <SortIcon field="volume" /></div>
                   </th>
-                  <th className="px-3 py-2 w-10" />
+                  <th className="px-3 py-2 w-28 text-right font-mono text-[10px] tracking-wider text-muted-foreground">הימור דמו</th>
                 </tr>
               </thead>
               <tbody>
@@ -199,7 +233,7 @@ export default function BrowsePage() {
                       <td className="px-3 py-2"><Skeleton className="h-4 w-20 ml-auto" /></td>
                       <td className="px-3 py-2"><Skeleton className="h-4 w-16 ml-auto" /></td>
                       <td className="px-3 py-2"><Skeleton className="h-4 w-16 ml-auto" /></td>
-                      <td className="px-3 py-2" />
+                      <td className="px-3 py-2"><Skeleton className="h-6 w-20 ml-auto" /></td>
                     </tr>
                   ))
                 ) : sorted.length === 0 ? (
@@ -242,17 +276,26 @@ export default function BrowsePage() {
                               : `$${m.volume.toFixed(0)}`
                           : "-"}
                       </td>
-                      <td className="px-3 py-2 text-right">
-                        <a
-                          href={m.eventSlug ? `https://polymarket.com/event/${m.eventSlug}` : "https://polymarket.com"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-                          title="Open on Polymarket"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); placeDemoBet(m); }}
+                            className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                            title="פתח הימור דמו (כסף משחק)"
+                          >
+                            <Zap className="h-3 w-3" /> הימור
+                          </button>
+                          <a
+                            href={m.eventSlug ? `https://polymarket.com/event/${m.eventSlug}` : "https://polymarket.com"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                            title="Open on Polymarket"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   ))
