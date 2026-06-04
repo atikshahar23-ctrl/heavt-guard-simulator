@@ -28,7 +28,7 @@ import {
 
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10] as const;
 type Leverage = typeof LEVERAGE_OPTIONS[number];
-const FUTURES_ASSETS = ["BTC", "ETH", "SOL", "BNB"] as const;
+const FUTURES_ASSETS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "LINK", "DOT", "LTC", "TRX"] as const;
 type FuturesAsset = typeof FUTURES_ASSETS[number];
 
 function fmt(n: number, decimals = 2) {

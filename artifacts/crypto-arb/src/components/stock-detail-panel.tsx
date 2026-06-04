@@ -176,7 +176,7 @@ export function StockDetailPanel({ stock: s, onClose }: Props) {
 
           {/* Chart */}
           <div className="h-56">
-            <StockChart symbol={s.symbol} />
+            <StockChart symbol={s.symbol} tvSymbol={s.tradingViewSymbol} />
           </div>
 
           {/* Detailed metrics */}

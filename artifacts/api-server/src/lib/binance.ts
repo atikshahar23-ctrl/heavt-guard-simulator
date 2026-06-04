@@ -19,6 +19,14 @@ export const ASSET_SYMBOLS: Record<string, string> = {
   ETH: "ETHUSDT",
   SOL: "SOLUSDT",
   BNB: "BNBUSDT",
+  XRP: "XRPUSDT",
+  ADA: "ADAUSDT",
+  DOGE: "DOGEUSDT",
+  AVAX: "AVAXUSDT",
+  LINK: "LINKUSDT",
+  DOT: "DOTUSDT",
+  LTC: "LTCUSDT",
+  TRX: "TRXUSDT",
 };
 
 export const ALL_SYMBOLS = Object.entries(ASSET_SYMBOLS);

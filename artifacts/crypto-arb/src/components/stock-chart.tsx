@@ -10,6 +10,7 @@ import {
 } from "lightweight-charts";
 import { useGetStockKlines, getGetStockKlinesQueryKey } from "@workspace/api-client-react";
 import { applyTAOverlays, type TAHandle, autoAnalyze, type AnalysisResult } from "../lib/ta";
+import { TradingViewAdvancedChart } from "./tradingview-advanced-chart";
 
 const RANGES = [
   { key: "1d", label: "1D" },
@@ -23,9 +24,11 @@ type RangeKey = typeof RANGES[number]["key"];
 
 interface Props {
   symbol: string;
+  /** Optional TradingView symbol (e.g. "NASDAQ:AAPL", "BRK.B"). Defaults to `symbol`. */
+  tvSymbol?: string;
 }
 
-export function StockChart({ symbol }: Props) {
+export function StockChart({ symbol, tvSymbol }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -34,13 +37,15 @@ export function StockChart({ symbol }: Props) {
   const [ta, setTa] = useState(true);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [mode, setMode] = useState<"live" | "pro">("live");
 
   const { data, isLoading, isError } = useGetStockKlines(
     { symbol, range },
     {
       query: {
         queryKey: getGetStockKlinesQueryKey({ symbol, range }),
-        refetchInterval: range === "1d" || range === "5d" ? 20000 : 60000,
+        // Pause polling in pro mode — the TradingView widget streams its own data.
+        refetchInterval: mode === "pro" ? false : range === "1d" || range === "5d" ? 20000 : 60000,
         staleTime: 15000,
       },
     },
@@ -139,46 +144,76 @@ export function StockChart({ symbol }: Props) {
     <div className="flex flex-col h-full bg-[hsl(0_0%_4%)] rounded-lg border border-border overflow-hidden">
       <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border shrink-0 bg-card/20">
         <span className="text-[10px] font-mono text-muted-foreground mr-2 uppercase tracking-widest">Chart</span>
-        <button
-          onClick={() => setTa((v) => !v)}
-          title="ניתוח טכני: EMA, תמיכה/התנגדות, איתות קנייה/מכירה"
-          className={`px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors ${
-            ta ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          TA
-        </button>
-        <button
-          onClick={() => {
-            if (data && data.length > 0) {
-              const candles = data.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close }));
-              const result = autoAnalyze(candles, candles[candles.length - 1].close);
-              setAnalysis(result);
-              setShowAnalysis(true);
-            }
-          }}
-          title="ניתוח אוטומטי מוקש: מאגד מגמה חזוקה מכל האינדיקטורים"
-          className="px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors bg-primary/15 text-primary hover:bg-primary/25"
-        >
-          ניתח
-        </button>
-        {RANGES.map((r) => (
+        {/* Live (integrated demo) ↔ Pro (TradingView drawing tools) toggle */}
+        <div className="flex items-center gap-0.5 mr-2 rounded bg-secondary/30 p-0.5">
           <button
-            key={r.key}
-            onClick={() => setRange(r.key)}
-            className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ${
-              range === r.key
-                ? "bg-primary/20 text-primary font-bold"
-                : "text-muted-foreground hover:text-foreground"
+            onClick={() => setMode("live")}
+            title="גרף חי משולב עם הדמו"
+            className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-colors ${
+              mode === "live" ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {r.label}
+            חי
           </button>
-        ))}
+          <button
+            onClick={() => setMode("pro")}
+            title="מצב מקצועי — כלי ציור, אינדיקטורים וניתוח טכני אוטומטי"
+            className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-colors ${
+              mode === "pro" ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            ✏ Pro
+          </button>
+        </div>
+        {mode === "live" && (
+          <>
+            <button
+              onClick={() => setTa((v) => !v)}
+              title="ניתוח טכני: EMA, תמיכה/התנגדות, איתות קנייה/מכירה"
+              className={`px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors ${
+                ta ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              TA
+            </button>
+            <button
+              onClick={() => {
+                if (data && data.length > 0) {
+                  const candles = data.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close }));
+                  const result = autoAnalyze(candles, candles[candles.length - 1].close);
+                  setAnalysis(result);
+                  setShowAnalysis(true);
+                }
+              }}
+              title="ניתוח אוטומטי מוקש: מאגד מגמה חזוקה מכל האינדיקטורים"
+              className="px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors bg-primary/15 text-primary hover:bg-primary/25"
+            >
+              ניתח
+            </button>
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => setRange(r.key)}
+                className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                  range === r.key
+                    ? "bg-primary/20 text-primary font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </>
+        )}
       </div>
       <div className="relative flex-1 min-h-0">
         <div ref={containerRef} className="absolute inset-0" />
-        {isLoading && (
+        {mode === "pro" && (
+          <div className="absolute inset-0 z-20 bg-[hsl(0_0%_4%)]">
+            <TradingViewAdvancedChart tvSymbol={tvSymbol ?? symbol} interval="D" />
+          </div>
+        )}
+        {mode === "live" && isLoading && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-background/60">
             <span className="text-xs font-mono text-muted-foreground animate-pulse">Loading chart…</span>
           </div>
