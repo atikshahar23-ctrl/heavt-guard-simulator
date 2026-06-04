@@ -7,11 +7,14 @@ import {
   Recommendation, StockRecommendation,
 } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
-import { X, Send, Sparkles, ExternalLink, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { useLocation } from "wouter";
+import { X, Send, Sparkles, ExternalLink, Mic, MicOff, Volume2, VolumeX, Zap } from "lucide-react";
 
 interface MsgLink {
   label: string;
   href: string;
+  /** When true the link navigates inside the app (wouter) instead of opening a new tab. */
+  internal?: boolean;
 }
 interface Msg {
   id: string;
@@ -136,6 +139,14 @@ export function Jarvis() {
   });
 
   const { cash, totalDeposited, polyPositions, binancePositions, stockPositions, tradeHistory } = usePortfolio();
+  const [, navigate] = useLocation();
+
+  // Internal "quick demo-trade" link offered alongside each recommendation.
+  const tradeLink = useCallback((kind: "stock" | "crypto"): MsgLink => ({
+    label: lang === "he" ? "מסחר מהיר בדמו" : "Quick demo trade",
+    href: kind === "crypto" ? "/markets" : "/recommendations",
+    internal: true,
+  }), [lang]);
 
   useEffect(() => {
     if (open && scrollRef.current) {
@@ -251,7 +262,7 @@ export function Jarvis() {
         text: he
           ? `המניה החזקה ביותר לקנייה: ${buy.symbol} (${buy.name}) — ביטחון ${buy.confidence}. ${buy.rationale}`
           : `Strongest stock to buy, sir: ${buy.symbol} (${buy.name}) — ${buy.confidence} confidence. ${buy.rationale}`,
-        links: [tvLink(buy.tradingViewSymbol), newsLink(buy.symbol, buy.name)],
+        links: [tradeLink("stock"), tvLink(buy.tradingViewSymbol), newsLink(buy.symbol, buy.name)],
       });
     }
     const inf = (influencers ?? [])[0];
@@ -264,7 +275,7 @@ export function Jarvis() {
         text: he
           ? `כסף חכם: ${inf.influencer} מזיז את ${inf.ticker} (${inf.name}). סיגנל ${inf.direction} בביטחון ${conf}%. "${inf.headline}"`
           : `Smart-Money, sir: ${inf.influencer} is moving ${inf.ticker} (${inf.name}). Signal ${inf.direction} at ${conf}% conviction. "${inf.headline}"`,
-        links: [{ label: he ? "כתבה" : "Article", href: inf.url }, tvLink(inf.ticker.replace(".", ""))],
+        links: [tradeLink("stock"), { label: he ? "כתבה" : "Article", href: inf.url }, tvLink(inf.ticker.replace(".", ""))],
       });
     }
     const crypto = (cryptoRecs ?? []).filter((r) => r.action !== "WATCH")[0];
@@ -277,7 +288,7 @@ export function Jarvis() {
         text: he
           ? `הסיגנל המוביל בקריפטו/פולימרקט: ${dir} על ${crypto.binanceSymbol} (ביטחון ${crypto.confidence}). ${crypto.rationale} יתרון ~${crypto.edge.toFixed(1)} נק', פוטנציאל ${crypto.potentialReturn.toFixed(1)}x.`
           : `Top crypto/Polymarket signal, sir: ${dir} on ${crypto.binanceSymbol} (${crypto.confidence} confidence). ${crypto.rationale} Edge ~${crypto.edge.toFixed(1)} pts, potential ${crypto.potentialReturn.toFixed(1)}x.`,
-        links: [tvLink(crypto.binanceSymbol.replace("USDT", "USD"))],
+        links: [tradeLink("crypto"), tvLink(crypto.binanceSymbol.replace("USDT", "USD"))],
       });
     }
     const sell = topSells[0];
@@ -289,11 +300,11 @@ export function Jarvis() {
         text: he
           ? `כדאי להימנע או לצמצם את ${sell.symbol} (${sell.name}). ${sell.rationale}`
           : `Avoid or consider trimming ${sell.symbol} (${sell.name}), sir. ${sell.rationale}`,
-        links: [tvLink(sell.tradingViewSymbol), newsLink(sell.symbol, sell.name)],
+        links: [tradeLink("stock"), tvLink(sell.tradingViewSymbol), newsLink(sell.symbol, sell.name)],
       });
     }
     return out;
-  }, [topBuys, topSells, cryptoRecs, influencers, lang]);
+  }, [topBuys, topSells, cryptoRecs, influencers, lang, tradeLink]);
 
   const [tipIdx, setTipIdx] = useState(0);
   const [mutedUntil, setMutedUntil] = useState(0);
@@ -366,7 +377,7 @@ export function Jarvis() {
           text: he
             ? `כסף חכם: ${pick.influencer} מזיז את ${pick.ticker} (${pick.name}) — סיגנל ${pick.direction} בביטחון ${conf}% (טווח ${horizonHe(pick.horizon)}). כותרת: "${pick.headline}".`
             : `Smart-Money, sir: ${pick.influencer} is moving ${pick.ticker} (${pick.name}) — signal ${pick.direction} at ${conf}% conviction (${pick.horizon.toLowerCase()}-term). Headline: "${pick.headline}".`,
-          links: [{ label: he ? "כתבה" : "Article", href: pick.url }, tvLink(pick.ticker.replace(".", ""))],
+          links: [tradeLink("stock"), { label: he ? "כתבה" : "Article", href: pick.url }, tvLink(pick.ticker.replace(".", ""))],
         };
       }
 
@@ -405,7 +416,7 @@ export function Jarvis() {
           text: he
             ? `הסיגנל המוביל בקריפטו/פולימרקט: ${dir} על ${pick.binanceSymbol} (ביטחון ${pick.confidence}). ${pick.rationale} יתרון ~${pick.edge.toFixed(1)} נק', פוטנציאל ${pick.potentialReturn.toFixed(1)}x.`
             : `Top crypto/Polymarket signal, sir: ${dir} on ${pick.binanceSymbol} (${pick.confidence} confidence). ${pick.rationale} Edge ~${pick.edge.toFixed(1)} pts, potential ${pick.potentialReturn.toFixed(1)}x.`,
-          links: [tvLink(pick.binanceSymbol.replace("USDT", "USD"))],
+          links: [tradeLink("crypto"), tvLink(pick.binanceSymbol.replace("USDT", "USD"))],
         };
       }
 
@@ -424,7 +435,7 @@ export function Jarvis() {
           text: he
             ? `כדאי להימנע או לצמצם את ${pick.symbol} (${pick.name}). ${pick.rationale}`
             : `Avoid or consider trimming ${pick.symbol} (${pick.name}), sir. ${pick.rationale}`,
-          links: [tvLink(pick.tradingViewSymbol), newsLink(pick.symbol, pick.name)],
+          links: [tradeLink("stock"), tvLink(pick.tradingViewSymbol), newsLink(pick.symbol, pick.name)],
         };
       }
 
@@ -442,7 +453,7 @@ export function Jarvis() {
             text: he
               ? `אין כרגע קנייה בביטחון גבוה במניות. הביצוע החזק ביותר בטווח הקרוב: ${gainer}`
               : `No high-conviction equity BUY at the moment, sir. Best near-term performer: ${gainer}`,
-            links: g ? [tvLink(g.tradingViewSymbol), newsLink(g.symbol, g.name)] : undefined,
+            links: g ? [tradeLink("stock"), tvLink(g.tradingViewSymbol), newsLink(g.symbol, g.name)] : [tradeLink("stock")],
           };
         }
         return {
@@ -450,7 +461,7 @@ export function Jarvis() {
           text: he
             ? `המניה החזקה ביותר לקנייה: ${pick.symbol} (${pick.name}) — ביטחון ${pick.confidence}. ${pick.rationale}`
             : `Strongest equity to buy, sir: ${pick.symbol} (${pick.name}) — ${pick.confidence} confidence. ${pick.rationale}`,
-          links: [tvLink(pick.tradingViewSymbol), newsLink(pick.symbol, pick.name)],
+          links: [tradeLink("stock"), tvLink(pick.tradingViewSymbol), newsLink(pick.symbol, pick.name)],
         };
       }
 
@@ -467,7 +478,7 @@ export function Jarvis() {
       const gl = topGainers.length ? ` Today's leaders: ${leaders}.` : "";
       return { id, role: "jarvis", text: `Market mood is ${moodEn}, sir. Equity signals: ${buys} BUY versus ${sells} SELL.${gl}` };
     },
-    [cryptoRecs, topBuys, topSells, topGainers, influencers, cash, totalDeposited, polyPositions, binancePositions, stockPositions, tradeHistory],
+    [cryptoRecs, topBuys, topSells, topGainers, influencers, cash, totalDeposited, polyPositions, binancePositions, stockPositions, tradeHistory, tradeLink],
   );
 
   const send = useCallback(
@@ -674,12 +685,26 @@ export function Jarvis() {
                     </span>
                   </div>
                   <p dir={lang === "he" ? "rtl" : "ltr"} className="text-[11px] leading-snug text-foreground/85 line-clamp-3">{currentTip.text}</p>
-                  <button
-                    onClick={() => openWithTip(currentTip)}
-                    className="mt-2 inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-                  >
-                    {lang === "he" ? "פרטים" : "View details"} <Send className="h-2.5 w-2.5" />
-                  </button>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => openWithTip(currentTip)}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                    >
+                      {lang === "he" ? "פרטים" : "View details"} <Send className="h-2.5 w-2.5" />
+                    </button>
+                    {(() => {
+                      const trade = currentTip.links?.find((l) => l.internal);
+                      if (!trade) return null;
+                      return (
+                        <button
+                          onClick={() => { dismissTip(); navigate(trade.href); }}
+                          className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                        >
+                          <Zap className="h-2.5 w-2.5" /> {trade.label}
+                        </button>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <button
                   onClick={dismissTip}
@@ -779,17 +804,27 @@ export function Jarvis() {
                   <p dir={(m.lang ?? lang) === "he" ? "rtl" : "ltr"}>{m.text}</p>
                   {m.links && m.links.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {m.links.map((l) => (
-                        <a
-                          key={l.href}
-                          href={l.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
-                        >
-                          {l.label} <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
-                      ))}
+                      {m.links.map((l) =>
+                        l.internal ? (
+                          <button
+                            key={l.href}
+                            onClick={() => { setOpen(false); navigate(l.href); }}
+                            className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <Zap className="h-2.5 w-2.5" /> {l.label}
+                          </button>
+                        ) : (
+                          <a
+                            key={l.href}
+                            href={l.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                          >
+                            {l.label} <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        ),
+                      )}
                     </div>
                   )}
                 </div>

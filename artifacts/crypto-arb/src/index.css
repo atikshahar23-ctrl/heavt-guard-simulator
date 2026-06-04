@@ -304,6 +304,44 @@ textarea:focus-visible,
   animation: jarvis-mouth-speak 0.22s ease-in-out infinite;
 }
 
+/* ── Global money-flow Earth backdrop ── */
+@keyframes earth-spin {
+  to { transform: rotateZ(360deg); }
+}
+.earth-spin {
+  animation: earth-spin 90s linear infinite;
+}
+@keyframes flow-dash {
+  to { stroke-dashoffset: -200; }
+}
+.flow-dash {
+  animation: flow-dash 4s linear infinite;
+}
+.coin-glow {
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* ── Live ticker tape ── */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 38s linear infinite;
+}
+.ticker-track:hover,
+.ticker-track.ticker-paused {
+  animation-play-state: paused;
+}
+
+/* ── Sidebar alien grid sheen ── */
+.alien-grid {
+  background-image:
+    linear-gradient(hsl(190 80% 52% / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(190 80% 52% / 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,

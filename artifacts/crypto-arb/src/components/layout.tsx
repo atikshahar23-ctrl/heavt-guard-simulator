@@ -4,12 +4,17 @@ import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-re
 import { usePortfolio } from "@/contexts/portfolio-context";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
-  TrendingUp, Menu, X, Activity, Gauge, Timer, Star, History, Rocket, Megaphone, Bot, Search,
+  TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { TopControls } from "@/components/top-controls";
 import { WalletSwitcher } from "@/components/wallet-switcher";
+import { EarthBackground } from "@/components/earth-background";
+import { TickerTape } from "@/components/ticker-tape";
 import logoUrl from "@/assets/logo-heavy-guard.png";
+
+type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; extra?: React.ReactNode };
+type NavGroup = { title: string; links: NavLink[] };
 
 function PortfolioMiniBalance() {
   const { cash, polyPositions, binancePositions, stockPositions } = usePortfolio();
@@ -38,66 +43,101 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setSidebarOpen(false);
   }, [location]);
 
-  const links = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/recommendations", label: "Trade Desk", icon: Zap },
-    { href: "/scalp", label: "Scalp Signals", icon: Gauge },
-    { href: "/momentum", label: "Momentum Radar", icon: Rocket },
-    { href: "/quickbets", label: "Quick Bets", icon: Timer },
-    { href: "/stocks", label: "Stocks", icon: TrendingUp },
-    { href: "/smart-money", label: "Smart Money", icon: Megaphone },
-    { href: "/movers", label: "Market Movers", icon: Activity },
-    { href: "/browse", label: "Live Markets", icon: Globe },
-    { href: "/simulator", label: "Simulator", icon: Trophy, extra: <PortfolioMiniBalance /> },
-    { href: "/bots", label: "Bot Command", icon: Bot },
-    { href: "/research", label: "Research Desk", icon: Search },
-    { href: "/history", label: "Trade History", icon: History },
-    { href: "/markets", label: "Crypto Markets", icon: LineChart },
-    { href: "/binance", label: "Binance", icon: CandlestickChart },
+  const groups: NavGroup[] = [
+    {
+      title: "מסחר",
+      links: [
+        { href: "/", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/recommendations", label: "Trade Desk", icon: Zap },
+        { href: "/simulator", label: "Simulator", icon: Trophy, extra: <PortfolioMiniBalance /> },
+        { href: "/bots", label: "Bot Command", icon: Bot },
+      ],
+    },
+    {
+      title: "סיגנלים",
+      links: [
+        { href: "/scalp", label: "Scalp Signals", icon: Gauge },
+        { href: "/momentum", label: "Momentum Radar", icon: Rocket },
+        { href: "/quickbets", label: "Quick Bets", icon: Timer },
+        { href: "/smart-money", label: "Smart Money", icon: Megaphone },
+      ],
+    },
+    {
+      title: "שווקים",
+      links: [
+        { href: "/stocks", label: "Stocks", icon: TrendingUp },
+        { href: "/markets", label: "Crypto Markets", icon: LineChart },
+        { href: "/movers", label: "Market Movers", icon: Activity },
+        { href: "/browse", label: "Live Markets", icon: Globe },
+        { href: "/binance", label: "Binance", icon: CandlestickChart },
+      ],
+    },
+    {
+      title: "כלים",
+      links: [
+        { href: "/research", label: "Research Desk", icon: Search },
+        { href: "/history", label: "Trade History", icon: History },
+      ],
+    },
   ];
 
   const SidebarContent = () => (
     <>
-      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(32 84% 55%), transparent)' }} />
-      <div className="px-5 py-5 short:py-2.5 border-b border-border flex flex-col items-center gap-2 short:gap-1">
+      {/* Alien grid sheen + scanning top edge */}
+      <div className="alien-grid pointer-events-none absolute inset-0 opacity-60" />
+      <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 0%, hsl(190 80% 52% / 0.07), transparent 60%)' }} />
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(190 80% 52%), hsl(32 84% 55%), transparent)' }} />
+
+      <div className="relative px-5 py-5 short:py-2.5 border-b border-border/70 flex flex-col items-center gap-2 short:gap-1">
         <img
           src={logoUrl}
           alt="HEAVY GUARD SYSTEM"
           draggable={false}
-          className="w-36 short:w-20 h-auto select-none transition-all"
+          className="w-32 short:w-20 h-auto select-none transition-all"
           style={{ filter: 'drop-shadow(0 0 14px hsl(32 84% 55% / 0.22))' }}
         />
         <p className="text-[9px] short:text-[8px] text-muted-foreground tracking-[0.32em] uppercase font-mono">Sentinel Terminal</p>
       </div>
-      <nav className="flex-1 p-3 short:p-2 space-y-0.5 overflow-y-auto">
-        {links.map((link) => {
-          const isActive = location === link.href;
-          const Icon = link.icon;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`group flex flex-col px-3 py-2 rounded-md transition-all duration-200 ${
-                isActive
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-              }`}
-              style={isActive ? {
-                background: 'hsl(32 84% 55% / 0.08)',
-                borderLeft: '2px solid hsl(32 84% 55%)',
-                paddingLeft: '10px',
-              } : {}}
-            >
-              <div className="flex items-center gap-3">
-                <Icon className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${isActive ? 'text-primary' : 'group-hover:translate-x-0.5'}`} />
-                <span className={`text-xs font-medium tracking-wide ${isActive ? 'font-semibold' : ''}`}>{link.label}</span>
-              </div>
-              {link.extra}
-            </Link>
-          );
-        })}
+
+      <nav className="relative flex-1 px-2.5 py-3 short:py-2 space-y-3 overflow-y-auto">
+        {groups.map((group) => (
+          <div key={group.title}>
+            <div className="flex items-center gap-2 px-2 mb-1">
+              <span className="text-[8.5px] font-mono uppercase tracking-[0.28em] text-cyan-400/70" dir="rtl">{group.title}</span>
+              <span className="h-px flex-1" style={{ background: 'linear-gradient(90deg, hsl(190 80% 52% / 0.3), transparent)' }} />
+            </div>
+            <div className="space-y-0.5">
+              {group.links.map((link) => {
+                const isActive = location === link.href;
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`group relative flex flex-col px-3 py-1.5 rounded-md transition-all duration-200 ${
+                      isActive
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                    }`}
+                    style={isActive ? {
+                      background: 'linear-gradient(90deg, hsl(32 84% 55% / 0.12), hsl(190 80% 52% / 0.04))',
+                      boxShadow: 'inset 2px 0 0 hsl(32 84% 55%), 0 0 16px hsl(32 84% 55% / 0.10)',
+                    } : {}}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${isActive ? 'text-primary' : 'group-hover:translate-x-0.5'}`} />
+                      <span className={`text-xs font-medium tracking-wide ${isActive ? 'font-semibold' : ''}`}>{link.label}</span>
+                    </div>
+                    {link.extra}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
-      <div className="px-4 py-3 border-t border-border shrink-0">
+
+      <div className="relative px-4 py-3 border-t border-border/70 shrink-0">
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-mono text-muted-foreground tracking-[0.15em] uppercase">API Status</span>
           <div className="flex items-center gap-1.5">
@@ -115,7 +155,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* ── Desktop sidebar ── */}
       <aside
-        className="relative hidden md:flex w-52 border-r border-border flex-col shrink-0"
+        className="relative z-10 hidden md:flex w-52 border-r border-border flex-col shrink-0"
         style={{ background: 'hsl(0 0% 5%)' }}
       >
         <SidebarContent />
@@ -160,15 +200,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <WalletSwitcher compact />
           </div>
         </div>
+        {/* Live global price tape */}
+        <TickerTape />
         {/* Scrollable page area */}
         <div className="flex-1 overflow-y-auto relative min-h-0">
-          <div
-            className="absolute inset-0 pointer-events-none opacity-30"
-            style={{
-              background: 'radial-gradient(ellipse at top right, hsl(32 84% 55% / 0.04) 0%, transparent 60%)',
-            }}
-          />
-          <div key={location} className="relative h-full page-enter">
+          {/* Animated Earth + global money-flow backdrop */}
+          <EarthBackground />
+          <div key={location} className="relative z-10 h-full page-enter">
             {children}
           </div>
         </div>
