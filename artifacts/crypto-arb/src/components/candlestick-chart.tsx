@@ -8,7 +8,7 @@ import {
   type CandlestickData,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { applyTAOverlays, type TAHandle } from "../lib/ta";
+import { applyTAOverlays, type TAHandle, autoAnalyze, type AnalysisResult } from "../lib/ta";
 
 const INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1D"] as const;
 type Interval = typeof INTERVALS[number];
@@ -55,6 +55,8 @@ export function CandlestickChart({ symbol }: Props) {
   const [live, setLive] = useState(false);
   const [ta, setTa] = useState(true);
   const [bars, setBars] = useState(0);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -251,12 +253,27 @@ export function CandlestickChart({ symbol }: Props) {
         </span>
         <button
           onClick={() => setTa((v) => !v)}
-          title="Expert technical analysis: EMA, support/resistance, buy/sell & reversal signals"
+          title="ניתוח טכני: EMA, תמיכה/התנגדות, איתות קנייה/מכירה"
           className={`px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors ${
             ta ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           TA
+        </button>
+        <button
+          onClick={() => {
+            const c = candlesRef.current;
+            if (c.length > 0) {
+              const candles = c.map((cd) => ({ time: cd.time, open: cd.open, high: cd.high, low: cd.low, close: cd.close }));
+              const result = autoAnalyze(candles, candles[candles.length - 1].close);
+              setAnalysis(result);
+              setShowAnalysis(true);
+            }
+          }}
+          title="ניתוח אוטומטי מוקש: מאגד מגמה חזוקה מכל האינדיקטורים"
+          className="px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors bg-primary/15 text-primary hover:bg-primary/25"
+        >
+          ניתח
         </button>
         {INTERVALS.map((iv) => (
           <button
@@ -282,6 +299,43 @@ export function CandlestickChart({ symbol }: Props) {
         {err && !loading && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-background/60">
             <span className="text-xs font-mono text-red-400">Chart data unavailable</span>
+          </div>
+        )}
+        {showAnalysis && analysis && (
+          <div className="absolute top-2 left-2 right-2 max-w-sm mx-auto rounded-lg border border-border/80 bg-card/95 backdrop-blur p-3 shadow-lg z-10">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
+                analysis.verdict === "LONG" ? "bg-emerald-500/20 text-emerald-400"
+                : analysis.verdict === "SHORT" ? "bg-red-500/20 text-red-400"
+                : "bg-muted/40 text-muted-foreground"
+              }`}>
+                {analysis.verdict} {analysis.confidence}%
+              </span>
+              <button onClick={() => setShowAnalysis(false)} className="text-[10px] text-muted-foreground hover:text-foreground">
+                ✕
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug mb-2" dir="rtl">{analysis.summary}</p>
+            <div className="grid grid-cols-2 gap-1">
+              {analysis.indicators.map((ind) => (
+                <div key={ind.name} className="flex items-center gap-1 text-[9px]">
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    ind.signal === "BUY" ? "bg-emerald-400" : ind.signal === "SELL" ? "bg-red-400" : "bg-muted-foreground"
+                  }`} />
+                  <span className="text-muted-foreground">{ind.name}:</span>
+                  <span className={ind.signal === "BUY" ? "text-emerald-400" : ind.signal === "SELL" ? "text-red-400" : "text-muted-foreground"}>
+                    {ind.signal}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {(analysis.entry || analysis.sl || analysis.tp) && (
+              <div className="mt-2 pt-2 border-t border-border/40 flex gap-3 text-[9px] font-mono">
+                {analysis.entry && <span className="text-muted-foreground">Entry <span className="text-foreground">${analysis.entry.toFixed(2)}</span></span>}
+                {analysis.sl && <span className="text-muted-foreground">SL <span className="text-red-400">${analysis.sl.toFixed(2)}</span></span>}
+                {analysis.tp && <span className="text-muted-foreground">TP <span className="text-emerald-400">${analysis.tp.toFixed(2)}</span></span>}
+              </div>
+            )}
           </div>
         )}
       </div>
