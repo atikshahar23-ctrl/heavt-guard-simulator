@@ -620,7 +620,7 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
     [stocks, category, search]
   );
 
-  function buy(stock: StockQuote) {
+  function buy(stock: StockQuote, direction: "LONG" | "SHORT" = "LONG") {
     const raw = amounts[stock.symbol] ?? "";
     const amt = parseFloat(raw);
     if (isNaN(amt) || amt <= 0) { setErrors(e => ({ ...e, [stock.symbol]: "Enter a valid amount" })); return; }
@@ -632,6 +632,7 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
     const err = openStockPosition({
       symbol: stock.symbol,
       name: stock.name,
+      direction,
       entryPrice: price,
       slPrice: Number.isFinite(slRaw) ? slRaw : undefined,
       tpPrice: Number.isFinite(tpRaw) ? tpRaw : undefined,
@@ -648,7 +649,9 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
   function applyRecStock(stock: StockQuote) {
     const price = stockPrices[stock.symbol] ?? stock.price;
     if (!price) { setErrors(e => ({ ...e, [stock.symbol]: "Price unavailable" })); return; }
-    const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.03, tpPct: 0.06 });
+    const rec = (stockRecs ?? []).find(r => r.symbol === stock.symbol);
+    const dir = rec?.action === "SELL" ? "SHORT" : "LONG";
+    const { sl, tp } = recommendLevels(price, dir, { slPct: 0.03, tpPct: 0.06 });
     setSlInputs(s => ({ ...s, [stock.symbol]: String(sl) }));
     setTpInputs(t => ({ ...t, [stock.symbol]: String(tp) }));
     setErrors(e => ({ ...e, [stock.symbol]: "" }));
@@ -792,10 +795,16 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
                 </div>
               </div>
               {errors[stock.symbol] && <div className="text-[10px] text-red-400 font-mono">{errors[stock.symbol]}</div>}
-              <button onClick={() => buy(stock)}
-                className="w-full flex items-center justify-center gap-1 py-2 rounded text-[11px] font-bold font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/25 transition-all">
-                <TrendingUp className="h-3 w-3" /> BUY SHARES
-              </button>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => buy(stock, "LONG")}
+                  className="flex items-center justify-center gap-1 py-2 rounded text-[11px] font-bold font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/25 transition-all">
+                  <TrendingUp className="h-3 w-3" /> קנייה
+                </button>
+                <button onClick={() => buy(stock, "SHORT")}
+                  className="flex items-center justify-center gap-1 py-2 rounded text-[11px] font-bold font-mono bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 transition-all">
+                  <TrendingDown className="h-3 w-3" /> שורט / מכירה
+                </button>
+              </div>
             </div>
           );
         })}
