@@ -48,7 +48,7 @@ export function ExtraBotsEngine() {
     binancePositions, stockPositions, tradeHistory, cash,
     openBinancePosition, openStockPosition,
   } = usePortfolio();
-  const { settings, getBotStat, recordBotResult } = useAutoTrader();
+  const { settings, getBotStat, recordBotResult, getRiskGuard, evaluateRisk } = useAutoTrader();
   const { get: getLivePrice } = useLivePrices();
 
   const cryptoArmed = settings.dipEnabled || settings.breakoutEnabled;
@@ -113,6 +113,15 @@ export function ExtraBotsEngine() {
   // ── Dip Buyer — buys the biggest crypto 24h losers (contrarian LONG) ──
   useEffect(() => {
     if (!settings.dipEnabled || !(settings.dipStake > 0)) return;
+    // Risk Manager supervision
+    if (settings.riskManagerEnabled) {
+      evaluateRisk("dipbuyer", tradeHistory, cash, 10_000);
+      const guard = getRiskGuard("dipbuyer");
+      if (guard.paused) {
+        toast({ title: "Dip Buyer הושהת", description: guard.reason ?? "Risk manager paused", variant: "destructive" });
+        return;
+      }
+    }
     const lev = Math.max(1, settings.newBotLeverage);
     const edge = getBotStat("dipbuyer").edge;
     const minDrop = settings.dipMinDropPct * edge;
@@ -151,6 +160,15 @@ export function ExtraBotsEngine() {
   // ── Breakout Hunter — buys the strongest crypto 24h gainers (LONG) ──
   useEffect(() => {
     if (!settings.breakoutEnabled || !(settings.breakoutStake > 0)) return;
+    // Risk Manager supervision
+    if (settings.riskManagerEnabled) {
+      evaluateRisk("breakout", tradeHistory, cash, 10_000);
+      const guard = getRiskGuard("breakout");
+      if (guard.paused) {
+        toast({ title: "Breakout Hunter הושהת", description: guard.reason ?? "Risk manager paused", variant: "destructive" });
+        return;
+      }
+    }
     const lev = Math.max(1, settings.newBotLeverage);
     const edge = getBotStat("breakout").edge;
     const minGain = settings.breakoutMinGainPct * edge;
@@ -189,6 +207,15 @@ export function ExtraBotsEngine() {
   // ── Blue-Chip DCA — periodic small large-cap accumulation buys ──
   useEffect(() => {
     if (!settings.dcaEnabled || !(settings.dcaStake > 0)) return;
+    // Risk Manager supervision
+    if (settings.riskManagerEnabled) {
+      evaluateRisk("dca", tradeHistory, cash, 10_000);
+      const guard = getRiskGuard("dca");
+      if (guard.paused) {
+        toast({ title: "Blue-Chip DCA הושהת", description: guard.reason ?? "Risk manager paused", variant: "destructive" });
+        return;
+      }
+    }
     const now = Date.now();
     const intervalMs = Math.max(1, settings.dcaIntervalMin) * 60_000;
     if (now - lastDcaRef.current < intervalMs) return;

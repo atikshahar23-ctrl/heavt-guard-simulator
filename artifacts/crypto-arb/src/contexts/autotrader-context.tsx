@@ -24,6 +24,104 @@ export function freshBotStat(): BotStat {
   return { trades: 0, wins: 0, losses: 0, netPnl: 0, edge: 1 };
 }
 
+/** ── Risk Manager: supervisor that guards win-rate & capital ───────────────── */
+
+export interface RiskGuard {
+  /** Master kill-switch for this bot's opening privileges. */
+  paused: boolean;
+  /** When the pause was triggered (ISO). */
+  pausedAt?: string;
+  /** Why the bot was paused. */
+  reason?: string;
+  /** Number of consecutive losses before pause. */
+  consecutiveLosses: number;
+  /** Daily loss limit reached. */
+  dailyLossHalt: boolean;
+  /** Max drawdown from peak since last reset. */
+  maxDrawdownPct: number;
+}
+
+export function freshRiskGuard(): RiskGuard {
+  return { paused: false, consecutiveLosses: 0, dailyLossHalt: false, maxDrawdownPct: 0 };
+}
+
+const MAX_CONSECUTIVE_LOSSES = 3;
+const DAILY_LOSS_PCT = 10;
+const MAX_DRAWDOWN_PCT = 25;
+
+function realizedLossToday(history: { pnl: number; closedAt: string }[]): number {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  return history.filter((h) => new Date(h.closedAt) >= start).reduce((a, h) => a + Math.min(0, h.pnl), 0);
+}
+
+function peakEquity(history: { pnl: number; closedAt: string }[], currentCash: number, totalDeposited: number): number {
+  const sorted = [...history].sort((a, b) => new Date(a.closedAt).getTime() - new Date(b.closedAt).getTime());
+  let peak = totalDeposited;
+  let running = totalDeposited;
+  for (const h of sorted) {
+    running += h.pnl;
+    if (running > peak) peak = running;
+  }
+  if (currentCash > peak) peak = currentCash;
+  return peak;
+}
+
+/**
+ * Evaluate a single bot's risk state and return the updated guard.
+ * This is the "super-trader brain" — it pauses losing bots early to preserve capital.
+ */
+export function evaluateRiskGuard(
+  botId: string,
+  botStat: BotStat,
+  guard: RiskGuard,
+  tradeHistory: { pnl: number; closedAt: string }[],
+  currentCash: number,
+  totalDeposited: number,
+): RiskGuard {
+  const next = { ...freshRiskGuard(), ...guard };
+
+  // 1. Consecutive-loss streak guard
+  if (botStat.losses >= MAX_CONSECUTIVE_LOSSES && botStat.wins === 0) {
+    if (!next.paused) {
+      next.paused = true;
+      next.pausedAt = new Date().toISOString();
+      next.reason = `3 consecutive losses (win-rate 0%)`;
+    }
+  }
+  // 2. Win-rate below floor after 5+ trades
+  if (botStat.trades >= 5 && botStat.wins / botStat.trades < 0.25) {
+    if (!next.paused) {
+      next.paused = true;
+      next.pausedAt = new Date().toISOString();
+      next.reason = `Win-rate ${(botStat.wins / botStat.trades * 100).toFixed(0)}% below 25% floor`;
+    }
+  }
+  // 3. Daily loss guard
+  const dailyLoss = Math.abs(realizedLossToday(tradeHistory));
+  const dailyLossPct = totalDeposited > 0 ? (dailyLoss / totalDeposited) * 100 : 0;
+  if (dailyLossPct >= DAILY_LOSS_PCT) {
+    next.dailyLossHalt = true;
+    if (!next.paused) {
+      next.paused = true;
+      next.pausedAt = new Date().toISOString();
+      next.reason = `Daily loss -${dailyLossPct.toFixed(1)}% hit limit`;
+    }
+  }
+  // 4. Drawdown guard
+  const peak = peakEquity(tradeHistory, currentCash, totalDeposited);
+  const dd = peak > 0 ? ((peak - currentCash) / peak) * 100 : 0;
+  next.maxDrawdownPct = dd;
+  if (dd >= MAX_DRAWDOWN_PCT) {
+    if (!next.paused) {
+      next.paused = true;
+      next.pausedAt = new Date().toISOString();
+      next.reason = `Drawdown ${dd.toFixed(1)}% breached ${MAX_DRAWDOWN_PCT}% limit`;
+    }
+  }
+
+  return next;
+}
+
 export interface AutoTraderSettings {
   enabled: boolean;
   /** Cash committed as margin per auto trade (USD). */
@@ -118,6 +216,12 @@ export interface AutoTraderSettings {
 
   /** Per-bot rolling scorecards (keyed by NewBotId). */
   botStats: Record<string, BotStat>;
+
+  /* ── Risk Manager: per-bot kill-switches & supervisor ── */
+  /** Let the Risk Manager supervise every bot and auto-pause losers. */
+  riskManagerEnabled: boolean;
+  /** Per-bot risk guard states (keyed by bot id). */
+  riskGuards: Record<string, RiskGuard>;
 }
 
 export const DEFAULT_SETTINGS: AutoTraderSettings = {
@@ -175,6 +279,9 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   dcaIntervalMin: 30,
 
   botStats: {},
+
+  riskManagerEnabled: true,
+  riskGuards: {},
 };
 
 const STORAGE_KEY = "arb_scan_autotrader";
@@ -189,6 +296,14 @@ interface AutoTraderContextValue {
   recordBotResult: (botId: string, pnl: number) => void;
   /** Wipe a single bot's scorecard, or all of them when no id is given. */
   resetBotStats: (botId?: string) => void;
+
+  /* ── Risk Manager ── */
+  /** Read a bot's risk guard (returns fresh blank if untracked). */
+  getRiskGuard: (botId: string) => RiskGuard;
+  /** Evaluate a bot's risk state and update the guard. */
+  evaluateRisk: (botId: string, tradeHistory: { pnl: number; closedAt: string }[], currentCash: number, totalDeposited: number) => void;
+  /** Reset a bot's risk guard (un-pause). */
+  resetRiskGuard: (botId?: string) => void;
 }
 
 function loadSettings(): AutoTraderSettings {
@@ -258,9 +373,33 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /* ── Risk Manager ── */
+  const getRiskGuard = useCallback(
+    (botId: string): RiskGuard => settings.riskGuards[botId] ?? freshRiskGuard(),
+    [settings.riskGuards],
+  );
+
+  const evaluateRisk = useCallback((botId: string, tradeHistory: { pnl: number; closedAt: string }[], currentCash: number, totalDeposited: number) => {
+    setSettings((prev) => {
+      if (!prev.riskManagerEnabled) return prev;
+      const stat = prev.botStats[botId] ?? freshBotStat();
+      const guard = prev.riskGuards[botId] ?? freshRiskGuard();
+      const next = evaluateRiskGuard(botId, stat, guard, tradeHistory, currentCash, totalDeposited);
+      return { ...prev, riskGuards: { ...prev.riskGuards, [botId]: next } };
+    });
+  }, []);
+
+  const resetRiskGuard = useCallback((botId?: string) => {
+    setSettings((prev) => {
+      if (!botId) return { ...prev, riskGuards: {} };
+      const { [botId]: _drop, ...rest } = prev.riskGuards;
+      return { ...prev, riskGuards: rest };
+    });
+  }, []);
+
   return (
     <AutoTraderContext.Provider
-      value={{ settings, update, toggleEnabled, getBotStat, recordBotResult, resetBotStats }}
+      value={{ settings, update, toggleEnabled, getBotStat, recordBotResult, resetBotStats, getRiskGuard, evaluateRisk, resetRiskGuard }}
     >
       {children}
     </AutoTraderContext.Provider>
