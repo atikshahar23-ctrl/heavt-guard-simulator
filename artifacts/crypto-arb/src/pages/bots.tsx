@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
-  Layers, Brain, RotateCcw, Activity, ShieldCheck,
+  Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import {
-  useAutoTrader, type AutoTraderSettings, type NewBotId,
+  useAutoTrader, type AutoTraderSettings, type NewBotId, type RiskGuard,
 } from "@/contexts/autotrader-context";
 
 function StatChip({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
@@ -124,7 +124,7 @@ const NEW_BOT_META: {
 ];
 
 export default function Bots() {
-  const { settings, update, getBotStat, resetBotStats } = useAutoTrader();
+  const { settings, update, getBotStat, resetBotStats, getRiskGuard, resetRiskGuard } = useAutoTrader();
   const { binancePositions, stockPositions, polyPositions } = usePortfolio();
 
   // ── Existing core bots, derived from the original engine's settings ──
@@ -234,6 +234,65 @@ export default function Bots() {
         <div className="mt-3 flex justify-end">
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => resetBotStats()}>
             <RotateCcw className="h-3 w-3" /> אפס נתוני למידה
+          </Button>
+        </div>
+      </section>
+
+      {/* Risk Manager — סוכן ניהול סיכונים */}
+      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(0 72% 51% / 0.35)", background: "hsl(0 72% 51% / 0.03)" }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-md bg-red-500/15 flex items-center justify-center shrink-0">
+              <ShieldAlert className="h-4 w-4 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold tracking-wide">Risk Manager — סוכן ניהול סיכונים</h2>
+              <p className="text-[11px] text-muted-foreground" dir="rtl">
+                סופר-סוחר שעוצר בוטים מהביזוי ושומר על הון-ריט, הפסד יומי, ודד-דאון. אם בוט מוזיה שובו הושהת אוטומטית.
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={settings.riskManagerEnabled}
+            onCheckedChange={(v) => update({ riskManagerEnabled: v })}
+            aria-label="Toggle risk manager"
+          />
+        </div>
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {NEW_BOT_META.map((b) => {
+            const g: RiskGuard = getRiskGuard(b.id);
+            const stat = getBotStat(b.id);
+            const wr = stat.trades > 0 ? (stat.wins / stat.trades) * 100 : 0;
+            return (
+              <div key={b.id} className={`rounded-md border p-3 ${g.paused ? "border-red-500/40 bg-red-500/5" : "border-border/60 bg-background/40"}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold">{b.title}</span>
+                  <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${g.paused ? "bg-red-500/20 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                    {g.paused ? "הושהת" : "פועל"}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <StatChip label="Win %" value={stat.trades > 0 ? `${wr.toFixed(0)}%` : "—"} tone={stat.trades >= 4 ? (wr >= 50 ? "good" : "bad") : undefined} />
+                  <StatChip label="DD" value={`${g.maxDrawdownPct.toFixed(1)}%`} tone={g.maxDrawdownPct >= 20 ? "bad" : undefined} />
+                  <StatChip label="היום" value={g.dailyLossHalt ? "STOP" : "OK"} tone={g.dailyLossHalt ? "bad" : "good"} />
+                </div>
+                {g.paused && g.reason && (
+                  <p className="mt-2 text-[10px] text-red-400/90 leading-snug" dir="rtl">{g.reason}</p>
+                )}
+                {g.paused && (
+                  <div className="mt-2 flex justify-end">
+                    <Button variant="ghost" size="sm" className="gap-1 text-[10px] text-muted-foreground" onClick={() => resetRiskGuard(b.id)}>
+                      <RotateCcw className="h-3 w-3" /> אפשר בוט
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => resetRiskGuard()}>
+            <RotateCcw className="h-3 w-3" /> אפס כל ההושהות
           </Button>
         </div>
       </section>

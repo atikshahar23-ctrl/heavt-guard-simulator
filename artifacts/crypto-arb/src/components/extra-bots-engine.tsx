@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   useGetMarketOverview, getGetMarketOverviewQueryKey,
   useGetStocks, getGetStocksQueryKey,
@@ -48,7 +48,7 @@ export function ExtraBotsEngine() {
     binancePositions, stockPositions, tradeHistory, cash,
     openBinancePosition, openStockPosition,
   } = usePortfolio();
-  const { settings, getBotStat, recordBotResult, getRiskGuard, evaluateRisk } = useAutoTrader();
+  const { settings, getBotStat, recordBotResult, evaluateRisk } = useAutoTrader();
   const { get: getLivePrice } = useLivePrices();
 
   const cryptoArmed = settings.dipEnabled || settings.breakoutEnabled;
@@ -110,18 +110,31 @@ export function ExtraBotsEngine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [binancePositions, stockPositions, tradeHistory]);
 
+  // ── Risk Manager supervision — runs on a separate timer, not inside trading effects ──
+  const pausedBots = useMemo(() => {
+    const set = new Set<string>();
+    for (const [id, g] of Object.entries(settings.riskGuards ?? {})) {
+      if (g.paused) set.add(id);
+    }
+    return set;
+  }, [settings.riskGuards]);
+
+  useEffect(() => {
+    if (!settings.riskManagerEnabled) return;
+    const timer = setInterval(() => {
+      const totalDeposited = 10_000; // default baseline
+      evaluateRisk("dipbuyer", tradeHistory, cash, totalDeposited);
+      evaluateRisk("breakout", tradeHistory, cash, totalDeposited);
+      evaluateRisk("dca", tradeHistory, cash, totalDeposited);
+    }, 30000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.riskManagerEnabled, evaluateRisk, tradeHistory, cash]);
+
   // ── Dip Buyer — buys the biggest crypto 24h losers (contrarian LONG) ──
   useEffect(() => {
     if (!settings.dipEnabled || !(settings.dipStake > 0)) return;
-    // Risk Manager supervision
-    if (settings.riskManagerEnabled) {
-      evaluateRisk("dipbuyer", tradeHistory, cash, 10_000);
-      const guard = getRiskGuard("dipbuyer");
-      if (guard.paused) {
-        toast({ title: "Dip Buyer הושהת", description: guard.reason ?? "Risk manager paused", variant: "destructive" });
-        return;
-      }
-    }
+    if (pausedBots.has("dipbuyer")) return;
     const lev = Math.max(1, settings.newBotLeverage);
     const edge = getBotStat("dipbuyer").edge;
     const minDrop = settings.dipMinDropPct * edge;
@@ -160,15 +173,7 @@ export function ExtraBotsEngine() {
   // ── Breakout Hunter — buys the strongest crypto 24h gainers (LONG) ──
   useEffect(() => {
     if (!settings.breakoutEnabled || !(settings.breakoutStake > 0)) return;
-    // Risk Manager supervision
-    if (settings.riskManagerEnabled) {
-      evaluateRisk("breakout", tradeHistory, cash, 10_000);
-      const guard = getRiskGuard("breakout");
-      if (guard.paused) {
-        toast({ title: "Breakout Hunter הושהת", description: guard.reason ?? "Risk manager paused", variant: "destructive" });
-        return;
-      }
-    }
+    if (pausedBots.has("breakout")) return;
     const lev = Math.max(1, settings.newBotLeverage);
     const edge = getBotStat("breakout").edge;
     const minGain = settings.breakoutMinGainPct * edge;
@@ -207,15 +212,7 @@ export function ExtraBotsEngine() {
   // ── Blue-Chip DCA — periodic small large-cap accumulation buys ──
   useEffect(() => {
     if (!settings.dcaEnabled || !(settings.dcaStake > 0)) return;
-    // Risk Manager supervision
-    if (settings.riskManagerEnabled) {
-      evaluateRisk("dca", tradeHistory, cash, 10_000);
-      const guard = getRiskGuard("dca");
-      if (guard.paused) {
-        toast({ title: "Blue-Chip DCA הושהת", description: guard.reason ?? "Risk manager paused", variant: "destructive" });
-        return;
-      }
-    }
+    if (pausedBots.has("dca")) return;
     const now = Date.now();
     const intervalMs = Math.max(1, settings.dcaIntervalMin) * 60_000;
     if (now - lastDcaRef.current < intervalMs) return;
