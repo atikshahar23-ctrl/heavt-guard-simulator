@@ -16,6 +16,7 @@ import Scalp from "@/pages/scalp";
 import Momentum from "@/pages/momentum";
 import QuickBets from "@/pages/quickbets";
 import History from "@/pages/history";
+import Bots from "@/pages/bots";
 import Layout from "@/components/layout";
 import { PortfolioProvider } from "@/contexts/portfolio-context";
 import { FavoritesProvider } from "@/contexts/favorites-context";
@@ -23,6 +24,7 @@ import { AutoTraderProvider } from "@/contexts/autotrader-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
 import { LivePriceProvider } from "@/contexts/live-price-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
+import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +45,7 @@ function Router() {
         <Route path="/stocks" component={Stocks} />
         <Route path="/smart-money" component={SmartMoney} />
         <Route path="/simulator" component={Simulator} />
+        <Route path="/bots" component={Bots} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -63,6 +66,7 @@ function App() {
         <AutoTraderProvider>
         <TooltipProvider>
           <AutoTraderEngine />
+          <ExtraBotsEngine />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
