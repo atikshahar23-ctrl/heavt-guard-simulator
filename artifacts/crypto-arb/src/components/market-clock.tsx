@@ -34,7 +34,7 @@ function topNoteKind(day: CalendarDay): MarketNoteKind | null {
  */
 export function MarketClock() {
   const [now, setNow] = useState(() => new Date());
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,19 +70,42 @@ export function MarketClock() {
     else setViewMonth((m) => m - 1);
   };
 
-  // Upcoming events in next ~14 days
+  // All upcoming events in the next 6 months
   const upcoming = useMemo(() => {
     const items: { date: string; label: string; kind: MarketNoteKind }[] = [];
-    for (let offset = 1; offset <= 14; offset++) {
+    const seen = new Set<string>();
+    for (let offset = 1; offset <= 180; offset++) {
       const d = new Date(today);
       d.setDate(d.getDate() + offset);
       const ns = getMarketNotes(d);
       for (const n of ns) {
+        const key = ymd(d) + "|" + n.label;
+        if (seen.has(key)) continue;
+        seen.add(key);
         const label = d.toLocaleDateString("he-IL", { day: "numeric", month: "short" }) + " — " + n.label;
         items.push({ date: ymd(d), label, kind: n.kind });
       }
     }
-    return items.slice(0, 5);
+    return items;
+  }, [today]);
+
+  // Past events in the previous 6 months
+  const pastEvents = useMemo(() => {
+    const items: { date: string; label: string; kind: MarketNoteKind }[] = [];
+    const seen = new Set<string>();
+    for (let offset = 1; offset <= 180; offset++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - offset);
+      const ns = getMarketNotes(d);
+      for (const n of ns) {
+        const key = ymd(d) + "|" + n.label;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const label = d.toLocaleDateString("he-IL", { day: "numeric", month: "short" }) + " — " + n.label;
+        items.push({ date: ymd(d), label, kind: n.kind });
+      }
+    }
+    return items.reverse();
   }, [today]);
 
   return (
@@ -200,18 +223,30 @@ export function MarketClock() {
             ))}
           </div>
 
-          {/* Upcoming events list */}
-          {upcoming.length > 0 && (
-            <div className="mt-2 border-t border-border/40 pt-2 space-y-1.5">
-              <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">אירועים קרובים</div>
+          {/* אירועים בגואה עומדים + הבאים */}
+          <div className="mt-2 border-t border-border/40 pt-2 space-y-1">
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">אירועים חוזרים ועתידים</div>
+            <div className="max-h-[140px] overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
+              {pastEvents.length > 0 && (
+                <div className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-wider pt-1">חוזרים</div>
+              )}
+              {pastEvents.map((ev, i) => (
+                <div key={"past-" + i} className="flex items-start gap-1.5 rounded-md bg-secondary/20 px-1.5 py-1 opacity-60">
+                  <span className="h-1.5 w-1.5 mt-0.5 rounded-full shrink-0" style={{ background: `hsl(${KIND_COLOR[ev.kind]})` }} />
+                  <span className="text-[9px] text-foreground/80 leading-snug">{ev.label}</span>
+                </div>
+              ))}
+              {upcoming.length > 0 && (
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider pt-1">עתידים</div>
+              )}
               {upcoming.map((ev, i) => (
-                <div key={i} className="flex items-start gap-1.5 rounded-md bg-secondary/20 px-1.5 py-1">
+                <div key={"up-" + i} className="flex items-start gap-1.5 rounded-md bg-secondary/20 px-1.5 py-1">
                   <span className="h-1.5 w-1.5 mt-0.5 rounded-full shrink-0" style={{ background: `hsl(${KIND_COLOR[ev.kind]})` }} />
                   <span className="text-[9px] text-foreground/80 leading-snug">{ev.label}</span>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       , document.body)}
     </div>
