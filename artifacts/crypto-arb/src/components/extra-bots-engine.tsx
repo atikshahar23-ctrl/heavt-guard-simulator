@@ -50,7 +50,7 @@ export function ExtraBotsEngine() {
     binancePositions, stockPositions, tradeHistory, cash,
     openBinancePosition, openStockPosition,
   } = usePortfolio();
-  const { settings, getBotStat, recordBotResult, evaluateRisk } = useAutoTrader();
+  const { settings, getBotStat, recordBotResult, getAssetCaution, evaluateRisk } = useAutoTrader();
   const { get: getLivePrice } = useLivePrices();
 
   // Boost mode: tiny cooldowns + faster polling so these bots churn quickly too.
@@ -151,7 +151,8 @@ export function ExtraBotsEngine() {
 
     const ranked = ((overview ?? []) as CoinTicker[])
       .filter((c) => Number.isFinite(c.price) && c.price > 0)
-      .filter((c) => c.changePercent <= -minDrop)
+      // Per-asset caution: coins this bot keeps losing on need a deeper dip.
+      .filter((c) => c.changePercent <= -(minDrop * getAssetCaution(c.asset)))
       .filter((c) => !openAssets.has(c.asset))
       .filter((c) => now - (cryptoCooldownRef.current[c.asset] ?? 0) > cooldownMs)
       .sort((a, b) => a.changePercent - b.changePercent);
@@ -190,7 +191,8 @@ export function ExtraBotsEngine() {
 
     const ranked = ((overview ?? []) as CoinTicker[])
       .filter((c) => Number.isFinite(c.price) && c.price > 0)
-      .filter((c) => c.changePercent >= minGain)
+      // Per-asset caution: coins this bot keeps losing on need a stronger breakout.
+      .filter((c) => c.changePercent >= minGain * getAssetCaution(c.asset))
       .filter((c) => !openAssets.has(c.asset))
       .filter((c) => now - (cryptoCooldownRef.current[c.asset] ?? 0) > cooldownMs)
       .sort((a, b) => b.changePercent - a.changePercent);

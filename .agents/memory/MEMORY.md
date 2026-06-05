@@ -18,6 +18,7 @@
 - [Momentum scanner & Warrior Auto-Trader](momentum-and-warrior.md) — 5m RVol/ROC surge scoring (LONG-only in auto-trader); trailing stop only ever tightens (LONG max-peak / SHORT min-peak), runs before checkSlTp; daily realized-loss guard halts new opens.
 - [TradingView Pro chart overlay](tradingview-pro-chart.md) — free Advanced widget as ✏Pro drawing mode over native chart; MUST gate native WS/RQ pipelines off in pro mode or you run duplicate streams. Stock TV symbol = dot-form tradingViewSymbol.
 - [Boost mode (bots page)](boost-mode.md) — 5-min max-cadence: engines derive boostActive from settings.boostUntil at render (no permanent overwrite); Poly reopen cooldown intentionally NOT reduced (multi-day bets)
+- [Per-asset caution learning](per-asset-caution.md) — bots raise caution (1→1.8) on coins they keep losing on; fold-dedupe MUST use persisted global recordedTradeIds, not wallet-scoped tradeHistory
 - [JARVIS bilingual (he/en)](jarvis-bilingual.md) — langRef.current in send/speak/listen avoids stale-closure; store per-message lang and render dir from m.lang (toggling must not flip past msgs); English = British-male butler voice.
 - [Smart Exit (scalp & runner)](smart-exit-manager.md) — bot crypto exits use one regime-based peak-pullback trail (tight scalp giveback vs wider runner trail), profit-only closes; not a fixed TP.
 - [Fixed ambient backdrop z-stacking](fixed-backdrop-zstacking.md) — a `fixed` decorative layer with `-z-10` vanishes behind the root `bg-background`; use `z-0` and bump real content/sidebar siblings to `z-10`.

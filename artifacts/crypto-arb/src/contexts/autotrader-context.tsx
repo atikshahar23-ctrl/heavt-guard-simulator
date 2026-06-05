@@ -24,6 +24,25 @@ export function freshBotStat(): BotStat {
   return { trades: 0, wins: 0, losses: 0, netPnl: 0, edge: 1 };
 }
 
+/**
+ * Caution multiplier for one coin from its rolling record. Coins the bots keep
+ * losing on demand a progressively stronger setup before being re-traded; a
+ * losing streak escalates faster. Never drops below 1 (assets only get *more*
+ * careful — winners just return to neutral, they don't get reckless).
+ */
+export function assetCautionFromStat(stat: BotStat): number {
+  if (stat.trades < 3) return 1;
+  const winRate = stat.wins / stat.trades;
+  let caution: number;
+  if (winRate < 0.34) caution = 1.8;
+  else if (winRate < 0.45) caution = 1.5;
+  else if (winRate < 0.55) caution = 1.25;
+  else caution = 1;
+  // A red (net-losing) coin gets a little extra caution on top.
+  if (stat.netPnl < 0 && caution < 1.8) caution = Math.min(1.8, caution + 0.15);
+  return Math.round(caution * 100) / 100;
+}
+
 /** ── Risk Manager: supervisor that guards win-rate & capital ───────────────── */
 
 export interface RiskGuard {
@@ -238,6 +257,24 @@ export interface AutoTraderSettings {
   /** Per-bot rolling scorecards (keyed by NewBotId). */
   botStats: Record<string, BotStat>;
 
+  /* ── Per-asset caution: learn which coins the bots keep losing on ── */
+  /**
+   * Let the bots raise their caution/precision on specific coins they keep
+   * losing trades on (require a stronger setup before opening there again).
+   */
+  assetCautionEnabled: boolean;
+  /**
+   * Per-asset rolling scorecards keyed by symbol (e.g. "BTC", "AAPL"). Here
+   * `edge` is the caution multiplier: 1 = normal, >1 = demand a stronger setup.
+   */
+  assetStats: Record<string, BotStat>;
+  /**
+   * Ids of closed trades already folded into `assetStats`. Persisted (and capped)
+   * so a reload or wallet switch can never re-count the same trade. Each wallet's
+   * history is wallet-scoped, so this global set is the only reliable dedupe.
+   */
+  recordedTradeIds: string[];
+
   /* ── Risk Manager: per-bot kill-switches & supervisor ── */
   /** Let the Risk Manager supervise every bot and auto-pause losers. */
   riskManagerEnabled: boolean;
@@ -309,6 +346,10 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
 
   botStats: {},
 
+  assetCautionEnabled: true,
+  assetStats: {},
+  recordedTradeIds: [],
+
   riskManagerEnabled: true,
   riskGuards: {},
 };
@@ -332,6 +373,17 @@ interface AutoTraderContextValue {
   recordBotResult: (botId: string, pnl: number) => void;
   /** Wipe a single bot's scorecard, or all of them when no id is given. */
   resetBotStats: (botId?: string) => void;
+
+  /* ── Per-asset caution ── */
+  /** Read one coin's scorecard (returns a fresh blank one if untracked). */
+  getAssetStat: (asset: string) => BotStat;
+  /** Caution multiplier for a coin (1 = normal; >1 = demand a stronger setup). */
+  getAssetCaution: (asset: string) => number;
+  /** Record one closed paper trade for a coin; raises caution after losses. Pass the
+   *  trade id to dedupe so the same trade is never folded twice (reload/wallet switch). */
+  recordAssetResult: (asset: string, pnl: number, tradeId?: string) => void;
+  /** Wipe a single coin's caution record, or all of them when no id is given. */
+  resetAssetStats: (asset?: string) => void;
 
   /* ── Risk Manager ── */
   /** Read a bot's risk guard (returns fresh blank if untracked). */
@@ -443,6 +495,58 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /* ── Per-asset caution ── */
+  const getAssetStat = useCallback(
+    (asset: string): BotStat => settings.assetStats[asset.toUpperCase()] ?? freshBotStat(),
+    [settings.assetStats],
+  );
+
+  const getAssetCaution = useCallback(
+    (asset: string): number => {
+      if (!settings.assetCautionEnabled) return 1;
+      const stat = settings.assetStats[asset.toUpperCase()];
+      return stat ? assetCautionFromStat(stat) : 1;
+    },
+    [settings.assetCautionEnabled, settings.assetStats],
+  );
+
+  const recordAssetResult = useCallback((asset: string, pnl: number, tradeId?: string) => {
+    const key = asset.toUpperCase();
+    if (!key) return;
+    setSettings((prev) => {
+      // Persistent dedupe: a trade is folded into its coin's scorecard exactly
+      // once, ever — even across reloads or wallet switches (history is
+      // wallet-scoped, so the same id can resurface on a different wallet).
+      const ledger = prev.recordedTradeIds ?? [];
+      if (tradeId && ledger.includes(tradeId)) return prev;
+      const cur = prev.assetStats[key] ?? freshBotStat();
+      const won = pnl >= 0;
+      const next: BotStat = {
+        trades: cur.trades + 1,
+        wins: cur.wins + (won ? 1 : 0),
+        losses: cur.losses + (won ? 0 : 1),
+        netPnl: cur.netPnl + pnl,
+        edge: cur.edge,
+        lastAt: new Date().toISOString(),
+      };
+      next.edge = assetCautionFromStat(next);
+      // Cap the dedupe ledger well above the per-wallet history cap (200) so
+      // recorded ids aren't evicted while their trade is still on a wallet.
+      const recordedTradeIds = tradeId
+        ? [tradeId, ...ledger].slice(0, 2000)
+        : ledger;
+      return { ...prev, assetStats: { ...prev.assetStats, [key]: next }, recordedTradeIds };
+    });
+  }, []);
+
+  const resetAssetStats = useCallback((asset?: string) => {
+    setSettings((prev) => {
+      if (!asset) return { ...prev, assetStats: {} };
+      const { [asset.toUpperCase()]: _drop, ...rest } = prev.assetStats;
+      return { ...prev, assetStats: rest };
+    });
+  }, []);
+
   /* ── Risk Manager ── */
   const getRiskGuard = useCallback(
     (botId: string): RiskGuard => settings.riskGuards[botId] ?? freshRiskGuard(),
@@ -469,7 +573,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
 
   return (
     <AutoTraderContext.Provider
-      value={{ settings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getRiskGuard, evaluateRisk, resetRiskGuard }}
+      value={{ settings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard }}
     >
       {children}
     </AutoTraderContext.Provider>

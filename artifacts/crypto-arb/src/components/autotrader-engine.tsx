@@ -99,7 +99,7 @@ export function AutoTraderEngine() {
     openBinancePosition, openPolyPosition, closePolyPosition, openStockPosition,
     closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll,
   } = usePortfolio();
-  const { settings, update } = useAutoTrader();
+  const { settings, update, getAssetCaution, recordAssetResult } = useAutoTrader();
   const { isFavorite } = useFavorites();
   // Boost mode: while the deadline is in the future every bot trades at maximum
   // cadence — tiny cooldowns, faster polling and fast profit-banking.
@@ -170,6 +170,30 @@ export function AutoTraderEngine() {
   const equityPeakRef = useRef<number>(0);
   /** Per-position best favorable price, for the Smart-Exit peak-pullback trail. */
   const peakRef = useRef<Map<string, number>>(new Map());
+  /** Closed-trade ids already folded into per-asset caution (avoids double counting). */
+  const assetRecordedRef = useRef<Set<string> | null>(null);
+
+  // ── Per-asset caution learning ──
+  // Fold every closed auto crypto/stock trade into its coin's scorecard so the
+  // bots grow more careful on coins they keep losing on. The "already counted"
+  // set is seeded from the persisted ledger (settings.recordedTradeIds) — not
+  // from the wallet-scoped tradeHistory — so a reload OR a wallet switch can
+  // never re-count the same trade. recordAssetResult re-checks the persisted
+  // ledger too, so the dedupe holds even if this in-memory guard is empty.
+  useEffect(() => {
+    if (assetRecordedRef.current === null) {
+      assetRecordedRef.current = new Set(settings.recordedTradeIds ?? []);
+    }
+    const seen = assetRecordedRef.current;
+    for (const t of tradeHistory) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      if (!t.auto) continue;
+      if (t.type !== "BINANCE" && t.type !== "STOCK") continue;
+      if (t.symbol) recordAssetResult(t.symbol, t.pnl, t.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeHistory]);
 
   // Build a live price map (crypto + stocks); trail first, then SL/TP exits.
   const priceMap: Record<string, number> = {};
@@ -330,7 +354,12 @@ export function AutoTraderEngine() {
     if (useScalp && signals) {
       for (const s of signals as ScalpSignal[]) {
         if (s.direction === "NEUTRAL") continue;
-        if (CONF_RANK[s.confidence] < CONF_RANK[settings.minConfidence]) continue;
+        // Per-asset caution: coins the bots keep losing on must clear a higher
+        // confidence bar (1.5x+ → demand HIGH; 1.25x+ → at least one notch up).
+        const caution = getAssetCaution(s.asset);
+        const bump = caution >= 1.5 ? 2 : caution >= 1.25 ? 1 : 0;
+        const effMinRank = Math.min(CONF_RANK.HIGH, CONF_RANK[settings.minConfidence] + bump);
+        if (CONF_RANK[s.confidence] < effMinRank) continue;
         if (s.direction === "LONG" ? !settings.allowLong : !settings.allowShort) continue;
         if (!Number.isFinite(s.entry) || s.entry <= 0) continue;
         candidates.push({
@@ -348,7 +377,8 @@ export function AutoTraderEngine() {
 
     if (useMomentum && momentum && settings.allowLong) {
       for (const m of momentum as MomentumCoin[]) {
-        if (m.score < settings.minMomentumScore) continue;
+        // Per-asset caution raises the surge-score bar on coins that keep losing.
+        if (m.score < settings.minMomentumScore * getAssetCaution(m.asset)) continue;
         if (m.stage === "COOLING") continue;
         if (!Number.isFinite(m.entry) || m.entry <= 0) continue;
         candidates.push({
@@ -482,7 +512,8 @@ export function AutoTraderEngine() {
     const candidates: StockCand[] = [];
     for (const [sym, net] of score) {
       const conviction = Math.min(100, Math.abs(net));
-      if (conviction < settings.stockMinConfidence) continue;
+      // Per-asset caution raises the conviction bar on tickers that keep losing.
+      if (conviction < settings.stockMinConfidence * getAssetCaution(sym)) continue;
       const direction: "LONG" | "SHORT" = net >= 0 ? "LONG" : "SHORT";
       if (direction === "LONG" ? !settings.allowLong : !settings.allowShort) continue;
       const price = priceBy.get(sym);

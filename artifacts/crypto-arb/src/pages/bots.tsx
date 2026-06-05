@@ -124,7 +124,7 @@ const NEW_BOT_META: {
 ];
 
 export default function Bots() {
-  const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getRiskGuard, resetRiskGuard } = useAutoTrader();
+  const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getAssetCaution, resetAssetStats, getRiskGuard, resetRiskGuard } = useAutoTrader();
   const { binancePositions, stockPositions, polyPositions } = usePortfolio();
 
   // Live boost countdown — tick once a second only while a boost is running.
@@ -139,6 +139,15 @@ export default function Bots() {
   const boostClock = `${Math.floor(boostRemainMs / 60000)}:${String(
     Math.floor((boostRemainMs % 60000) / 1000),
   ).padStart(2, "0")}`;
+
+  // Coins the bots have learned to be cautious on (caution multiplier > 1),
+  // sorted by how cautious the bots have become, then by how badly they bled.
+  const cautionedCoins = useMemo(() => {
+    return Object.entries(settings.assetStats)
+      .map(([asset, s]) => ({ asset, s, caution: getAssetCaution(asset) }))
+      .filter((x) => x.caution > 1)
+      .sort((a, b) => b.caution - a.caution || a.s.netPnl - b.s.netPnl);
+  }, [settings.assetStats, getAssetCaution]);
 
   // ── Existing core bots, derived from the original engine's settings ──
   const scalpOn = settings.enabled && (settings.strategy === "SCALP" || settings.strategy === "BOTH");
@@ -292,6 +301,72 @@ export default function Bots() {
             <RotateCcw className="h-3 w-3" /> אפס נתוני למידה
           </Button>
         </div>
+      </section>
+
+      {/* Per-coin caution — זהירות לפי מטבע */}
+      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(43 74% 52% / 0.35)", background: "hsl(43 74% 52% / 0.04)" }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold tracking-wide">זהירות לפי מטבע</h2>
+              <p className="text-[11px] text-muted-foreground" dir="rtl">
+                הבוטים לומדים על אילו מטבעות הם נכשלים בעסקאות, ומעלים אוטומטית את רמת הזהירות והדיוק — דורשים סטאפ חזק יותר לפני שפותחים שם עסקה שוב, כדי לא לחזור על אותן טעויות.
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={settings.assetCautionEnabled}
+            onCheckedChange={(v) => update({ assetCautionEnabled: v })}
+            aria-label="Toggle per-coin caution"
+          />
+        </div>
+
+        {settings.assetCautionEnabled ? (
+          cautionedCoins.length > 0 ? (
+            <>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {cautionedCoins.map(({ asset, s, caution }) => {
+                  const wr = s.trades > 0 ? (s.wins / s.trades) * 100 : 0;
+                  return (
+                    <div key={asset} className="rounded-md border border-border/60 bg-background/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold font-mono">{asset}</span>
+                        <span
+                          className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${
+                            caution >= 1.5 ? "bg-red-500/15 text-red-400" : "bg-primary/10 text-primary"
+                          }`}
+                        >
+                          זהירות {caution.toFixed(2)}×
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        <StatChip label="Trades" value={String(s.trades)} />
+                        <StatChip label="Win %" value={s.trades > 0 ? `${wr.toFixed(0)}%` : "—"} tone={wr >= 50 ? "good" : "bad"} />
+                        <StatChip label="Net PnL" value={`${s.netPnl >= 0 ? "+" : ""}$${s.netPnl.toFixed(0)}`} tone={s.netPnl > 0 ? "good" : s.netPnl < 0 ? "bad" : undefined} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => resetAssetStats()}>
+                  <RotateCcw className="h-3 w-3" /> אפס זהירות מטבעות
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="mt-4 text-[11px] text-muted-foreground" dir="rtl">
+              אין עדיין מטבעות בזהירות מוגברת. ככל שהבוטים יסחרו, מטבעות שיפסידו בהם שוב ושוב יופיעו כאן עם רמת זהירות גבוהה יותר.
+            </p>
+          )
+        ) : (
+          <p className="mt-4 text-[11px] text-muted-foreground" dir="rtl">
+            הלמידה לפי מטבע כבויה — הבוטים מתייחסים לכל המטבעות באותה רמת זהירות.
+          </p>
+        )}
       </section>
 
       {/* Risk Manager — סוכן ניהול סיכונים */}
