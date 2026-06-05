@@ -604,6 +604,13 @@ export const BOOST_MAX_MS = 5 * 60 * 60 * 1000;
 
 interface AutoTraderContextValue {
   settings: AutoTraderSettings;
+  /**
+   * The shared default gear (raw `settings.intensity`) BEFORE any per-wallet
+   * override is applied. Use this — not `settings.intensity`, which the provider
+   * overwrites with the *active* wallet's effective gear — as the fallback for
+   * wallets that have never set their own gear.
+   */
+  baseIntensity: number;
   update: (patch: Partial<AutoTraderSettings>) => void;
   toggleEnabled: () => void;
   /** Arm every bot and run max-cadence Boost mode for durationMs (default 5 min). */
@@ -878,7 +885,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
 
   return (
     <AutoTraderContext.Provider
-      value={{ settings: effectiveSettings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
+      value={{ settings: effectiveSettings, baseIntensity: settings.intensity, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
     >
       {children}
     </AutoTraderContext.Provider>

@@ -1,8 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { usePortfolio } from "@/contexts/portfolio-context";
+import { useAutoTrader, intensityProfile } from "@/contexts/autotrader-context";
 import {
   Wallet as WalletIcon, ChevronDown, Plus, Check, Pencil, Trash2, X,
 } from "lucide-react";
+
+const GEAR_COLORS = [
+  "text-sky-400 border-sky-400/40 bg-sky-400/10",
+  "text-teal-400 border-teal-400/40 bg-teal-400/10",
+  "text-primary border-primary/40 bg-primary/10",
+  "text-orange-400 border-orange-400/40 bg-orange-400/10",
+  "text-red-400 border-red-400/40 bg-red-400/10",
+];
 
 function fmtUsd(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -18,6 +27,12 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
     wallets, activeWalletId, activeWalletName,
     createWallet, renameWallet, deleteWallet, switchWallet,
   } = usePortfolio();
+  const { settings, baseIntensity } = useAutoTrader();
+
+  function walletGear(walletId: string) {
+    const level = settings.intensityByWallet[walletId] ?? baseIntensity;
+    return intensityProfile(level);
+  }
 
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -109,6 +124,8 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
                   </div>
                 );
               }
+              const gear = walletGear(w.id);
+              const gearColor = GEAR_COLORS[gear.level - 1];
               return (
                 <div
                   key={w.id}
@@ -130,6 +147,12 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
                       <span className="block text-[10px] font-mono text-muted-foreground">
                         {fmtUsd(w.cash)} · {w.openPositions} פוזיציות
                       </span>
+                    </span>
+                    <span
+                      className={`shrink-0 inline-flex items-center gap-0.5 rounded border px-1 py-0.5 text-[9px] font-mono font-bold leading-none ${gearColor}`}
+                      title={`עוצמה: ${gear.label}`}
+                    >
+                      {gear.level} {gear.label}
                     </span>
                   </button>
                   <button
