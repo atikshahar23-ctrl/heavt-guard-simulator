@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
+import { usePortfolio } from "@/contexts/portfolio-context";
 
 export type ScalpConfidence = "LOW" | "MEDIUM" | "HIGH";
 
@@ -290,8 +291,21 @@ export interface AutoTraderSettings {
    * larger, higher-quality wins. Each level up loosens selectivity and roughly
    * +50% the trade cadence over the level below it; level 5 is extreme turbo.
    * Boost mode (when active) still overrides this with its own max cadence.
+   *
+   * This is the fallback gear used for any wallet without its own saved level
+   * (see `intensityByWallet`); the engines read the *effective* gear, which the
+   * provider resolves per active wallet.
    */
   intensity: number;
+
+  /**
+   * Per-wallet trading-intensity gear, keyed by portfolio wallet id. Each
+   * simulator wallet remembers its own gear, so a "calm" wallet and a "turbo"
+   * wallet kept side by side don't share one setting. A wallet without an entry
+   * falls back to `intensity`. The provider exposes the active wallet's gear as
+   * `settings.intensity`, so every engine keeps reading one value.
+   */
+  intensityByWallet: Record<string, number>;
 
   /* ── Warrior-trading additions ── */
   /** Signal sources: scalp setups, momentum runners, or both. */
@@ -440,6 +454,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   boostDurationMin: 5,
   cashFloorPct: 15,
   intensity: 3,
+  intensityByWallet: {},
 
   strategy: "BOTH",
   minMomentumScore: 55,
@@ -669,6 +684,12 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("wallet-created", handler);
   }, []);
 
+  // The trading-intensity gear is per-wallet. Track the active wallet so the gear
+  // a user sets travels with the wallet, and read it back when they switch.
+  const { activeWalletId } = usePortfolio();
+  const activeWalletIdRef = useRef(activeWalletId);
+  activeWalletIdRef.current = activeWalletId;
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -676,7 +697,23 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
   }, [settings]);
 
   const update = useCallback((patch: Partial<AutoTraderSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }));
+    setSettings((prev) => {
+      // Route the intensity gear to the active wallet so each wallet keeps its
+      // own level; everything else stays a shared fleet-wide setting.
+      if (patch.intensity !== undefined) {
+        const { intensity, ...rest } = patch;
+        const wid = activeWalletIdRef.current;
+        const level = Math.max(1, Math.min(5, Math.round(intensity) || 1));
+        return {
+          ...prev,
+          ...rest,
+          intensityByWallet: wid
+            ? { ...prev.intensityByWallet, [wid]: level }
+            : prev.intensityByWallet,
+        };
+      }
+      return { ...prev, ...patch };
+    });
   }, []);
 
   const toggleEnabled = useCallback(() => {
@@ -830,9 +867,18 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Resolve the gear for the active wallet (falls back to the shared default for
+  // wallets that have never set one), then expose it as `settings.intensity` so
+  // every engine and the UI keep reading a single value.
+  const effectiveSettings = useMemo<AutoTraderSettings>(() => {
+    const perWallet = activeWalletId ? settings.intensityByWallet[activeWalletId] : undefined;
+    const level = perWallet ?? settings.intensity;
+    return level === settings.intensity ? settings : { ...settings, intensity: level };
+  }, [settings, activeWalletId]);
+
   return (
     <AutoTraderContext.Provider
-      value={{ settings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
+      value={{ settings: effectiveSettings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
     >
       {children}
     </AutoTraderContext.Provider>
