@@ -26,3 +26,4 @@
 - [Fixed ambient backdrop z-stacking](fixed-backdrop-zstacking.md) — a `fixed` decorative layer with `-z-10` vanishes behind the root `bg-background`; use `z-0` and bump real content/sidebar siblings to `z-10`.
 - [Intensity gear + Mega-Agent attribution](intensity-gear-and-mega-agent.md) — one 1–5 `intensity` gear scales all bots via intensityProfile(); poly trades carry no source/auto so attribute by type==="POLYMARKET".
 - [Alpha Convergence Coordinator](alpha-coordinator.md) — fleet "brain": engine computes AlphaState confluence across all signals, alphaAdjust() biases aligned/opposing entries; emblem is ORIGINAL mech SVG, not the Transformers trademark.
+- [Bot loss diagnosis](bot-loss-diagnosis.md) — 5 root causes for large bot losses; fixes applied: maxLossPerTradePct 80→40, leverage default 5→3, dynamic leverage cap 8→5, fallback SL always set, stale-loser exit, fixed hardcoded totalDeposited bug

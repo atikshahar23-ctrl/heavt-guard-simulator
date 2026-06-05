@@ -129,7 +129,6 @@ export function ExtraBotsEngine() {
   useEffect(() => {
     if (!settings.riskManagerEnabled) return;
     const timer = setInterval(() => {
-      const totalDeposited = 10_000; // default baseline
       evaluateRisk("dipbuyer", tradeHistory, cash, totalDeposited);
       evaluateRisk("breakout", tradeHistory, cash, totalDeposited);
       evaluateRisk("dca", tradeHistory, cash, totalDeposited);

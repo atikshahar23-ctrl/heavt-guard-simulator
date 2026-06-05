@@ -348,6 +348,20 @@ export function AutoTraderEngine() {
             title: `סגירה חכמה · מִחזוּר ${pos.asset}`,
             description: `${pos.direction} +${gainPct.toFixed(2)}% אחרי ${Math.round(ageMs / 1000)} ש'`,
           });
+          continue;
+        }
+
+        // Stale-and-losing trades: exit to stop the bleed. Without a hard SL a
+        // losing position could sit open for minutes accumulating loss. Cut it
+        // after 3× recycleSec (or 3 min minimum) if it hasn't recovered.
+        const lossCutSec = Math.max(180, (recycleSec || 90) * 3);
+        if (ageMs >= lossCutSec * 1000 && gainPct < -0.3 && !pos.slPrice) {
+          closeBinancePosition(pos.id, price, "SL");
+          peakRef.current.delete(pos.id);
+          toast({
+            title: `סגירה חכמה · קציצת הפסד ${pos.asset}`,
+            description: `${pos.direction} ${gainPct.toFixed(2)}% אחרי ${Math.round(ageMs / 1000)} ש' · אין SL מוגדר`,
+          });
         }
       }
       // Drop peak state for positions that are no longer open.
@@ -501,14 +515,26 @@ export function AutoTraderEngine() {
       if (availableCash - margin < cashFloor) break;
 
       const notional = margin * effectiveLeverage;
+      // Fallback SL/TP: if the signal didn't supply levels, set a conservative
+      // default (2% SL / 4% TP for scalp; 2.5% SL / 5% TP for momentum) so
+      // the trade always has a hard stop and never relies solely on the
+      // catastrophic-exit or stale-loser logic.
+      const fallbackSlPct = c.source === "Momentum surge" ? 0.025 : 0.02;
+      const fallbackTpPct = fallbackSlPct * 2;
+      const slPrice = c.stopLoss ?? (c.direction === "LONG"
+        ? c.entry * (1 - fallbackSlPct)
+        : c.entry * (1 + fallbackSlPct));
+      const tpPrice = c.takeProfit ?? (c.direction === "LONG"
+        ? c.entry * (1 + fallbackTpPct)
+        : c.entry * (1 - fallbackTpPct));
       const err = openBinancePosition({
         asset: c.asset,
         direction: c.direction,
         notional,
         entryPrice: c.entry,
         leverage: effectiveLeverage,
-        slPrice: c.stopLoss,
-        tpPrice: c.takeProfit,
+        slPrice,
+        tpPrice,
         auto: true,
         source: c.source,
         trail,

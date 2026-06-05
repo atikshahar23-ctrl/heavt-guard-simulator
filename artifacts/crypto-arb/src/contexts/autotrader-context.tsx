@@ -194,13 +194,13 @@ export function computeDynamicSizing(
   const sized = Math.round((rawMargin * sizeScale) / 10) * 10;
   const margin = investable <= 0 ? 0 : Math.max(minMargin, Math.min(600, sized));
 
-  // Leverage: base 3×, win-rate + health weighted, clamped 2×–8×. In recovery the
+  // Leverage: base 2×, win-rate + health weighted, clamped 2×–5×. In recovery the
   // manager caps leverage low to protect the thin remaining capital.
   const winScore    = Math.max(-1, Math.min(1, (wr - 0.5) * 4));
   const healthScore = Math.max(-1, Math.min(1, (ratio - 1) * 6));
   const combined    = Math.max(-1, Math.min(1, (winScore + healthScore) / 2));
-  let leverage      = Math.max(2, Math.min(8, Math.round(3 + combined * 3)));
-  if (recoveryMode) leverage = Math.min(leverage, 3);
+  let leverage      = Math.max(2, Math.min(5, Math.round(2 + combined * 2)));
+  if (recoveryMode) leverage = Math.min(leverage, 2);
 
   return { margin, leverage, recoveryMode };
 }
@@ -444,7 +444,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   enabled: false,
   dynamicCapitalEnabled: false,
   marginPerTrade: 100,
-  leverage: 5,
+  leverage: 3,
   minConfidence: "HIGH",
   allowLong: true,
   allowShort: true,
@@ -472,7 +472,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   maxScalpHoldSec: 90,
 
   catastrophicExitEnabled: true,
-  maxLossPerTradePct: 80,
+  maxLossPerTradePct: 40,
   portfolioStopEnabled: false,
   portfolioMaxDrawdownPct: 25,
 
@@ -490,7 +490,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   polyStopLossPct: 50,
 
   adaptiveEnabled: true,
-  newBotLeverage: 5,
+  newBotLeverage: 3,
 
   dipEnabled: false,
   dipStake: 100,
