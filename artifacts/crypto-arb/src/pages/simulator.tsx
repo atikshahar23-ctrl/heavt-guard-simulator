@@ -1000,7 +1000,7 @@ export default function SimulatorPage() {
   const [futuresFilter, setFuturesFilter] = useState<PosFilter>("ALL");
   const [stocksFilter, setStocksFilter] = useState<PosFilter>("ALL");
   const [polyFilter, setPolyFilter] = useState<PosFilter>("ALL");
-  const { polyPositions, binancePositions, stockPositions, cash, resetPortfolio, checkSlTp } = usePortfolio();
+  const { polyPositions, binancePositions, stockPositions, cash, resetPortfolio, checkSlTp, closeAllBotPositions } = usePortfolio();
   const { intervalFor } = useRefresh();
 
   const { data: binanceData, isLoading: binanceLoading } = useGetBinanceMulti({
@@ -1084,6 +1084,25 @@ export default function SimulatorPage() {
     return bMargin + bPnl + polyVal + stockVal;
   }, [binancePositions, polyPositions, stockPositions, binancePrices, stockPrices, allMarkets]);
 
+  const polyPrices = useMemo(() => {
+    const map: Record<string, number> = {};
+    allMarkets.forEach(m => {
+      const pos = polyPositions.find(p => p.conditionId === m.conditionId);
+      if (pos) map[m.conditionId] = pos.side === "YES" ? m.yesPrice : m.noPrice;
+    });
+    return map;
+  }, [allMarkets, polyPositions]);
+
+  const totalBotPositions =
+    binancePositions.filter(p => p.auto).length +
+    stockPositions.filter(p => p.auto).length +
+    polyPositions.filter(p => p.auto).length;
+
+  function handleCloseAllBot() {
+    if (!confirm(`Close all ${totalBotPositions} bot-placed position${totalBotPositions !== 1 ? "s" : ""} across all tabs?`)) return;
+    closeAllBotPositions(binancePrices, stockPrices, polyPrices);
+  }
+
   const tabCls = (t: typeof tab) =>
     `flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px ${
       tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1114,6 +1133,17 @@ export default function SimulatorPage() {
             className="flex items-center gap-1 text-[10px] font-mono font-bold text-primary-foreground bg-primary hover:opacity-90 transition-opacity rounded px-2.5 py-1">
             <Plus className="h-3 w-3" /> Deposit
           </button>
+          {totalBotPositions > 0 && (
+            <button
+              onClick={handleCloseAllBot}
+              className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all"
+              title="Close all bot-placed positions across all tabs"
+            >
+              <Bot className="h-3 w-3" />
+              <span className="hidden sm:inline">Close All Bot</span>
+              <span className="text-[9px] bg-amber-500/20 text-amber-300 rounded-full px-1.5 py-px font-black ml-0.5">{totalBotPositions}</span>
+            </button>
+          )}
           <button onClick={() => { if (confirm("Reset all positions and balance to $" + STARTING_BALANCE.toLocaleString() + "?")) resetPortfolio(); }}
             className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-red-400 transition-colors border border-border rounded px-2 py-1"
             title="Reset portfolio">

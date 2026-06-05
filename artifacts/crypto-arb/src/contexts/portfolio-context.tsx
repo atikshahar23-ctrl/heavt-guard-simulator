@@ -179,6 +179,16 @@ interface PortfolioContextValue extends PortfolioState {
    * Returns the number of positions closed.
    */
   flattenAll: (prices: Record<string, number>) => number;
+  /**
+   * Close every bot-placed (auto===true) position across all three asset types
+   * atomically in a single state update. Poly prices are keyed by conditionId.
+   * Returns the total number of positions closed.
+   */
+  closeAllBotPositions: (
+    binancePrices: Record<string, number>,
+    stockPrices: Record<string, number>,
+    polyPrices: Record<string, number>
+  ) => number;
   resetPortfolio: () => void;
 }
 
@@ -889,6 +899,140 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     return closedCount;
   }, []);
 
+  /**
+   * Atomically close every bot-placed position across all three asset types.
+   * Uses stateRef so concurrent same-tick opens can't race against the close.
+   */
+  const closeAllBotPositions = useCallback(
+    (
+      binancePrices: Record<string, number>,
+      stockPrices: Record<string, number>,
+      polyPrices: Record<string, number>
+    ): number => {
+      const prev = stateRef.current;
+      let cash = prev.cash;
+      let tradeHistory = prev.tradeHistory;
+      const keptBinance: BinancePosition[] = [];
+      const keptStocks: StockPosition[] = [];
+      const keptPoly: PolyPosition[] = [];
+      let closedCount = 0;
+
+      for (const pos of prev.binancePositions) {
+        if (!pos.auto) { keptBinance.push(pos); continue; }
+        const price = binancePrices[pos.asset];
+        if (!price || !Number.isFinite(price)) { keptBinance.push(pos); continue; }
+        const margin = pos.notional / pos.leverage;
+        const priceDelta =
+          pos.direction === "LONG"
+            ? (price - pos.entryPrice) / pos.entryPrice
+            : (pos.entryPrice - price) / pos.entryPrice;
+        const pnl = priceDelta * pos.notional;
+        const proceeds = Math.max(0, margin + pnl);
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "BINANCE",
+          symbol: pos.asset,
+          description: `${pos.direction} ${pos.asset} ${pos.leverage}x @ $${pos.entryPrice.toLocaleString()} → $${price.toLocaleString()}`,
+          slPrice: pos.slPrice,
+          tpPrice: pos.tpPrice,
+          cost: margin,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "MANUAL",
+          direction: pos.direction,
+          entryPrice: pos.entryPrice,
+          exitPrice: price,
+          leverage: pos.leverage,
+          qty: pos.notional,
+          source: pos.source,
+        };
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        cash += proceeds;
+        closedCount += 1;
+      }
+
+      for (const pos of prev.stockPositions) {
+        if (!pos.auto) { keptStocks.push(pos); continue; }
+        const price = stockPrices[pos.symbol];
+        if (!price || !Number.isFinite(price)) { keptStocks.push(pos); continue; }
+        const dir = pos.direction ?? "LONG";
+        const pnl = pos.shares * (dir === "SHORT" ? pos.entryPrice - price : price - pos.entryPrice);
+        const proceeds = Math.max(0, pos.cost + pnl);
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "STOCK",
+          symbol: pos.symbol,
+          description: `${dir} ${pos.symbol}${pos.leverage > 1 ? ` ${pos.leverage}x` : ""} ${pos.shares.toFixed(2)} sh @ $${pos.entryPrice.toFixed(2)} → $${price.toFixed(2)}`,
+          slPrice: pos.slPrice,
+          tpPrice: pos.tpPrice,
+          cost: pos.cost,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "MANUAL",
+          direction: dir,
+          entryPrice: pos.entryPrice,
+          exitPrice: price,
+          leverage: pos.leverage,
+          qty: pos.shares,
+          source: pos.source,
+        };
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        cash += proceeds;
+        closedCount += 1;
+      }
+
+      for (const pos of prev.polyPositions) {
+        if (!pos.auto) { keptPoly.push(pos); continue; }
+        const price = polyPrices[pos.conditionId] ?? pos.entryPrice;
+        const proceeds = pos.shares * price;
+        const pnl = proceeds - pos.cost;
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "POLYMARKET",
+          symbol: pos.slug ?? undefined,
+          description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${price.toFixed(3)} | ${pos.question.slice(0, 200)}`,
+          cost: pos.cost,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          direction: pos.side,
+          entryPrice: pos.entryPrice,
+          exitPrice: price,
+          leverage: 1,
+          qty: pos.shares,
+          question: pos.question,
+          auto: pos.auto,
+          source: pos.source,
+        };
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        cash += proceeds;
+        closedCount += 1;
+      }
+
+      if (closedCount === 0) return 0;
+
+      const next = {
+        ...prev,
+        cash,
+        binancePositions: keptBinance,
+        stockPositions: keptStocks,
+        polyPositions: keptPoly,
+        tradeHistory,
+      };
+      stateRef.current = next;
+      setState(next);
+      return closedCount;
+    },
+    []
+  );
+
   const resetPortfolio = useCallback(() => {
     setState({
       cash: STARTING_BALANCE,
@@ -932,6 +1076,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         updateTrailingStops,
         checkRiskGuards,
         flattenAll,
+        closeAllBotPositions,
         resetPortfolio,
       }}
     >
