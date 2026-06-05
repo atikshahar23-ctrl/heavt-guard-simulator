@@ -76,6 +76,8 @@ export interface ClosedTrade {
   auto?: boolean;
   /** How the close happened: manual / SL / TP / LIQ (emergency risk exit). */
   exit?: "MANUAL" | "SL" | "TP" | "LIQ";
+  /** Underlying symbol for deep-linking to the chart: BINANCE asset, STOCK ticker, or Polymarket slug. */
+  symbol?: string;
 }
 
 interface PortfolioState {
@@ -366,6 +368,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const closed: ClosedTrade = {
         id: crypto.randomUUID(),
         type: "POLYMARKET",
+        symbol: pos.slug ?? undefined,
         description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${currentPrice.toFixed(3)} | ${pos.question.slice(0, 200)}`,
         cost: pos.cost,
         proceeds,
@@ -422,6 +425,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         const closed: ClosedTrade = {
           id: crypto.randomUUID(),
           type: "BINANCE",
+          symbol: pos.asset,
           description: `${pos.direction} ${pos.asset} ${pos.leverage}x @ $${pos.entryPrice.toLocaleString()} → $${currentPrice.toLocaleString()}`,
           cost: margin,
           proceeds: Math.max(0, proceeds),
@@ -482,6 +486,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const closed: ClosedTrade = {
         id: crypto.randomUUID(),
         type: "STOCK",
+        symbol: pos.symbol,
         description: `${dir} ${pos.symbol}${pos.leverage > 1 ? ` ${pos.leverage}x` : ""} ${pos.shares.toFixed(2)} sh @ $${pos.entryPrice.toFixed(2)} → $${currentPrice.toFixed(2)}`,
         cost: pos.cost,
         proceeds,
@@ -532,6 +537,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         const closed: ClosedTrade = {
           id: crypto.randomUUID(),
           type: "BINANCE",
+          symbol: pos.asset,
           description: `${hitTP ? "TP" : "SL"} ${pos.direction} ${pos.asset} ${pos.leverage}x @ $${price.toLocaleString()} (entry $${pos.entryPrice.toLocaleString()})`,
           cost: margin,
           proceeds,
@@ -564,6 +570,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         const closed: ClosedTrade = {
           id: crypto.randomUUID(),
           type: "STOCK",
+          symbol: pos.symbol,
           description: `${hitTP ? "TP" : "SL"} ${dir} ${pos.symbol}${pos.leverage > 1 ? ` ${pos.leverage}x` : ""} ${pos.shares.toFixed(2)} sh @ $${price.toFixed(2)} (entry $${pos.entryPrice.toFixed(2)})`,
           cost: pos.cost,
           proceeds,
@@ -676,6 +683,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         const closed: ClosedTrade = {
           id: crypto.randomUUID(),
           type: "BINANCE",
+          symbol: pos.asset,
           description: `LIQ-GUARD ${pos.direction} ${pos.asset} ${pos.leverage}x @ $${price.toLocaleString()} (entry $${pos.entryPrice.toLocaleString()})`,
           cost: margin,
           proceeds,
@@ -726,6 +734,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const closed: ClosedTrade = {
         id: crypto.randomUUID(),
         type: "BINANCE",
+        symbol: pos.asset,
         description: `KILL-SWITCH ${pos.direction} ${pos.asset} ${pos.leverage}x @ $${price.toLocaleString()} (entry $${pos.entryPrice.toLocaleString()})`,
         cost: margin,
         proceeds,
@@ -748,6 +757,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const closed: ClosedTrade = {
         id: crypto.randomUUID(),
         type: "STOCK",
+        symbol: pos.symbol,
         description: `KILL-SWITCH ${pos.symbol}${pos.leverage > 1 ? ` ${pos.leverage}x` : ""} ${pos.shares.toFixed(2)} sh @ $${price.toFixed(2)} (entry $${pos.entryPrice.toFixed(2)})`,
         cost: pos.cost,
         proceeds,

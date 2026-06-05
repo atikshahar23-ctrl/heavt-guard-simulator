@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useGetMarketOverview, getGetMarketOverviewQueryKey } from "@workspace/api-client-react";
 import {
   History as HistoryIcon, TrendingUp, TrendingDown, Trophy, Target,
-  Bot, Hand, Wallet, Trash2, Activity, Cpu,
+  Bot, Hand, Wallet, Trash2, Activity, Cpu, LineChart as ChartIcon,
 } from "lucide-react";
 import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition } from "@/contexts/portfolio-context";
 import { CryptoIcon } from "@/components/crypto-icon";
@@ -27,6 +28,19 @@ const BOT_SOURCE_LABEL: Record<string, string> = {
 function botName(source: string | undefined): string | null {
   if (!source) return null;
   return BOT_SOURCE_LABEL[source] ?? null;
+}
+
+/**
+ * Build the in-app chart destination for a trade. Crypto opens the futures
+ * terminal pre-loaded with the asset, stocks open the stock chart, and
+ * Polymarket bets open the prediction-markets tab (no candle chart exists for
+ * them). Returns null when there is nothing useful to link to (legacy trades
+ * with no stored symbol).
+ */
+function chartHref(type: ClosedTrade["type"], symbol?: string | null): string | null {
+  if (type === "BINANCE") return symbol ? `/simulator?tab=futures&asset=${encodeURIComponent(symbol)}` : null;
+  if (type === "STOCK") return symbol ? `/stocks?symbol=${encodeURIComponent(symbol)}` : null;
+  return "/simulator?tab=prediction";
 }
 
 function fmtUsd(n: number, dp = 2): string {
@@ -83,6 +97,7 @@ function StatCard({ label, value, sub, color, Icon }: {
 }
 
 function OpenPositions() {
+  const [, navigate] = useLocation();
   const { binancePositions, closeBinancePosition, stockPositions, closeStockPosition, polyPositions, closePolyPosition } = usePortfolio();
   const { data: overview } = useGetMarketOverview({
     query: { queryKey: getGetMarketOverviewQueryKey(), refetchInterval: 30000, staleTime: 20000 },
@@ -147,7 +162,15 @@ function OpenPositions() {
               const up = pnl >= 0;
               const accent = p.direction === "LONG" ? "#22c55e" : "#ef4444";
               return (
-                <div key={p.id} className="rounded-lg border bg-card p-3 space-y-2" style={{ borderColor: `${accent}30` }}>
+                <div
+                  key={p.id}
+                  onClick={() => navigate(`/simulator?tab=futures&asset=${encodeURIComponent(p.asset)}`)}
+                  role="button"
+                  tabIndex={0}
+                  title="צפה בגרף"
+                  className="rounded-lg border bg-card p-3 space-y-2 cursor-pointer transition-colors hover:bg-secondary/30"
+                  style={{ borderColor: `${accent}30` }}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <CryptoIcon asset={p.asset} size={18} />
@@ -156,6 +179,7 @@ function OpenPositions() {
                         {p.direction} {p.leverage}x
                       </span>
                     </div>
+                    <ChartIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </div>
                   <div className="flex items-end justify-between">
                     <div className="text-[10px] font-mono text-muted-foreground">
@@ -172,7 +196,7 @@ function OpenPositions() {
                     </div>
                   </div>
                   <button
-                    onClick={() => closeBinancePosition(p.id, cur)}
+                    onClick={(e) => { e.stopPropagation(); closeBinancePosition(p.id, cur); }}
                     className="w-full rounded py-1.5 text-[11px] font-mono font-bold bg-secondary/60 hover:bg-secondary transition-colors"
                   >
                     סגור @ ${fmtPrice(cur)}
@@ -198,7 +222,15 @@ function OpenPositions() {
               const dir = p.direction ?? "LONG";
               const accent = dir === "LONG" ? "#22c55e" : "#ef4444";
               return (
-                <div key={p.id} className="rounded-lg border bg-card p-3 space-y-2" style={{ borderColor: `${accent}30` }}>
+                <div
+                  key={p.id}
+                  onClick={() => navigate(`/stocks?symbol=${encodeURIComponent(p.symbol)}`)}
+                  role="button"
+                  tabIndex={0}
+                  title="צפה בגרף"
+                  className="rounded-lg border bg-card p-3 space-y-2 cursor-pointer transition-colors hover:bg-secondary/30"
+                  style={{ borderColor: `${accent}30` }}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <StockIcon symbol={p.symbol} size={18} />
@@ -207,12 +239,13 @@ function OpenPositions() {
                         {dir}
                       </span>
                     </div>
+                    <ChartIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </div>
                   <div className="text-[10px] font-mono text-muted-foreground">
                     {p.shares.toFixed(2)} מניות @ ${fmtPrice(p.entryPrice)}
                   </div>
                   <button
-                    onClick={() => closeStockPosition(p.id, p.entryPrice)}
+                    onClick={(e) => { e.stopPropagation(); closeStockPosition(p.id, p.entryPrice); }}
                     className="w-full rounded py-1.5 text-[11px] font-mono font-bold bg-secondary/60 hover:bg-secondary transition-colors"
                   >
                     סגור
@@ -235,19 +268,29 @@ function OpenPositions() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {polyPositions.map((p) => (
-              <div key={p.id} className="rounded-lg border bg-card p-3 space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${p.side === "YES" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
-                    {p.side}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{p.category}</span>
+              <div
+                key={p.id}
+                onClick={() => navigate("/simulator?tab=prediction")}
+                role="button"
+                tabIndex={0}
+                title="צפה בשוק החיזוי"
+                className="rounded-lg border bg-card p-3 space-y-2 cursor-pointer transition-colors hover:bg-secondary/30"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${p.side === "YES" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
+                      {p.side}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{p.category}</span>
+                  </div>
+                  <ChartIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
                 </div>
                 <p className="text-xs text-foreground/80 line-clamp-2">{p.question}</p>
                 <div className="text-[10px] font-mono text-muted-foreground">
                   {p.shares.toFixed(2)} יחידות · כניסה ${p.entryPrice.toFixed(3)}
                 </div>
                 <button
-                  onClick={() => closePolyPosition(p.id, p.entryPrice)}
+                  onClick={(e) => { e.stopPropagation(); closePolyPosition(p.id, p.entryPrice); }}
                   className="w-full rounded py-1.5 text-[11px] font-mono font-bold bg-secondary/60 hover:bg-secondary transition-colors"
                 >
                   סגור
@@ -262,6 +305,7 @@ function OpenPositions() {
 }
 
 export default function HistoryPage() {
+  const [, navigate] = useLocation();
   const { tradeHistory, resetPortfolio, cash, totalDeposited } = usePortfolio();
   const [typeF, setTypeF] = useState<TypeFilter>("ALL");
   const [resultF, setResultF] = useState<ResultFilter>("ALL");
@@ -368,11 +412,20 @@ export default function HistoryPage() {
               const up = t.pnl >= 0;
               const ex = exit(t);
               const pct = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
+              const href = chartHref(t.type, t.symbol);
               return (
-                <div key={t.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs">
+                <div
+                  key={t.id}
+                  onClick={href ? () => navigate(href) : undefined}
+                  role={href ? "button" : undefined}
+                  tabIndex={href ? 0 : undefined}
+                  title={href ? "צפה בגרף" : undefined}
+                  className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs ${href ? "cursor-pointer transition-colors hover:bg-secondary/30" : ""}`}
+                >
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[t.type]}</span>
+                      {href && <ChartIcon className="h-3 w-3 text-muted-foreground/50" />}
                       {t.auto ? (
                         <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary flex items-center gap-0.5"><Bot className="h-2.5 w-2.5" /> AUTO</span>
                       ) : (

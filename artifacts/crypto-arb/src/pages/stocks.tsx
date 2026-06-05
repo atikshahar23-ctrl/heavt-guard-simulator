@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   useGetStocks, getGetStocksQueryKey, StockQuote,
 } from "@workspace/api-client-react";
@@ -199,6 +199,25 @@ export default function StocksPage() {
   const { data: stocks, isLoading, isFetching } = useGetStocks({
     query: { queryKey: getGetStocksQueryKey(), refetchInterval: stocksInterval },
   });
+
+  // Deep-link support: ?symbol=AAPL (from trade history) auto-opens that stock's
+  // chart once the quotes have loaded. Runs only once so closing the panel sticks.
+  const deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (deepLinkDone.current || !stocks) return;
+    const wanted = new URLSearchParams(window.location.search).get("symbol");
+    if (!wanted) { deepLinkDone.current = true; return; }
+    const match = stocks.find((s) => s.symbol.toUpperCase() === wanted.toUpperCase());
+    if (match) {
+      setSelected(match);
+      deepLinkDone.current = true;
+    } else {
+      // Not in the curated feed — surface it via the search box so the user can
+      // open it through the universal search panel.
+      setSearch(wanted);
+      deepLinkDone.current = true;
+    }
+  }, [stocks]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;

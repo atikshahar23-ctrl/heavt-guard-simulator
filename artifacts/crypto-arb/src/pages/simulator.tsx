@@ -230,9 +230,10 @@ function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string
 }
 
 /* ─── Professional Futures Terminal ─── */
-function BinanceFuturesTerminal({ binancePrices }: { binancePrices: Record<string, number> }) {
+function BinanceFuturesTerminal({ binancePrices, initialAsset }: { binancePrices: Record<string, number>; initialAsset?: string }) {
   const { cash, openBinancePosition } = usePortfolio();
-  const [selectedAsset, setSelectedAsset] = useState<FuturesAsset>("BTC");
+  // Allow ANY asset (e.g. deep-linked from trade history), not just the strip's presets.
+  const [selectedAsset, setSelectedAsset] = useState<string>(initialAsset ? initialAsset.toUpperCase() : "BTC");
   const [leverage, setLeverage] = useState<Leverage>(1);
   const [amount, setAmount] = useState("");
   const [slInput, setSlInput] = useState("");
@@ -274,9 +275,12 @@ function BinanceFuturesTerminal({ binancePrices }: { binancePrices: Record<strin
 
   return (
     <div className="flex flex-col h-full">
-      {/* Asset selector strip */}
+      {/* Asset selector strip — prepend a deep-linked asset that isn't a preset */}
       <div className="flex items-stretch border-b border-border shrink-0 overflow-x-auto">
-        {FUTURES_ASSETS.map(asset => {
+        {((FUTURES_ASSETS as readonly string[]).includes(selectedAsset)
+          ? [...FUTURES_ASSETS]
+          : [selectedAsset, ...FUTURES_ASSETS]
+        ).map(asset => {
           const price = binancePrices[asset];
           const isSelected = selectedAsset === asset;
           return (
@@ -307,13 +311,7 @@ function BinanceFuturesTerminal({ binancePrices }: { binancePrices: Record<strin
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           {/* Chart */}
           <div className="flex-1 min-h-0" style={{ minHeight: "220px" }}>
-            {currentPrice > 0 ? (
-              <CandlestickChart symbol={selectedAsset} />
-            ) : (
-              <div className="flex h-full items-center justify-center bg-background">
-                <Skeleton className="h-full w-full rounded-none" />
-              </div>
-            )}
+            <CandlestickChart symbol={selectedAsset} />
           </div>
 
           {/* Trade Form */}
@@ -848,7 +846,14 @@ function TradeHistoryPanel() {
 
 /* ─── Main Page ─── */
 export default function SimulatorPage() {
-  const [tab, setTab] = useState<"futures" | "prediction" | "stocks">("futures");
+  // Deep-link support: ?tab=futures|stocks|prediction and ?asset=BTC (from trade history).
+  const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const initialTab = (() => {
+    const t = initialParams.get("tab");
+    return t === "stocks" || t === "prediction" || t === "futures" ? t : "futures";
+  })();
+  const initialAsset = initialParams.get("asset") ?? undefined;
+  const [tab, setTab] = useState<"futures" | "prediction" | "stocks">(initialTab);
   const [showDeposit, setShowDeposit] = useState(false);
   const { polyPositions, binancePositions, stockPositions, cash, resetPortfolio, checkSlTp } = usePortfolio();
   const { intervalFor } = useRefresh();
@@ -1000,7 +1005,7 @@ export default function SimulatorPage() {
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-40" />)}
             </div>
           ) : (
-            <BinanceFuturesTerminal binancePrices={binancePrices} />
+            <BinanceFuturesTerminal binancePrices={binancePrices} initialAsset={initialAsset} />
           )
         )}
         {tab === "stocks" && (
