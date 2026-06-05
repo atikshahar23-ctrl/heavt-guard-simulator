@@ -165,7 +165,7 @@ export default function Bots() {
     const bn = (m: string) => binancePositions.filter((p) => (p.source ?? "").includes(m)).length;
     const st = (m: string) => stockPositions.filter((p) => (p.source ?? "").includes(m)).length;
     return {
-      scalp: bn("Scalp"), momentum: bn("Momentum"), smart: st("Smart-Money"), poly: polyPositions.length,
+      scalp: bn("Scalp"), momentum: bn("Momentum"), smart: st("Smart-Money"), poly: polyPositions.filter((p) => p.source === "Polymarket BTC").length,
       dipbuyer: binancePositions.filter((p) => p.source === "Dip Buyer").length,
       breakout: binancePositions.filter((p) => p.source === "Breakout Hunter").length,
       dca: stockPositions.filter((p) => p.source === "Blue-Chip DCA").length,
@@ -185,7 +185,7 @@ export default function Bots() {
       { key: "scalp", title: "Scalp Bot", icon: Gauge, market: "קריפטו", armed: scalpOn, match: (t) => (t.source ?? "").includes("Scalp") },
       { key: "momentum", title: "Momentum Bot", icon: Rocket, market: "קריפטו", armed: momOn, match: (t) => (t.source ?? "").includes("Momentum") },
       { key: "smart", title: "Smart-Money", icon: Megaphone, market: "מניות", armed: settings.stocksEnabled, match: (t) => (t.source ?? "").includes("Smart-Money") },
-      { key: "poly", title: "Polymarket BTC", icon: Timer, market: "תחזיות", armed: settings.polyEnabled, match: (t) => t.type === "POLYMARKET" },
+      { key: "poly", title: "Polymarket BTC", icon: Timer, market: "תחזיות", armed: settings.polyEnabled, match: (t) => t.type === "POLYMARKET" && t.source === "Polymarket BTC" },
       { key: "dipbuyer", title: "Dip Buyer", icon: TrendingDown, market: "קריפטו", armed: settings.dipEnabled, match: (t) => t.source === "Dip Buyer" },
       { key: "breakout", title: "Breakout Hunter", icon: TrendingUp, market: "קריפטו", armed: settings.breakoutEnabled, match: (t) => t.source === "Breakout Hunter" },
       { key: "dca", title: "Blue-Chip DCA", icon: Layers, market: "מניות", armed: settings.dcaEnabled, match: (t) => t.source === "Blue-Chip DCA" },
@@ -233,7 +233,7 @@ export default function Bots() {
   };
 
   const totalOpenAuto = binancePositions.filter((p) => p.auto).length +
-    stockPositions.filter((p) => p.auto).length + polyPositions.length;
+    stockPositions.filter((p) => p.auto).length + polyPositions.filter((p) => p.auto).length;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">

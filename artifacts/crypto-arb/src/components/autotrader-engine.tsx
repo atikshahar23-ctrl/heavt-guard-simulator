@@ -724,6 +724,8 @@ export function AutoTraderEngine() {
           slug: m.slug ?? null,
           side,
           entryPrice,
+          auto: true,
+          source: "Polymarket BTC",
         },
         settings.polyStakePerBet,
       );

@@ -13,6 +13,10 @@ export interface PolyPosition {
   entryPrice: number;
   cost: number;
   openedAt: string;
+  /** Opened automatically by the Auto-Trader engine. */
+  auto?: boolean;
+  /** Free-form source label, e.g. "Polymarket BTC". */
+  source?: string;
 }
 
 export interface TrailConfig {
@@ -398,6 +402,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         leverage: 1,
         qty: pos.shares,
         question: pos.question,
+        auto: pos.auto,
+        source: pos.source,
       };
       return {
         ...prev,
