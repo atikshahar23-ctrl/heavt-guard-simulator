@@ -2,14 +2,18 @@ import { useMemo, useState, useEffect } from "react";
 import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
+  Network, ArrowUpRight, ArrowDownRight, Minus,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { usePortfolio } from "@/contexts/portfolio-context";
+import { usePortfolio, type ClosedTrade } from "@/contexts/portfolio-context";
 import {
-  useAutoTrader, computeDynamicSizing, type AutoTraderSettings, type NewBotId, type RiskGuard,
+  useAutoTrader, computeDynamicSizing, intensityProfile,
+  ALPHA_COMMIT_PCT, ALPHA_STRONG_PCT,
+  type AutoTraderSettings, type NewBotId, type RiskGuard,
 } from "@/contexts/autotrader-context";
+import { AlphaBotEmblem } from "@/components/alpha-bot-emblem";
 
 function StatChip({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
   const color = tone === "good" ? "text-emerald-400" : tone === "bad" ? "text-red-400" : "text-foreground";
@@ -124,7 +128,7 @@ const NEW_BOT_META: {
 ];
 
 export default function Bots() {
-  const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getAssetCaution, resetAssetStats, getRiskGuard, resetRiskGuard } = useAutoTrader();
+  const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getAssetCaution, resetAssetStats, getRiskGuard, resetRiskGuard, alpha } = useAutoTrader();
   const { binancePositions, stockPositions, polyPositions, cash, totalDeposited, tradeHistory } = usePortfolio();
 
   // Live boost countdown — tick once a second only while a boost is running.
@@ -168,6 +172,54 @@ export default function Bots() {
     };
   }, [binancePositions, stockPositions, polyPositions]);
 
+  // ── Mega-Agent Coordinator ──
+  // One supervisor view over the whole fleet: every bot's realized track record
+  // (from the wallet's closed-trade history, attributed by `source`/type) fused
+  // with its live open count, armed state and risk-pause status. This is purely
+  // a read-only roll-up — it never opens trades itself.
+  const fleet = useMemo(() => {
+    const defs: {
+      key: keyof typeof counts; title: string; icon: React.ComponentType<{ className?: string }>;
+      market: string; armed: boolean; match: (t: ClosedTrade) => boolean;
+    }[] = [
+      { key: "scalp", title: "Scalp Bot", icon: Gauge, market: "קריפטו", armed: scalpOn, match: (t) => (t.source ?? "").includes("Scalp") },
+      { key: "momentum", title: "Momentum Bot", icon: Rocket, market: "קריפטו", armed: momOn, match: (t) => (t.source ?? "").includes("Momentum") },
+      { key: "smart", title: "Smart-Money", icon: Megaphone, market: "מניות", armed: settings.stocksEnabled, match: (t) => (t.source ?? "").includes("Smart-Money") },
+      { key: "poly", title: "Polymarket BTC", icon: Timer, market: "תחזיות", armed: settings.polyEnabled, match: (t) => t.type === "POLYMARKET" },
+      { key: "dipbuyer", title: "Dip Buyer", icon: TrendingDown, market: "קריפטו", armed: settings.dipEnabled, match: (t) => t.source === "Dip Buyer" },
+      { key: "breakout", title: "Breakout Hunter", icon: TrendingUp, market: "קריפטו", armed: settings.breakoutEnabled, match: (t) => t.source === "Breakout Hunter" },
+      { key: "dca", title: "Blue-Chip DCA", icon: Layers, market: "מניות", armed: settings.dcaEnabled, match: (t) => t.source === "Blue-Chip DCA" },
+    ];
+    const rows = defs.map((d) => {
+      const ts = tradeHistory.filter((t) => d.match(t));
+      const trades = ts.length;
+      const wins = ts.filter((t) => t.pnl > 0).length;
+      const net = ts.reduce((a, t) => a + t.pnl, 0);
+      return {
+        ...d,
+        trades, wins, net,
+        wr: trades > 0 ? (wins / trades) * 100 : 0,
+        open: counts[d.key] ?? 0,
+        paused: getRiskGuard(d.key).paused,
+        edge: getBotStat(d.key).edge,
+      };
+    });
+    const totTrades = rows.reduce((a, r) => a + r.trades, 0);
+    const totWins = rows.reduce((a, r) => a + r.wins, 0);
+    return {
+      rows,
+      totTrades,
+      totWins,
+      totNet: rows.reduce((a, r) => a + r.net, 0),
+      totOpen: rows.reduce((a, r) => a + r.open, 0),
+      activeCount: rows.filter((r) => r.armed).length,
+      pausedCount: rows.filter((r) => r.paused).length,
+      wr: totTrades > 0 ? (totWins / totTrades) * 100 : 0,
+      best: rows.filter((r) => r.trades > 0).sort((a, b) => b.net - a.net)[0],
+      worst: rows.filter((r) => r.trades > 0).sort((a, b) => a.net - b.net)[0],
+    };
+  }, [tradeHistory, counts, scalpOn, momOn, settings, getRiskGuard, getBotStat]);
+
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
     settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled;
 
@@ -187,13 +239,16 @@ export default function Bots() {
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:pr-44">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Bot className="h-6 w-6 text-primary" /> Bot Command Center
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5" dir="rtl">
-            מרכז שליטה אחד לכל הבוטים — סימולציית מסחר בלבד (כסף וירטואלי).
-          </p>
+        <div className="flex items-center gap-3">
+          <AlphaBotEmblem className="h-11 w-11 shrink-0" active={settings.alphaCoordinatorEnabled && alpha.direction !== "NEUTRAL"} />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Bot className="h-6 w-6 text-primary" /> Bot Command Center
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5" dir="rtl">
+              מרכז שליטה אחד לכל הבוטים — סימולציית מסחר בלבד (כסף וירטואלי).
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {boostActive ? (
@@ -249,6 +304,109 @@ export default function Bots() {
         </div>
       )}
 
+      {/* ── Alpha Convergence Coordinator — סוכן אלפא (מתאם-על) ── */}
+      {(() => {
+        const on = settings.alphaCoordinatorEnabled;
+        const dir = on ? alpha.direction : "NEUTRAL";
+        const isLong = dir === "LONG";
+        const isShort = dir === "SHORT";
+        const committed = on && dir !== "NEUTRAL";
+        const strong = committed && alpha.confluence >= ALPHA_STRONG_PCT;
+        const totVotes = Math.max(1, alpha.longVotes + alpha.shortVotes);
+        const longPct = Math.round((alpha.longVotes / totVotes) * 100);
+        const accent = isLong ? "152 60% 45%" : isShort ? "0 72% 51%" : "43 74% 52%";
+        const dirLabel = isLong ? "עלייה (LONG)" : isShort ? "ירידה (SHORT)" : on ? "ממתין לקונצנזוס" : "כבוי";
+        const DirIcon = isLong ? ArrowUpRight : isShort ? ArrowDownRight : Minus;
+        return (
+          <section
+            className="alpha-coordinator relative overflow-hidden rounded-xl border p-4 sm:p-5 anim-rise-in"
+            style={{
+              borderColor: `hsl(${accent} / ${committed ? 0.55 : 0.35})`,
+              background: `radial-gradient(120% 120% at 85% 0%, hsl(${accent} / 0.12), hsl(0 0% 6% / 0.4) 60%)`,
+            }}
+            dir="rtl"
+          >
+            {committed && <div className="alpha-scan-line" style={{ background: `linear-gradient(90deg, transparent, hsl(${accent} / 0.5), transparent)` }} />}
+            <div className="relative flex items-start gap-3 sm:gap-4">
+              <div className={`shrink-0 ${committed ? "alpha-emblem-bob" : ""}`}>
+                <AlphaBotEmblem className="h-12 w-12 sm:h-14 sm:w-14" active={committed} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-base font-bold tracking-wide flex items-center gap-1.5">
+                    סוכן אלפא — מתאם-העל
+                    <Network className="h-4 w-4 text-primary" />
+                  </h2>
+                  <Switch checked={on} onCheckedChange={(v) => update({ alphaCoordinatorEnabled: v })} aria-label="הפעלת סוכן אלפא" />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                  המוח המתאם של כל הצי: קורא את מידת ההסכמה בין כל מקורות האיתות — סקאלפ, מומנטום והסוכן החכם של המניות — ומגבש <span className="text-foreground font-medium">כיוון אחד לכל הבוטים</span>. כשהבוטים מאוחדים בכיוון הם נעים יחד כמערך אחד: עסקאות שמסכימות עם הקונצנזוס עוברות סף קל יותר ומקבלות יותר מקום, ועסקאות שנוגדות אותו חייבות סטאפ חזק בהרבה. סימולציה חינוכית בלבד — הוא מתאם את הבוטים, לא מזיז שום שוק אמיתי.
+                </p>
+              </div>
+            </div>
+
+            {/* Live conviction readout */}
+            <div className="relative mt-4 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
+              <div
+                className="flex items-center gap-2 rounded-lg border px-3 py-2 justify-center"
+                style={{ borderColor: `hsl(${accent} / 0.5)`, background: `hsl(${accent} / 0.1)` }}
+              >
+                <DirIcon className="h-5 w-5" style={{ color: `hsl(${accent})` }} />
+                <div className="text-center leading-tight">
+                  <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">כיוון הצי</div>
+                  <div className="text-sm font-bold" style={{ color: `hsl(${accent})` }}>{dirLabel}</div>
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground mb-1">
+                  <span>עוצמת קונצנזוס</span>
+                  <span className="tabular-nums" style={{ color: committed ? `hsl(${accent})` : undefined }}>
+                    {on ? `${alpha.confluence}%` : "—"}
+                  </span>
+                </div>
+                <div className="h-2.5 rounded-full bg-secondary/40 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${on ? alpha.confluence : 0}%`, background: `hsl(${accent})` }}
+                  />
+                </div>
+                {/* Long vs short tug-of-war */}
+                <div className="mt-2 flex h-1.5 rounded-full overflow-hidden bg-secondary/40">
+                  <div className="h-full transition-all duration-700" style={{ width: `${on ? longPct : 50}%`, background: "hsl(152 60% 45% / 0.8)" }} />
+                  <div className="h-full transition-all duration-700" style={{ width: `${on ? 100 - longPct : 50}%`, background: "hsl(0 72% 51% / 0.8)" }} />
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[9px] font-mono text-muted-foreground">
+                  <span className="text-emerald-400">▲ {on ? alpha.longVotes : 0}</span>
+                  <span>{on ? `${alpha.sources} מקורות פעילים` : "מכובה"}</span>
+                  <span className="text-red-400">{on ? alpha.shortVotes : 0} ▼</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatChip label="מצב" value={!on ? "כבוי" : committed ? "במערך" : "מסנכרן"} tone={committed ? "good" : undefined} />
+              <StatChip label="סף כניסה (תואם)" value={committed ? "מרוכך" : "רגיל"} tone={committed ? "good" : undefined} />
+              <StatChip label="סף כניסה (נוגד)" value={committed ? "מחמיר" : "רגיל"} tone={committed ? "bad" : undefined} />
+              <StatChip label="תוספת מקומות" value={strong ? "+2 כשהצי חזק" : "—"} tone={strong ? "good" : undefined} />
+            </div>
+
+            {on && committed && (
+              <p className="relative mt-2 text-[10px]" style={{ color: `hsl(${accent})` }}>
+                {strong
+                  ? `הצי מאוחד בעוצמה (${alpha.confluence}%) לכיוון ${isLong ? "עלייה" : "ירידה"} — הבוטים נכנסים יחד למערך ולוחצים על היתרון.`
+                  : `הצי מתכנס לכיוון ${isLong ? "עלייה" : "ירידה"} (${alpha.confluence}%) — הבוטים מתחילים לנוע באותו כיוון.`}
+              </p>
+            )}
+            {on && !committed && (
+              <p className="relative mt-2 text-[10px] text-muted-foreground">
+                אין עדיין רוב ברור ({ALPHA_COMMIT_PCT}%+ נדרש כדי לגבש כיוון) — כל בוט פועל לפי הסטאפ שלו עד שמופיע קונצנזוס.
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
       {/* Live summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border bg-secondary/20 p-4">
         <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled].filter(Boolean).length} / 7`} />
@@ -256,6 +414,134 @@ export default function Bots() {
         <StatChip label="Adaptive Mgr" value={settings.adaptiveEnabled ? "ON" : "OFF"} tone={settings.adaptiveEnabled ? "good" : undefined} />
         <StatChip label="Leverage (new)" value={`${settings.newBotLeverage}x`} />
       </div>
+
+      {/* ── Trading-intensity gear (one selector for the whole fleet) ── */}
+      {(() => {
+        const prof = intensityProfile(settings.intensity ?? 3);
+        return (
+          <section className="rounded-lg border p-4" style={{ borderColor: "hsl(43 74% 52% / 0.4)", background: "hsl(43 74% 52% / 0.05)" }} dir="rtl">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
+                <Gauge className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold tracking-wide">עוצמת מסחר — בורר הילוכים</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  בורר אחד שמשפיע על <span className="text-foreground font-medium">כל הבוטים</span> יחד. כל הילוך מעלה מגדיל את כמות העסקאות בכ-50% ומרכך את הסלקטיביות. הילוך <span className="text-foreground font-medium">1 (רגוע)</span> פותח מעט עסקאות אך מחפש סטאפים חזקים ומכוון לרווח גדול; הילוך <span className="text-foreground font-medium">5 (טורבו קיצוני)</span> סוחר בקצב מקסימלי. כמו מצב חסכוני מול ספורט.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-5 gap-2">
+              {[1, 2, 3, 4, 5].map((lvl) => {
+                const p = intensityProfile(lvl);
+                const sel = (settings.intensity ?? 3) === lvl;
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => update({ intensity: lvl })}
+                    aria-pressed={sel}
+                    className={`rounded-md border p-2.5 text-center transition-all ${
+                      sel ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(43_74%_52%/0.4)]" : "border-border/60 bg-background/40 hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className={`text-lg font-mono font-bold leading-none ${sel ? "text-primary" : "text-muted-foreground"}`}>{lvl}</div>
+                    <div className={`text-[10px] font-medium leading-tight mt-1 ${sel ? "text-foreground" : "text-muted-foreground"}`}>{p.label}</div>
+                    <div className="text-[9px] font-mono text-muted-foreground/80 mt-0.5">{p.tradeRate.toFixed(2)}×</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* economy → sport gradient cue */}
+            <div className="mt-3 h-1.5 rounded-full" style={{ background: "linear-gradient(to left, hsl(152 60% 45% / 0.5), hsl(43 74% 52% / 0.6), hsl(0 72% 51% / 0.7))" }} />
+
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatChip label="הילוך נוכחי" value={`${prof.level} · ${prof.label}`} tone="good" />
+              <StatChip label="קצב עסקאות" value={`${prof.tradeRate.toFixed(2)}× מהילוך 1`} />
+              <StatChip label="קירור בין עסקאות" value={`${Math.round(prof.cooldownMult * 100)}%`} tone={prof.cooldownMult < 1 ? "good" : undefined} />
+              <StatChip label="סלקטיביות" value={prof.selectivityMult > 1 ? "מחמירה" : prof.selectivityMult < 1 ? "מרוככת" : "רגילה"} />
+            </div>
+            {boostActive && (
+              <p className="mt-2 text-[10px] text-primary/90" dir="rtl">
+                בזמן בוסט הקצב נדרס לקצב המהיר ביותר ללא קשר להילוך; ההילוך חוזר לפעול כשהבוסט מסתיים.
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
+      {/* ── Mega-Agent Coordinator — סוכן-על מתאם ── */}
+      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(265 70% 60% / 0.4)", background: "hsl(265 70% 60% / 0.05)" }} dir="rtl">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "hsl(265 70% 60% / 0.15)" }}>
+            <Cpu className="h-4 w-4" style={{ color: "hsl(265 70% 68%)" }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold tracking-wide">סוכן-על מתאם — Mega-Agent</h2>
+            <p className="text-[11px] text-muted-foreground">
+              מבט-על אחד על כל 7 הבוטים יחד, בכל הזירות (קריפטו, מניות ותחזיות): ביצועים מצטברים מההיסטוריה, פוזיציות פתוחות, מצב הפעלה ונעילות סיכון. זהו סיכום בלבד — הוא לא פותח עסקאות בעצמו.
+            </p>
+          </div>
+        </div>
+
+        {/* Fleet summary */}
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 rounded-md border border-border/40 bg-background/40 p-3">
+          <StatChip label="בוטים פעילים" value={`${fleet.activeCount} / 7`} tone={fleet.activeCount > 0 ? "good" : undefined} />
+          <StatChip label="פוזיציות פתוחות" value={String(fleet.totOpen)} tone={fleet.totOpen > 0 ? "good" : undefined} />
+          <StatChip label="עסקאות סגורות" value={String(fleet.totTrades)} />
+          <StatChip label="אחוז ניצחון" value={fleet.totTrades > 0 ? `${fleet.wr.toFixed(0)}%` : "—"} tone={fleet.totTrades >= 4 ? (fleet.wr >= 50 ? "good" : "bad") : undefined} />
+          <StatChip label="רווח/הפסד כולל" value={`${fleet.totNet >= 0 ? "+" : ""}$${fleet.totNet.toFixed(0)}`} tone={fleet.totNet > 0 ? "good" : fleet.totNet < 0 ? "bad" : undefined} />
+          <StatChip label="מושהים" value={String(fleet.pausedCount)} tone={fleet.pausedCount > 0 ? "bad" : undefined} />
+        </div>
+
+        {(fleet.best || fleet.worst) && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {fleet.best && (
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5 flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">הבוט המוביל</span>
+                <span className="text-xs font-semibold">{fleet.best.title} <span className="font-mono text-emerald-400">{fleet.best.net >= 0 ? "+" : ""}${fleet.best.net.toFixed(0)}</span></span>
+              </div>
+            )}
+            {fleet.worst && fleet.worst.key !== fleet.best?.key && (
+              <div className="rounded-md border border-red-500/30 bg-red-500/5 p-2.5 flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">זקוק לתשומת לב</span>
+                <span className="text-xs font-semibold">{fleet.worst.title} <span className="font-mono text-red-400">{fleet.worst.net >= 0 ? "+" : ""}${fleet.worst.net.toFixed(0)}</span></span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Per-bot roll-up */}
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {fleet.rows.map((r) => (
+            <div
+              key={r.key}
+              className={`rounded-md border p-3 ${r.paused ? "border-red-500/40 bg-red-500/5" : r.armed ? "border-primary/40 bg-primary/5" : "border-border/60 bg-background/40"}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <r.icon className={`h-3.5 w-3.5 shrink-0 ${r.armed ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="text-xs font-semibold truncate">{r.title}</span>
+                </div>
+                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full shrink-0 ${r.paused ? "bg-red-500/20 text-red-400" : r.armed ? "bg-emerald-500/15 text-emerald-400" : "bg-muted/40 text-muted-foreground"}`}>
+                  {r.paused ? "הושהת" : r.armed ? "פעיל" : "כבוי"}
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                <StatChip label="עסקאות" value={String(r.trades)} />
+                <StatChip label="ניצחון" value={r.trades > 0 ? `${r.wr.toFixed(0)}%` : "—"} tone={r.trades >= 4 ? (r.wr >= 50 ? "good" : "bad") : undefined} />
+                <StatChip label="P/L" value={`${r.net >= 0 ? "+" : ""}$${r.net.toFixed(0)}`} tone={r.net > 0 ? "good" : r.net < 0 ? "bad" : undefined} />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-muted-foreground">
+                <span>{r.market}</span>
+                <span>{r.open > 0 ? <span className="text-primary">{r.open} פתוחות</span> : "אין פתוחות"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ── Dynamic Capital Agent ── */}
       {(() => {

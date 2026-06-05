@@ -23,7 +23,7 @@ import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
   ChartCandlestick, BarChart3, Trophy, History, X, Plus,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
-  ShieldAlert, Target,
+  ShieldAlert, Target, Clock,
 } from "lucide-react";
 
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10] as const;
@@ -90,6 +90,34 @@ function DepositDialog({ cash, onClose, onDeposit }: { cash: number; onClose: ()
         </form>
         {err && <p className="text-[11px] text-red-400 font-mono">{err}</p>}
       </div>
+    </div>
+  );
+}
+
+/* ─── Active wallet age (live, Hebrew) ─── */
+function WalletAge() {
+  const { activeWalletCreatedAt } = usePortfolio();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const created = new Date(activeWalletCreatedAt).getTime();
+  const ms = Number.isFinite(created) ? Math.max(0, now - created) : 0;
+  const totalHours = Math.floor(ms / 3_600_000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const label =
+    days > 0
+      ? `${days} ${days === 1 ? "יום" : "ימים"} ו-${hours} ${hours === 1 ? "שעה" : "שעות"}`
+      : `${hours} ${hours === 1 ? "שעה" : "שעות"}`;
+
+  return (
+    <div className="flex items-center gap-1" dir="rtl" title="גיל הארנק הפעיל">
+      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="text-muted-foreground">גיל הארנק:</span>
+      <span className="text-foreground font-bold tabular-nums">{label}</span>
     </div>
   );
 }
@@ -964,6 +992,7 @@ export default function SimulatorPage() {
             <span className="text-muted-foreground">PnL:</span>
             <span className="font-bold">{unrealizedPnl >= 0 ? "+" : ""}{fmtUsd(unrealizedPnl)}</span>
           </div>
+          <div className="hidden md:flex"><WalletAge /></div>
           <button onClick={() => setShowDeposit(true)}
             className="flex items-center gap-1 text-[10px] font-mono font-bold text-primary-foreground bg-primary hover:opacity-90 transition-opacity rounded px-2.5 py-1">
             <Plus className="h-3 w-3" /> Deposit

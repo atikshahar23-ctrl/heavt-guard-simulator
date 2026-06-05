@@ -299,6 +299,22 @@ export function Jarvis() {
   const [mutedUntil, setMutedUntil] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  // Cap how often each distinct tip nags: once a tip id has surfaced twice we
+  // stop showing it and move on to the next eligible one. Counts are keyed by
+  // tip id (e.g. `buy-AAPL`) and live in a ref so incrementing never re-renders.
+  const TIP_CAP = 2;
+  const seenCountsRef = useRef<Record<string, number>>({});
+
+  // Drop counts for tips that no longer exist so fresh recommendations (new ids)
+  // start uncapped — i.e. the cap resets whenever the tip ids change.
+  const tipIdsKey = tips.map((t) => t.id).join("|");
+  useEffect(() => {
+    const valid = new Set(tips.map((t) => t.id));
+    for (const k of Object.keys(seenCountsRef.current)) {
+      if (!valid.has(k)) delete seenCountsRef.current[k];
+    }
+  }, [tipIdsKey]);
+
   // Rotate proactive tips and keep a clock so the muted window re-opens on its own.
   useEffect(() => {
     if (open || tips.length === 0) return;
@@ -309,8 +325,17 @@ export function Jarvis() {
     return () => clearInterval(t);
   }, [open, tips.length]);
 
-  const currentTip = tips.length > 0 ? tips[tipIdx % tips.length] : null;
+  // Only rotate through tips that haven't hit the surfacing cap yet.
+  const eligibleTips = tips.filter((t) => (seenCountsRef.current[t.id] ?? 0) < TIP_CAP);
+  const currentTip = eligibleTips.length > 0 ? eligibleTips[tipIdx % eligibleTips.length] : null;
   const showTip = !open && currentTip != null && now >= mutedUntil;
+
+  // Count one surfacing each time a tip takes its rotation slot (not muted/open).
+  useEffect(() => {
+    if (open || !currentTip || now < mutedUntil) return;
+    seenCountsRef.current[currentTip.id] = (seenCountsRef.current[currentTip.id] ?? 0) + 1;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipIdx, currentTip?.id]);
 
   const openWithTip = useCallback((tip: Tip) => {
     setMessages((prev) => [...prev, { id: uid(), role: "jarvis", text: tip.text, links: tip.links, lang: langRef.current }]);

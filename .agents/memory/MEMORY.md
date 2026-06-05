@@ -22,3 +22,5 @@
 - [JARVIS bilingual (he/en)](jarvis-bilingual.md) — langRef.current in send/speak/listen avoids stale-closure; store per-message lang and render dir from m.lang (toggling must not flip past msgs); English = British-male butler voice.
 - [Smart Exit (scalp & runner)](smart-exit-manager.md) — bot crypto exits use one regime-based peak-pullback trail (tight scalp giveback vs wider runner trail), profit-only closes; not a fixed TP.
 - [Fixed ambient backdrop z-stacking](fixed-backdrop-zstacking.md) — a `fixed` decorative layer with `-z-10` vanishes behind the root `bg-background`; use `z-0` and bump real content/sidebar siblings to `z-10`.
+- [Intensity gear + Mega-Agent attribution](intensity-gear-and-mega-agent.md) — one 1–5 `intensity` gear scales all bots via intensityProfile(); poly trades carry no source/auto so attribute by type==="POLYMARKET".
+- [Alpha Convergence Coordinator](alpha-coordinator.md) — fleet "brain": engine computes AlphaState confluence across all signals, alphaAdjust() biases aligned/opposing entries; emblem is ORIGINAL mech SVG, not the Transformers trademark.

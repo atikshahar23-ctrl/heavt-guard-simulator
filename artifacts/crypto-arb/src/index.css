@@ -352,6 +352,53 @@ textarea:focus-visible,
   background-size: 22px 22px;
 }
 
+/* ── Alpha Convergence Coordinator ── */
+/* One-shot rise+fade for the coordinator card on mount. */
+.anim-rise-in {
+  animation: rise-in 0.55s var(--ease-out-quart) both;
+}
+/* Horizontal scanning sweep across the card while the fleet is in formation. */
+@keyframes alpha-scan {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+.alpha-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 60%;
+  pointer-events: none;
+  animation: alpha-scan 3.4s var(--ease-out-quart) infinite;
+}
+/* Emblem idle bob while coordinating. */
+@keyframes alpha-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.alpha-emblem-bob {
+  animation: alpha-bob 3s ease-in-out infinite;
+}
+/* Visor scan pulse + forehead-core breathing (driven by the `active` prop). */
+@keyframes alpha-visor-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+.alpha-emblem-visor {
+  animation: alpha-visor-pulse 1.8s ease-in-out infinite;
+}
+@keyframes alpha-core-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50%      { opacity: 1; transform: scale(1.15); }
+}
+.alpha-emblem-core {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: alpha-core-pulse 2.2s ease-in-out infinite;
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,

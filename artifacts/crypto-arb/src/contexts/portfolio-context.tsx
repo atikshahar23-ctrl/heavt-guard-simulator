@@ -78,6 +78,21 @@ export interface ClosedTrade {
   exit?: "MANUAL" | "SL" | "TP" | "LIQ";
   /** Underlying symbol for deep-linking to the chart: BINANCE asset, STOCK ticker, or Polymarket slug. */
   symbol?: string;
+  /** ── Structured trade detail (optional; `description` is the legacy fallback) ── */
+  /** Trade direction: LONG/SHORT for crypto & stocks, YES/NO for Polymarket bets. */
+  direction?: "LONG" | "SHORT" | "YES" | "NO";
+  /** Price the position was opened at. */
+  entryPrice?: number;
+  /** Price the position was closed at. */
+  exitPrice?: number;
+  /** Leverage multiplier (crypto/stock; 1 when none). */
+  leverage?: number;
+  /** Units held: contracts notional value (crypto), shares (stock), or units (Polymarket). */
+  qty?: number;
+  /** Which bot/source opened the trade (e.g. "Scalp signal", "Dip Buyer"). */
+  source?: string;
+  /** Polymarket market question, for the detail view. */
+  question?: string;
 }
 
 interface PortfolioState {
@@ -115,6 +130,8 @@ interface PortfolioContextValue extends PortfolioState {
   wallets: WalletSummary[];
   activeWalletId: string;
   activeWalletName: string;
+  /** ISO timestamp the active wallet was created — used for the wallet-age display. */
+  activeWalletCreatedAt: string;
   createWallet: (name: string) => string | null;
   renameWallet: (id: string, name: string) => string | null;
   deleteWallet: (id: string) => string | null;
@@ -375,6 +392,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         pnl,
         closedAt: new Date().toISOString(),
         openedAt: pos.openedAt,
+        direction: pos.side,
+        entryPrice: pos.entryPrice,
+        exitPrice: currentPrice,
+        leverage: 1,
+        qty: pos.shares,
+        question: pos.question,
       };
       return {
         ...prev,
@@ -434,6 +457,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           openedAt: pos.openedAt,
           auto: pos.auto,
           exit,
+          direction: pos.direction,
+          entryPrice: pos.entryPrice,
+          exitPrice: currentPrice,
+          leverage: pos.leverage,
+          qty: pos.notional,
+          source: pos.source,
         };
         return {
           ...prev,
@@ -494,6 +523,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         closedAt: new Date().toISOString(),
         openedAt: pos.openedAt,
         auto: pos.auto,
+        direction: dir,
+        entryPrice: pos.entryPrice,
+        exitPrice: currentPrice,
+        leverage: pos.leverage,
+        qty: pos.shares,
+        source: pos.source,
       };
       return {
         ...prev,
@@ -546,6 +581,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           openedAt: pos.openedAt,
           auto: pos.auto,
           exit: hitTP ? "TP" : "SL",
+          direction: pos.direction,
+          entryPrice: pos.entryPrice,
+          exitPrice: price,
+          leverage: pos.leverage,
+          qty: pos.notional,
+          source: pos.source,
         };
 
         binancePositions = binancePositions.filter((p) => p.id !== pos.id);
@@ -579,6 +620,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           openedAt: pos.openedAt,
           auto: pos.auto,
           exit: hitTP ? "TP" : "SL",
+          direction: dir,
+          entryPrice: pos.entryPrice,
+          exitPrice: price,
+          leverage: pos.leverage,
+          qty: pos.shares,
+          source: pos.source,
         };
 
         stockPositions = stockPositions.filter((p) => p.id !== pos.id);
@@ -692,6 +739,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           openedAt: pos.openedAt,
           auto: pos.auto,
           exit: "LIQ",
+          direction: pos.direction,
+          entryPrice: pos.entryPrice,
+          exitPrice: price,
+          leverage: pos.leverage,
+          qty: pos.notional,
+          source: pos.source,
         };
 
         binancePositions = binancePositions.filter((p) => p.id !== pos.id);
@@ -743,6 +796,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         openedAt: pos.openedAt,
         auto: pos.auto,
         exit: "LIQ",
+        direction: pos.direction,
+        entryPrice: pos.entryPrice,
+        exitPrice: price,
+        leverage: pos.leverage,
+        qty: pos.notional,
+        source: pos.source,
       };
       tradeHistory = [closed, ...tradeHistory].slice(0, 200);
       cash += proceeds;
@@ -766,6 +825,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         openedAt: pos.openedAt,
         auto: pos.auto,
         exit: "LIQ",
+        direction: pos.direction ?? "LONG",
+        entryPrice: pos.entryPrice,
+        exitPrice: price,
+        leverage: pos.leverage,
+        qty: pos.shares,
+        source: pos.source,
       };
       tradeHistory = [closed, ...tradeHistory].slice(0, 200);
       cash += proceeds;
@@ -807,6 +872,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         wallets: walletSummaries,
         activeWalletId: activeWallet.id,
         activeWalletName: activeWallet.name,
+        activeWalletCreatedAt: activeWallet.createdAt,
         createWallet,
         renameWallet,
         deleteWallet,

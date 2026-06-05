@@ -5,7 +5,7 @@ import {
 } from "@workspace/api-client-react";
 import type { CoinTicker, StockQuote } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
-import { useAutoTrader, computeDynamicSizing, type NewBotId } from "@/contexts/autotrader-context";
+import { useAutoTrader, computeDynamicSizing, intensityProfile, type NewBotId } from "@/contexts/autotrader-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { toast } from "@/hooks/use-toast";
@@ -55,7 +55,9 @@ export function ExtraBotsEngine() {
 
   // Boost mode: tiny cooldowns + faster polling so these bots churn quickly too.
   const boostActive = settings.boostUntil > Date.now();
-  const cooldownMs = boostActive ? BOOST_COOLDOWN_MS : COOLDOWN_MS;
+  // Trading-intensity gear (economy↔sport) shared with the rest of the fleet.
+  const prof = intensityProfile(settings.intensity);
+  const cooldownMs = boostActive ? BOOST_COOLDOWN_MS : Math.round(COOLDOWN_MS * prof.cooldownMult);
   const cryptoArmed = settings.dipEnabled || settings.breakoutEnabled;
 
   const { data: overview } = useGetMarketOverview({
@@ -145,7 +147,9 @@ export function ExtraBotsEngine() {
     const lev = Math.max(1, dynSizing ? dynSizing.leverage : settings.newBotLeverage);
     const dipStake = dynSizing ? dynSizing.margin : settings.dipStake;
     const edge = getBotStat("dipbuyer").edge;
-    const minDrop = settings.dipMinDropPct * edge;
+    // Intensity gear: calm demands a deeper dip; turbo steps in sooner.
+    const minDrop = settings.dipMinDropPct * edge * prof.selectivityMult;
+    const dipMaxOpen = Math.max(1, Math.round(settings.dipMaxOpen * prof.maxOpenMult));
     const now = Date.now();
 
     let open = binancePositions.filter((p) => p.source === SOURCE.dipbuyer).length;
@@ -161,7 +165,7 @@ export function ExtraBotsEngine() {
       .sort((a, b) => a.changePercent - b.changePercent);
 
     for (const c of ranked) {
-      if (open >= settings.dipMaxOpen) break;
+      if (open >= dipMaxOpen) break;
       if (avail < dipStake) break;
       const price = cryptoPrice(c.asset) ?? c.price;
       const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.03, tpPct: 0.06 });
@@ -188,7 +192,9 @@ export function ExtraBotsEngine() {
     const lev = Math.max(1, dynSizingB ? dynSizingB.leverage : settings.newBotLeverage);
     const breakoutStake = dynSizingB ? dynSizingB.margin : settings.breakoutStake;
     const edge = getBotStat("breakout").edge;
-    const minGain = settings.breakoutMinGainPct * edge;
+    // Intensity gear: calm demands a stronger breakout; turbo chases earlier.
+    const minGain = settings.breakoutMinGainPct * edge * prof.selectivityMult;
+    const breakoutMaxOpen = Math.max(1, Math.round(settings.breakoutMaxOpen * prof.maxOpenMult));
     const now = Date.now();
 
     let open = binancePositions.filter((p) => p.source === SOURCE.breakout).length;
@@ -204,7 +210,7 @@ export function ExtraBotsEngine() {
       .sort((a, b) => b.changePercent - a.changePercent);
 
     for (const c of ranked) {
-      if (open >= settings.breakoutMaxOpen) break;
+      if (open >= breakoutMaxOpen) break;
       if (avail < breakoutStake) break;
       const price = cryptoPrice(c.asset) ?? c.price;
       const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.04, tpPct: 0.08 });
@@ -227,15 +233,19 @@ export function ExtraBotsEngine() {
     if (!settings.dcaEnabled || !(settings.dcaStake > 0)) return;
     if (pausedBots.has("dca")) return;
     const now = Date.now();
-    // Boost mode buys on a tight 10s cadence instead of the configured minutes.
-    const intervalMs = boostActive ? 10_000 : Math.max(1, settings.dcaIntervalMin) * 60_000;
+    // Boost mode buys on a tight 10s cadence; otherwise the intensity gear scales
+    // the configured interval (turbo accumulates faster, calm spaces buys out).
+    const intervalMs = boostActive
+      ? 10_000
+      : Math.max(5_000, (Math.max(1, settings.dcaIntervalMin) * 60_000) / prof.tradeRate);
     if (now - lastDcaRef.current < intervalMs) return;
     const dcaStake = settings.dynamicCapitalEnabled
       ? computeDynamicSizing(cash, totalDeposited, tradeHistory).margin
       : settings.dcaStake;
 
+    const dcaMaxOpen = Math.max(1, Math.round(settings.dcaMaxOpen * prof.maxOpenMult));
     const open = stockPositions.filter((p) => p.source === SOURCE.dca).length;
-    if (open >= settings.dcaMaxOpen) return;
+    if (open >= dcaMaxOpen) return;
     if (cash < dcaStake) return;
 
     const priceOf = (sym: string): number | undefined =>

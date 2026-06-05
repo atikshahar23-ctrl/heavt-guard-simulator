@@ -171,6 +171,53 @@ export function computeDynamicSizing(
   return { margin, leverage };
 }
 
+/**
+ * Resolved knobs for one trading-intensity gear (1-5). These multipliers are
+ * applied uniformly by every bot engine so the whole fleet shifts together,
+ * economy↔sport style. Boost mode overrides this with its own max cadence.
+ */
+export interface IntensityProfile {
+  /** Clamped 1-5 level. */
+  level: number;
+  /** Short Hebrew name for the gear. */
+  label: string;
+  /** Relative trade cadence vs. level 1 (≈ +50% per level: 1 … 5.06). */
+  tradeRate: number;
+  /** Multiplier on each bot's per-asset cooldown (lower = trades sooner). */
+  cooldownMult: number;
+  /** Multiplier on each bot's max-open cap (rounded, never below 1). */
+  maxOpenMult: number;
+  /** Extra rank notches demanded on confidence setups (+ = stricter). */
+  confRankAdd: number;
+  /** Added to numeric score/conviction thresholds (+ = stricter). */
+  scoreAdd: number;
+  /** Multiplier on selectivity thresholds & per-asset caution (>1 = stricter). */
+  selectivityMult: number;
+}
+
+const INTENSITY_LABELS = ["רגוע", "מתון", "מאוזן", "אגרסיבי", "טורבו קיצוני"] as const;
+const INTENSITY_COOLDOWN = [1, 0.67, 0.44, 0.3, 0.2] as const;
+const INTENSITY_MAXOPEN = [0.6, 0.8, 1, 1.4, 2] as const;
+const INTENSITY_CONFRANK = [1, 1, 0, 0, -1] as const;
+const INTENSITY_SCOREADD = [12, 6, 0, -6, -12] as const;
+const INTENSITY_SELECTIVITY = [1.3, 1.15, 1, 0.85, 0.7] as const;
+
+/** Resolve the multipliers for a trading-intensity gear (clamps to 1-5). */
+export function intensityProfile(level: number): IntensityProfile {
+  const l = Math.max(1, Math.min(5, Math.round(level) || 1));
+  const i = l - 1;
+  return {
+    level: l,
+    label: INTENSITY_LABELS[i],
+    tradeRate: Math.round(Math.pow(1.5, i) * 100) / 100,
+    cooldownMult: INTENSITY_COOLDOWN[i],
+    maxOpenMult: INTENSITY_MAXOPEN[i],
+    confRankAdd: INTENSITY_CONFRANK[i],
+    scoreAdd: INTENSITY_SCOREADD[i],
+    selectivityMult: INTENSITY_SELECTIVITY[i],
+  };
+}
+
 export interface AutoTraderSettings {
   enabled: boolean;
   /** When true the engine overrides all margin/leverage/stake settings with a
@@ -193,6 +240,15 @@ export interface AutoTraderSettings {
    * up many small, quick paper trades. 0 = off / expired.
    */
   boostUntil: number;
+
+  /**
+   * Trading-intensity gear (1-5) applied to EVERY bot, like an economy↔sport
+   * dial. Level 1 is calm — fewest trades, the strictest setups, a focus on
+   * larger, higher-quality wins. Each level up loosens selectivity and roughly
+   * +50% the trade cadence over the level below it; level 5 is extreme turbo.
+   * Boost mode (when active) still overrides this with its own max cadence.
+   */
+  intensity: number;
 
   /* ── Warrior-trading additions ── */
   /** Signal sources: scalp setups, momentum runners, or both. */
@@ -313,6 +369,18 @@ export interface AutoTraderSettings {
   riskManagerEnabled: boolean;
   /** Per-bot risk guard states (keyed by bot id). */
   riskGuards: Record<string, RiskGuard>;
+
+  /* ── Alpha Convergence Coordinator (fleet-level conviction) ── */
+  /**
+   * The top-level coordinating "brain": it reads the live agreement (confluence)
+   * across every signal source — scalp setups, momentum runners and the
+   * smart-money stock votes — and resolves one dominant fleet direction. When on,
+   * the bots move as a coordinated formation: trades that align with the fleet's
+   * conviction clear an easier bar and get extra slots, while trades that fight
+   * the consensus must clear a stricter one. Paper-trading discipline only — it
+   * concentrates the bots' agreement, it does not move any real market.
+   */
+  alphaCoordinatorEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AutoTraderSettings = {
@@ -326,6 +394,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   maxOpenPositions: 5,
   favoritesOnly: false,
   boostUntil: 0,
+  intensity: 3,
 
   strategy: "BOTH",
   minMomentumScore: 55,
@@ -386,7 +455,67 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
 
   riskManagerEnabled: true,
   riskGuards: {},
+
+  alphaCoordinatorEnabled: true,
 };
+
+/**
+ * Live, fleet-wide conviction resolved by the Alpha Convergence Coordinator.
+ * Ephemeral (not persisted) — recomputed from the current signal sources each
+ * time they refresh and published by the auto-trader engine.
+ */
+export interface AlphaState {
+  /** Dominant fleet direction, or NEUTRAL when there is no clear majority. */
+  direction: "LONG" | "SHORT" | "NEUTRAL";
+  /** Strength of agreement of the dominant side, 0-100. */
+  confluence: number;
+  /** Weighted long votes across every signal source. */
+  longVotes: number;
+  /** Weighted short votes across every signal source. */
+  shortVotes: number;
+  /** Total weighted directional votes seen this cycle. */
+  total: number;
+  /** Distinct signal sources that contributed (scalp / momentum / smart-money). */
+  sources: number;
+  /** epoch-ms of the last recompute. */
+  updatedAt: number;
+}
+
+export const NEUTRAL_ALPHA: AlphaState = {
+  direction: "NEUTRAL",
+  confluence: 0,
+  longVotes: 0,
+  shortVotes: 0,
+  total: 0,
+  sources: 0,
+  updatedAt: 0,
+};
+
+/** Confluence (%) at or above which the coordinator commits to a direction. */
+export const ALPHA_COMMIT_PCT = 55;
+/** Confluence (%) at or above which the fleet presses its advantage (extra slots). */
+export const ALPHA_STRONG_PCT = 65;
+
+/**
+ * Resolve how the Alpha Coordinator should bias one candidate trade. Aligned
+ * trades clear an easier bar (lower selectivity, possibly one confidence notch
+ * cheaper); trades that fight the fleet's conviction must clear a stricter one.
+ */
+export function alphaAdjust(
+  alpha: AlphaState | null | undefined,
+  enabled: boolean,
+  dir: "LONG" | "SHORT",
+): { selMult: number; rankAdd: number } {
+  if (!enabled || !alpha || alpha.direction === "NEUTRAL") return { selMult: 1, rankAdd: 0 };
+  const strength = Math.min(1, alpha.confluence / 100);
+  const aligned = alpha.direction === dir;
+  return {
+    // Aligned: up to 35% easier. Opposing: up to 60% stricter.
+    selMult: aligned ? 1 - 0.35 * strength : 1 + 0.6 * strength,
+    // Once conviction is firm, shift the scalp confidence bar by one notch.
+    rankAdd: strength >= 0.5 ? (aligned ? -1 : 1) : 0,
+  };
+}
 
 const STORAGE_KEY = "arb_scan_autotrader";
 
@@ -426,6 +555,12 @@ interface AutoTraderContextValue {
   evaluateRisk: (botId: string, tradeHistory: { pnl: number; closedAt: string }[], currentCash: number, totalDeposited: number) => void;
   /** Reset a bot's risk guard (un-pause). */
   resetRiskGuard: (botId?: string) => void;
+
+  /* ── Alpha Convergence Coordinator ── */
+  /** Live fleet-wide conviction resolved across every signal source. */
+  alpha: AlphaState;
+  /** Publish a freshly computed fleet conviction (called by the engine). */
+  publishAlpha: (a: AlphaState) => void;
 }
 
 function loadSettings(): AutoTraderSettings {
@@ -443,6 +578,10 @@ const AutoTraderContext = createContext<AutoTraderContextValue | null>(null);
 
 export function AutoTraderProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AutoTraderSettings>(loadSettings);
+  // Ephemeral live fleet conviction — never persisted; the engine republishes it
+  // from the current signal sources on every refresh.
+  const [alpha, setAlpha] = useState<AlphaState>(NEUTRAL_ALPHA);
+  const publishAlpha = useCallback((a: AlphaState) => setAlpha(a), []);
 
   useEffect(() => {
     try {
@@ -607,7 +746,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
 
   return (
     <AutoTraderContext.Provider
-      value={{ settings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard }}
+      value={{ settings, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
     >
       {children}
     </AutoTraderContext.Provider>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   useGetScalpSignals, getGetScalpSignalsQueryKey,
   useGetMomentumCoins, getGetMomentumCoinsQueryKey,
@@ -11,7 +11,7 @@ import {
 import type { ScalpSignal, MomentumCoin, PolymarketMarket, StockRecommendation, InfluencerSignal, StockQuote } from "@workspace/api-client-react";
 import { usePortfolio, type TrailConfig } from "@/contexts/portfolio-context";
 import { recommendLevels } from "@/lib/recommend-levels";
-import { useAutoTrader, computeDynamicSizing, type ScalpConfidence } from "@/contexts/autotrader-context";
+import { useAutoTrader, computeDynamicSizing, intensityProfile, alphaAdjust, NEUTRAL_ALPHA, ALPHA_COMMIT_PCT, ALPHA_STRONG_PCT, type AlphaState, type ScalpConfidence } from "@/contexts/autotrader-context";
 import { useFavorites } from "@/contexts/favorites-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { toast } from "@/hooks/use-toast";
@@ -99,11 +99,13 @@ export function AutoTraderEngine() {
     openBinancePosition, openPolyPosition, closePolyPosition, openStockPosition,
     closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll,
   } = usePortfolio();
-  const { settings, update, getAssetCaution, recordAssetResult } = useAutoTrader();
+  const { settings, update, getAssetCaution, recordAssetResult, publishAlpha } = useAutoTrader();
   const { isFavorite } = useFavorites();
   // Boost mode: while the deadline is in the future every bot trades at maximum
   // cadence — tiny cooldowns, faster polling and fast profit-banking.
   const boostActive = settings.boostUntil > Date.now();
+  // Trading-intensity gear (economy↔sport). Boost still overrides cadence below.
+  const prof = intensityProfile(settings.intensity);
   // Sub-second crypto prices from the free Binance WebSocket — lets SL/TP and the
   // pre-liquidation guard react near-instantly instead of waiting on 30s polling.
   const { get: getLivePrice, version: liveVersion } = useLivePrices();
@@ -172,6 +174,58 @@ export function AutoTraderEngine() {
   const peakRef = useRef<Map<string, number>>(new Map());
   /** Closed-trade ids already folded into per-asset caution (avoids double counting). */
   const assetRecordedRef = useRef<Set<string> | null>(null);
+
+  // ── Alpha Convergence Coordinator ──────────────────────────────────────────
+  // The fleet "brain": tally weighted directional votes across every live signal
+  // source (scalp confidence, momentum surge, smart-money stock votes) and resolve
+  // one dominant conviction. Each bot then trades in formation around it — easier
+  // entries when aligned, stricter when fighting the consensus.
+  const alphaState = useMemo<AlphaState>(() => {
+    if (!settings.alphaCoordinatorEnabled) return NEUTRAL_ALPHA;
+    let longVotes = 0;
+    let shortVotes = 0;
+    const contributing = new Set<string>();
+
+    if (signals) {
+      for (const s of signals as ScalpSignal[]) {
+        if (s.direction === "LONG") { longVotes += CONF_RANK[s.confidence] + 1; contributing.add("scalp"); }
+        else if (s.direction === "SHORT") { shortVotes += CONF_RANK[s.confidence] + 1; contributing.add("scalp"); }
+      }
+    }
+    if (momentum) {
+      for (const m of momentum as MomentumCoin[]) {
+        if (m.stage === "COOLING") continue;
+        longVotes += Math.max(0, m.score) / 50; // momentum is long-biased
+        contributing.add("momentum");
+      }
+    }
+    if (stockRecs) {
+      for (const r of stockRecs as StockRecommendation[]) {
+        if (r.action === "BUY") { longVotes += CONF_RANK[r.confidence] + 1; contributing.add("smart-money"); }
+        else if (r.action === "SELL") { shortVotes += CONF_RANK[r.confidence] + 1; contributing.add("smart-money"); }
+      }
+    }
+
+    const total = longVotes + shortVotes;
+    if (total <= 0) return NEUTRAL_ALPHA;
+    const domVotes = Math.max(longVotes, shortVotes);
+    const confluence = Math.round((domVotes / total) * 100);
+    const dom: "LONG" | "SHORT" = longVotes >= shortVotes ? "LONG" : "SHORT";
+    return {
+      direction: confluence >= ALPHA_COMMIT_PCT ? dom : "NEUTRAL",
+      confluence,
+      longVotes: Math.round(longVotes),
+      shortVotes: Math.round(shortVotes),
+      total: Math.round(total),
+      sources: contributing.size,
+      updatedAt: Date.now(),
+    };
+  }, [signals, momentum, stockRecs, settings.alphaCoordinatorEnabled]);
+
+  // Publish the resolved conviction so the Bot Command Center can render it live.
+  useEffect(() => {
+    publishAlpha(alphaState);
+  }, [alphaState, publishAlpha]);
 
   // ── Per-asset caution learning ──
   // Fold every closed auto crypto/stock trade into its coin's scorecard so the
@@ -362,7 +416,10 @@ export function AutoTraderEngine() {
         // confidence bar (1.5x+ → demand HIGH; 1.25x+ → at least one notch up).
         const caution = getAssetCaution(s.asset);
         const bump = caution >= 1.5 ? 2 : caution >= 1.25 ? 1 : 0;
-        const effMinRank = Math.min(CONF_RANK.HIGH, CONF_RANK[settings.minConfidence] + bump);
+        // Intensity gear shifts the confidence bar (calm = stricter, turbo = looser).
+        // Alpha Coordinator: aligned-with-the-fleet trades clear an easier notch.
+        const aAdj = alphaAdjust(alphaState, settings.alphaCoordinatorEnabled, s.direction as "LONG" | "SHORT");
+        const effMinRank = Math.max(0, Math.min(CONF_RANK.HIGH, CONF_RANK[settings.minConfidence] + bump + prof.confRankAdd + aAdj.rankAdd));
         if (CONF_RANK[s.confidence] < effMinRank) continue;
         if (s.direction === "LONG" ? !settings.allowLong : !settings.allowShort) continue;
         if (!Number.isFinite(s.entry) || s.entry <= 0) continue;
@@ -380,9 +437,10 @@ export function AutoTraderEngine() {
     }
 
     if (useMomentum && momentum && settings.allowLong) {
+      const mAlpha = alphaAdjust(alphaState, settings.alphaCoordinatorEnabled, "LONG");
       for (const m of momentum as MomentumCoin[]) {
-        // Per-asset caution raises the surge-score bar on coins that keep losing.
-        if (m.score < settings.minMomentumScore * getAssetCaution(m.asset)) continue;
+        // Per-asset caution + intensity gear + Alpha Coordinator set the surge bar.
+        if (m.score < settings.minMomentumScore * getAssetCaution(m.asset) * prof.selectivityMult * mAlpha.selMult) continue;
         if (m.stage === "COOLING") continue;
         if (!Number.isFinite(m.entry) || m.entry <= 0) continue;
         candidates.push({
@@ -405,7 +463,11 @@ export function AutoTraderEngine() {
       if (!existing || c.score > existing.score) byAsset.set(c.asset, c);
     }
 
-    const cooldown = boostActive ? BOOST_COOLDOWN_MS : COOLDOWN_MS;
+    const cooldown = boostActive ? BOOST_COOLDOWN_MS : Math.round(COOLDOWN_MS * prof.cooldownMult);
+    // When the fleet's conviction is strong, the coordinator presses the advantage
+    // with two extra open slots so aligned bots can pile into the dominant move.
+    const alphaSlots = settings.alphaCoordinatorEnabled && alphaState.direction !== "NEUTRAL" && alphaState.confluence >= ALPHA_STRONG_PCT ? 2 : 0;
+    const maxOpen = Math.max(1, Math.round(settings.maxOpenPositions * prof.maxOpenMult) + alphaSlots);
     const ranked = [...byAsset.values()]
       .filter((c) => !settings.favoritesOnly || isFavorite(`coin:${c.asset}`))
       .filter((c) => !openAssets.has(c.asset))
@@ -417,7 +479,7 @@ export function AutoTraderEngine() {
       : undefined;
 
     for (const c of ranked) {
-      if (autoOpen >= settings.maxOpenPositions) break;
+      if (autoOpen >= maxOpen) break;
       if (availableCash < margin) break;
 
       const notional = margin * effectiveLeverage;
@@ -444,7 +506,7 @@ export function AutoTraderEngine() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signals, momentum, settings, cash, binancePositions, isFavorite, totalDeposited, tradeHistory]);
+  }, [signals, momentum, alphaState, settings, cash, binancePositions, isFavorite, totalDeposited, tradeHistory]);
 
   // ── Smart-Money stock bot ───────────────────────────────────────────────────
   // Fuses two free sources per ticker — technical recommendations and
@@ -519,9 +581,10 @@ export function AutoTraderEngine() {
     const candidates: StockCand[] = [];
     for (const [sym, net] of score) {
       const conviction = Math.min(100, Math.abs(net));
-      // Per-asset caution raises the conviction bar on tickers that keep losing.
-      if (conviction < settings.stockMinConfidence * getAssetCaution(sym)) continue;
       const direction: "LONG" | "SHORT" = net >= 0 ? "LONG" : "SHORT";
+      // Per-asset caution + intensity gear + Alpha Coordinator raise the bar.
+      const sAlpha = alphaAdjust(alphaState, settings.alphaCoordinatorEnabled, direction);
+      if (conviction < settings.stockMinConfidence * getAssetCaution(sym) * prof.selectivityMult * sAlpha.selMult) continue;
       if (direction === "LONG" ? !settings.allowLong : !settings.allowShort) continue;
       const price = priceBy.get(sym);
       if (!price || price <= 0) continue;
@@ -536,7 +599,8 @@ export function AutoTraderEngine() {
       });
     }
 
-    const stockCooldown = boostActive ? BOOST_COOLDOWN_MS : COOLDOWN_MS;
+    const stockCooldown = boostActive ? BOOST_COOLDOWN_MS : Math.round(COOLDOWN_MS * prof.cooldownMult);
+    const stockMaxOpen = Math.max(1, Math.round(settings.stockMaxOpen * prof.maxOpenMult));
     const ranked = candidates
       .filter((c) => !openSymbols.has(c.symbol))
       .filter((c) => now - (stockCooldownRef.current[c.symbol] ?? 0) > stockCooldown)
@@ -544,7 +608,7 @@ export function AutoTraderEngine() {
       .sort((a, b) => Number(b.multiSource) - Number(a.multiSource) || b.conviction - a.conviction);
 
     for (const c of ranked) {
-      if (autoOpen >= settings.stockMaxOpen) break;
+      if (autoOpen >= stockMaxOpen) break;
       if (availableCash < stake) break;
 
       // 2:1 reward at a conviction-tightened stop (higher conviction → wider room).
@@ -575,7 +639,7 @@ export function AutoTraderEngine() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockRecs, influencers, settings, cash, stockPositions, totalDeposited, tradeHistory]);
+  }, [stockRecs, influencers, alphaState, settings, cash, stockPositions, totalDeposited, tradeHistory]);
 
   // ── Polymarket crypto auto-investor ─────────────────────────────────────────
   // Trades same-day crypto up/down markets across every priceable asset (BTC, ETH,
@@ -624,20 +688,24 @@ export function AutoTraderEngine() {
     let openBets = polyPositions.length;
     let availableCash = cash;
     const openConditions = new Set(polyPositions.map((p) => p.conditionId));
+    // Intensity gear: calm waits longer between bets & demands a stronger bias.
+    const polyCooldown = boostActive ? BOOST_COOLDOWN_MS : Math.round(POLY_COOLDOWN_MS * prof.cooldownMult);
+    const polyMaxOpen = Math.max(1, Math.round(settings.polyMaxOpenBets * prof.maxOpenMult));
+    const polyMinBias = settings.polyMinBiasPct * prof.selectivityMult;
 
     // Rank candidates: liquid first, odds not already near-resolved.
     const candidates = cryptoMarkets
       .filter((m) => !openConditions.has(m.conditionId))
-      .filter((m) => nowMs - (polyCooldownRef.current[m.conditionId] ?? 0) > POLY_COOLDOWN_MS)
+      .filter((m) => nowMs - (polyCooldownRef.current[m.conditionId] ?? 0) > polyCooldown)
       .sort((a, b) => (b.volume24hr ?? b.volume ?? 0) - (a.volume24hr ?? a.volume ?? 0));
 
     for (const m of candidates) {
-      if (openBets >= settings.polyMaxOpenBets) break;
+      if (openBets >= polyMaxOpen) break;
       if (availableCash < settings.polyStakePerBet) break;
 
       const asset = assetForQuestion(m.question)!;
       const bias = changeFor(asset) ?? btcBias;
-      if (bias == null || Math.abs(bias) < settings.polyMinBiasPct) continue;
+      if (bias == null || Math.abs(bias) < polyMinBias) continue;
       const bullish = bias > 0;
 
       const yesUp = yesMeansUp(m.question);

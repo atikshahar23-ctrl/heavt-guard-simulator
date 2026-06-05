@@ -9,6 +9,7 @@ import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPositio
 import { CryptoIcon } from "@/components/crypto-icon";
 import { StockIcon } from "@/components/stock-icon";
 import { TradeAnalytics } from "@/components/trade-analytics";
+import { TradeDetailModal } from "@/components/trade-detail-modal";
 
 type TypeFilter = "ALL" | "BINANCE" | "STOCK" | "POLYMARKET";
 type ResultFilter = "ALL" | "WINS" | "LOSSES";
@@ -28,19 +29,6 @@ const BOT_SOURCE_LABEL: Record<string, string> = {
 function botName(source: string | undefined): string | null {
   if (!source) return null;
   return BOT_SOURCE_LABEL[source] ?? null;
-}
-
-/**
- * Build the in-app chart destination for a trade. Crypto opens the futures
- * terminal pre-loaded with the asset, stocks open the stock chart, and
- * Polymarket bets open the prediction-markets tab (no candle chart exists for
- * them). Returns null when there is nothing useful to link to (legacy trades
- * with no stored symbol).
- */
-function chartHref(type: ClosedTrade["type"], symbol?: string | null): string | null {
-  if (type === "BINANCE") return symbol ? `/simulator?tab=futures&asset=${encodeURIComponent(symbol)}` : null;
-  if (type === "STOCK") return symbol ? `/stocks?symbol=${encodeURIComponent(symbol)}` : null;
-  return "/simulator?tab=prediction";
 }
 
 function fmtUsd(n: number, dp = 2): string {
@@ -305,11 +293,11 @@ function OpenPositions() {
 }
 
 export default function HistoryPage() {
-  const [, navigate] = useLocation();
   const { tradeHistory, cash, totalDeposited } = usePortfolio();
   const [typeF, setTypeF] = useState<TypeFilter>("ALL");
   const [resultF, setResultF] = useState<ResultFilter>("ALL");
   const [sourceF, setSourceF] = useState<SourceFilter>("ALL");
+  const [selected, setSelected] = useState<ClosedTrade | null>(null);
 
   const stats = useMemo(() => {
     const n = tradeHistory.length;
@@ -404,20 +392,19 @@ export default function HistoryPage() {
               const up = t.pnl >= 0;
               const ex = exit(t);
               const pct = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
-              const href = chartHref(t.type, t.symbol);
               return (
                 <div
                   key={t.id}
-                  onClick={href ? () => navigate(href) : undefined}
-                  role={href ? "button" : undefined}
-                  tabIndex={href ? 0 : undefined}
-                  title={href ? "צפה בגרף" : undefined}
-                  className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs ${href ? "cursor-pointer transition-colors hover:bg-secondary/30" : ""}`}
+                  onClick={() => setSelected(t)}
+                  role="button"
+                  tabIndex={0}
+                  title="צפה בפרטי העסקה"
+                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs cursor-pointer transition-colors hover:bg-secondary/30"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[t.type]}</span>
-                      {href && <ChartIcon className="h-3 w-3 text-muted-foreground/50" />}
+                      <ChartIcon className="h-3 w-3 text-muted-foreground/50" />
                       {t.auto ? (
                         <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary flex items-center gap-0.5"><Bot className="h-2.5 w-2.5" /> AUTO</span>
                       ) : (
@@ -445,6 +432,8 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+
+      <TradeDetailModal trade={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
