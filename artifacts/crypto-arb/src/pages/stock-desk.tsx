@@ -111,6 +111,68 @@ function PulseStat({ icon: Icon, label, value, sub, tone }: {
   );
 }
 
+/* ─── Day summary band (midnight → current viewing time) ─── */
+
+function fmtClock(d: Date) {
+  return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+}
+
+function DaySummaryBand({
+  now, breadth, gainers, losers, sectors, buyCount, sellCount, fg, loading,
+}: {
+  now: Date;
+  breadth: { adv: number; dec: number; avg: number; total: number };
+  gainers: StockQuote[];
+  losers: StockQuote[];
+  sectors: { cat: string; avg: number; count: number }[];
+  buyCount: number;
+  sellCount: number;
+  fg: { value: number; classification: string } | undefined;
+  loading: boolean;
+}) {
+  const time = fmtClock(now);
+  const tone = breadth.avg > 0.25 ? "up" : breadth.avg < -0.25 ? "down" : "flat";
+  const toneColor = tone === "up" ? "text-emerald-400" : tone === "down" ? "text-red-400" : "text-primary";
+  const toneWord = tone === "up" ? "נוטה כלפי מעלה" : tone === "down" ? "נוטה כלפי מטה" : "מעורב ומדשדש";
+  const top = gainers[0];
+  const bot = losers[0];
+  const bestSector = sectors.length ? [...sectors].sort((a, b) => b.avg - a.avg)[0] : null;
+  const borderTone = tone === "up" ? "border-emerald-500/30" : tone === "down" ? "border-red-500/30" : "border-primary/30";
+
+  return (
+    <section className={`rounded-xl border ${borderTone} bg-gradient-to-l from-primary/[0.06] to-transparent p-4`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+        <h2 className="text-sm font-black flex items-center gap-1.5">
+          <CalendarClock className="h-4 w-4 text-primary" /> סיכום המסחר היום
+        </h2>
+        <span className="text-[10px] font-mono text-muted-foreground">
+          מחצות (00:00) עד <span className="text-foreground font-bold">{time}</span> · {formatHebrewDate(now)}
+        </span>
+      </div>
+      {loading ? (
+        <p className="text-[12px] text-muted-foreground">טוען סיכום…</p>
+      ) : (
+        <>
+          <p className="text-[12.5px] leading-relaxed text-foreground/90">
+            נכון ל-<b>{time}</b>, מסחר היום <span className={`font-bold ${toneColor}`}>{toneWord}</span>.{" "}
+            מתוך {breadth.total} מניות במעקב,{" "}
+            <span className="text-emerald-400 font-bold">{breadth.adv} עולות</span> מול{" "}
+            <span className="text-red-400 font-bold">{breadth.dec} יורדות</span>, בשינוי יומי ממוצע של{" "}
+            <span className={`font-bold ${breadth.avg >= 0 ? "text-emerald-400" : "text-red-400"}`}>{pct(breadth.avg)}</span>.{" "}
+            {top && <>המובילה <b>{top.symbol}</b> <span className="text-emerald-400">{pct(top.changePercent)}</span>; </>}
+            {bot && <>החלשה <b>{bot.symbol}</b> <span className="text-red-400">{pct(bot.changePercent)}</span>. </>}
+            {bestSector && <>המגזר החזק: <b>{CATEGORY_LABEL_HE[bestSector.cat] ?? bestSector.cat}</b> ({pct(bestSector.avg)}). </>}
+            {fg && <>מדד פחד/חמדנות: <b>{fg.value}</b> ({fg.classification}). </>}
+            הסוכן מסמן <span className="text-emerald-400 font-bold">{buyCount} קניות</span> מול{" "}
+            <span className="text-red-400 font-bold">{sellCount} מכירות</span>.
+          </p>
+          <p className="mt-1.5 text-[10px] text-muted-foreground/70">חינוכי בלבד · הנתונים משקפים שינוי יומי מול הסגירה הקודמת, מתעדכן לאורך יום המסחר.</p>
+        </>
+      )}
+    </section>
+  );
+}
+
 /* ─── Agent recommendation row ─── */
 
 function ConfidencePill({ confidence }: { confidence: StockRecommendation["confidence"] }) {
@@ -389,6 +451,19 @@ export default function StockDeskPage() {
           {isFetching ? "מעדכן..." : `${countdown}s`}
         </div>
       </div>
+
+      {/* Day summary — midnight → current viewing time */}
+      <DaySummaryBand
+        now={now}
+        breadth={breadth}
+        gainers={gainers}
+        losers={losers}
+        sectors={sectors}
+        buyCount={buyCount}
+        sellCount={sellCount}
+        fg={fg ?? undefined}
+        loading={stocksLoading}
+      />
 
       {/* Disclaimer */}
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/[0.07] p-3 flex items-start gap-2">

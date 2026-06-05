@@ -19,6 +19,7 @@
 - [TradingView Pro chart overlay](tradingview-pro-chart.md) — free Advanced widget as ✏Pro drawing mode over native chart; MUST gate native WS/RQ pipelines off in pro mode or you run duplicate streams. Stock TV symbol = dot-form tradingViewSymbol.
 - [Boost mode (bots page)](boost-mode.md) — 5-min max-cadence: engines derive boostActive from settings.boostUntil at render (no permanent overwrite); Poly reopen cooldown intentionally NOT reduced (multi-day bets)
 - [Per-asset caution learning](per-asset-caution.md) — bots raise caution (1→1.8) on coins they keep losing on; fold-dedupe MUST use persisted global recordedTradeIds, not wallet-scoped tradeHistory
+- [RTL bidi number/slash flip](rtl-bidi-numbers.md) — bare "A / B" number pairs visually reorder in RTL Hebrew; spell sides out in words or wrap in LTR/bdi
 - [JARVIS bilingual (he/en)](jarvis-bilingual.md) — langRef.current in send/speak/listen avoids stale-closure; store per-message lang and render dir from m.lang (toggling must not flip past msgs); English = British-male butler voice.
 - [Trade-mode & emergency stop](trade-mode-and-emergency-stop.md) — fleet CALCULATED toggle layered via intensityProfile(level,mode) chokepoint; panic close needs per-class price maps (useLivePrices is crypto-only) + entry fallback or positions survive.
 - [Master mastery + briefing framing](master-mastery-and-briefing.md) — master "control level" eases selectivity ALIGNED-only & capped 10%; briefing frames all suggestions as educational "scenarios to watch", never advice (replit.md constraint).
