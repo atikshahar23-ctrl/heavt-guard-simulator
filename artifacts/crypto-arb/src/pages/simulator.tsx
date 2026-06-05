@@ -158,6 +158,15 @@ function CompactStats({ unrealizedPnl, totalPositionValue }: { unrealizedPnl: nu
 function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string, number> }) {
   const { binancePositions, closeBinancePosition, tradeHistory } = usePortfolio();
   const binanceTrades = tradeHistory.filter(t => t.type === "BINANCE");
+  const autoBinancePositions = binancePositions.filter(p => p.auto);
+
+  function closeAllBotBinance() {
+    if (!confirm(`Close all ${autoBinancePositions.length} bot-placed futures position${autoBinancePositions.length !== 1 ? "s" : ""}?`)) return;
+    autoBinancePositions.forEach(pos => {
+      const price = binancePrices[pos.asset] ?? pos.entryPrice;
+      closeBinancePosition(pos.id, price, "MANUAL");
+    });
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -165,9 +174,20 @@ function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="sticky top-0 bg-card/80 backdrop-blur-sm flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Open Positions</span>
-          {binancePositions.length > 0 && (
-            <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-mono">{binancePositions.length}</span>
-          )}
+          <div className="flex items-center gap-2">
+            {autoBinancePositions.length > 0 && (
+              <button
+                onClick={closeAllBotBinance}
+                className="flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all"
+                title="Close all bot-placed positions"
+              >
+                <Bot className="h-2.5 w-2.5" /> Close All Bot
+              </button>
+            )}
+            {binancePositions.length > 0 && (
+              <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-mono">{binancePositions.length}</span>
+            )}
+          </div>
         </div>
         {binancePositions.length === 0 ? (
           <div className="px-3 py-6 text-center text-[11px] text-muted-foreground font-mono">No open positions</div>
@@ -471,6 +491,17 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const autoPolyPositions = polyPositions.filter(p => p.auto);
+
+  function closeAllBotPoly() {
+    if (!confirm(`Close all ${autoPolyPositions.length} bot-placed prediction position${autoPolyPositions.length !== 1 ? "s" : ""}?`)) return;
+    autoPolyPositions.forEach(pos => {
+      const live = allMarkets.find(m => m.conditionId === pos.conditionId);
+      const price = live ? (pos.side === "YES" ? live.yesPrice : live.noPrice) : pos.entryPrice;
+      closePolyPosition(pos.id, price);
+    });
+  }
+
   const filtered = useMemo(() =>
     allMarkets
       .filter(m => !search || m.question.toLowerCase().includes(search.toLowerCase()))
@@ -497,6 +528,15 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
             <BarChart3 className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold tracking-widest uppercase text-primary">Open Prediction Positions</span>
             <div className="flex-1 h-px bg-border" />
+            {autoPolyPositions.length > 0 && (
+              <button
+                onClick={closeAllBotPoly}
+                className="flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all flex-shrink-0"
+                title="Close all bot-placed prediction positions"
+              >
+                <Bot className="h-2.5 w-2.5" /> Close All Bot ({autoPolyPositions.length})
+              </button>
+            )}
           </div>
           {polyPositions.map(pos => {
             const live = allMarkets.find(m => m.conditionId === pos.conditionId);
@@ -628,6 +668,15 @@ function StockRecommendationsStrip({ recs, onPick }: { recs: StockRecommendation
 /* ─── Stocks Tab ─── */
 function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices: Record<string, number> }) {
   const { stockPositions, cash, openStockPosition, closeStockPosition } = usePortfolio();
+  const autoStockPositions = stockPositions.filter(p => p.auto);
+
+  function closeAllBotStocks() {
+    if (!confirm(`Close all ${autoStockPositions.length} bot-placed stock position${autoStockPositions.length !== 1 ? "s" : ""}?`)) return;
+    autoStockPositions.forEach(pos => {
+      const price = stockPrices[pos.symbol] ?? pos.entryPrice;
+      closeStockPosition(pos.id, price);
+    });
+  }
   const { intervalFor } = useRefresh();
   const { data: stockRecs } = useGetStockRecommendations({
     query: { queryKey: getGetStockRecommendationsQueryKey(), refetchInterval: intervalFor(30000, 30000) },
@@ -698,6 +747,15 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
             <LineChart className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold tracking-widest uppercase text-primary">Open Stock Positions</span>
             <div className="flex-1 h-px bg-border" />
+            {autoStockPositions.length > 0 && (
+              <button
+                onClick={closeAllBotStocks}
+                className="flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all flex-shrink-0"
+                title="Close all bot-placed stock positions"
+              >
+                <Bot className="h-2.5 w-2.5" /> Close All Bot ({autoStockPositions.length})
+              </button>
+            )}
           </div>
           {stockPositions.map(pos => {
             const currentPrice = stockPrices[pos.symbol] ?? pos.entryPrice;
