@@ -23,7 +23,7 @@ import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
   ChartCandlestick, BarChart3, Trophy, History, X, Plus,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
-  ShieldAlert, Target, Clock,
+  ShieldAlert, Target, Clock, Bot,
 } from "lucide-react";
 
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10] as const;
@@ -510,6 +510,11 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-[11px] font-black font-mono ${pos.side === "YES" ? "text-emerald-400" : "text-amber-400"}`}>{pos.side}</span>
                     <span className="text-[10px] text-muted-foreground font-mono">{pos.category}</span>
+                    {pos.auto && (
+                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary flex items-center gap-0.5">
+                        <Bot className="h-2.5 w-2.5" /> {pos.source ?? "AUTO"}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-foreground/80 line-clamp-2 leading-relaxed">{pos.question}</p>
                   <div className="text-[10px] text-muted-foreground font-mono mt-1">
