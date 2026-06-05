@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { useAutoTrader, intensityProfile } from "@/contexts/autotrader-context";
 import {
-  Wallet as WalletIcon, ChevronDown, Plus, Check, Pencil, Trash2, X,
+  Wallet as WalletIcon, ChevronDown, Plus, Check, Pencil, Trash2, X, Gauge,
 } from "lucide-react";
 
 const GEAR_COLORS = [
@@ -27,7 +27,7 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
     wallets, activeWalletId, activeWalletName,
     createWallet, renameWallet, deleteWallet, switchWallet,
   } = usePortfolio();
-  const { settings, baseIntensity } = useAutoTrader();
+  const { settings, baseIntensity, setWalletIntensity } = useAutoTrader();
 
   function walletGear(walletId: string) {
     const level = settings.intensityByWallet[walletId] ?? baseIntensity;
@@ -39,6 +39,7 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [pickingGearFor, setPickingGearFor] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -49,6 +50,7 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
         setOpen(false);
         setCreating(false);
         setEditingId(null);
+        setPickingGearFor(null);
         setErr(null);
       }
     }
@@ -126,50 +128,80 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
               }
               const gear = walletGear(w.id);
               const gearColor = GEAR_COLORS[gear.level - 1];
+              const isPicking = pickingGearFor === w.id;
               return (
-                <div
-                  key={w.id}
-                  className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${
-                    isActive ? "bg-primary/15 border border-primary/30" : "hover:bg-secondary/30 border border-transparent"
-                  }`}
-                >
-                  <button
-                    onClick={() => { switchWallet(w.id); setOpen(false); }}
-                    className="flex-1 flex items-center gap-2 min-w-0 text-right"
+                <div key={w.id} className="space-y-1">
+                  <div
+                    className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${
+                      isActive ? "bg-primary/15 border border-primary/30" : "hover:bg-secondary/30 border border-transparent"
+                    }`}
                   >
-                    <span className={`shrink-0 ${isActive ? "text-primary" : "text-transparent"}`}>
-                      <Check className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-xs font-mono font-bold ${isActive ? "text-primary" : "text-foreground"}`}>
-                        {w.name}
-                      </span>
-                      <span className="block text-[10px] font-mono text-muted-foreground">
-                        {fmtUsd(w.cash)} · {w.openPositions} פוזיציות
-                      </span>
-                    </span>
-                    <span
-                      className={`shrink-0 inline-flex items-center gap-0.5 rounded border px-1 py-0.5 text-[9px] font-mono font-bold leading-none ${gearColor}`}
-                      title={`עוצמה: ${gear.label}`}
-                    >
-                      {gear.level} {gear.label}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => { setEditingId(w.id); setEditName(w.name); setErr(null); }}
-                    className="p-1 rounded text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="שינוי שם"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                  {wallets.length > 1 && (
                     <button
-                      onClick={() => doDelete(w.id, w.name)}
-                      className="p-1 rounded text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="מחיקה"
+                      onClick={() => { switchWallet(w.id); setOpen(false); setPickingGearFor(null); }}
+                      className="flex-1 flex items-center gap-2 min-w-0 text-right"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <span className={`shrink-0 ${isActive ? "text-primary" : "text-transparent"}`}>
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-xs font-mono font-bold ${isActive ? "text-primary" : "text-foreground"}`}>
+                          {w.name}
+                        </span>
+                        <span className="block text-[10px] font-mono text-muted-foreground">
+                          {fmtUsd(w.cash)} · {w.openPositions} פוזיציות
+                        </span>
+                      </span>
                     </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPickingGearFor(isPicking ? null : w.id); setEditingId(null); }}
+                      className={`shrink-0 inline-flex items-center gap-0.5 rounded border px-1 py-0.5 text-[9px] font-mono font-bold leading-none transition-all hover:brightness-125 ${gearColor} ${isPicking ? "ring-1 ring-current/60" : ""}`}
+                      title="שינוי עוצמה"
+                    >
+                      <Gauge className="h-2.5 w-2.5" />
+                      {gear.level} {gear.label}
+                    </button>
+                    <button
+                      onClick={() => { setEditingId(w.id); setEditName(w.name); setErr(null); setPickingGearFor(null); }}
+                      className="p-1 rounded text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="שינוי שם"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    {wallets.length > 1 && (
+                      <button
+                        onClick={() => doDelete(w.id, w.name)}
+                        className="p-1 rounded text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="מחיקה"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  {isPicking && (
+                    <div className="mx-1 px-2 py-2 rounded-lg border border-primary/20 bg-background/60 space-y-1.5">
+                      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground text-right">בחר הילוך עוצמה</p>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {[1, 2, 3, 4, 5].map((lvl) => {
+                          const p = intensityProfile(lvl);
+                          const sel = gear.level === lvl;
+                          const c = GEAR_COLORS[lvl - 1];
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              onClick={() => { setWalletIntensity(w.id, lvl); setPickingGearFor(null); }}
+                              aria-pressed={sel}
+                              className={`rounded-md border py-1.5 text-center transition-all ${
+                                sel ? `${c} shadow-[0_0_0_1px_currentColor/30]` : "border-border/60 bg-background/40 hover:bg-secondary/40"
+                              }`}
+                            >
+                              <div className={`text-sm font-mono font-bold leading-none ${sel ? "" : "text-muted-foreground"}`}>{lvl}</div>
+                              <div className={`text-[9px] font-medium leading-tight mt-0.5 ${sel ? "" : "text-muted-foreground"}`}>{p.label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
               );

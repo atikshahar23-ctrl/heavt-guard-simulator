@@ -612,6 +612,8 @@ interface AutoTraderContextValue {
    */
   baseIntensity: number;
   update: (patch: Partial<AutoTraderSettings>) => void;
+  /** Set the intensity gear for any wallet by id (not limited to the active one). */
+  setWalletIntensity: (walletId: string, level: number) => void;
   toggleEnabled: () => void;
   /** Arm every bot and run max-cadence Boost mode for durationMs (default 5 min). */
   startBoost: (durationMs?: number) => void;
@@ -721,6 +723,14 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
       }
       return { ...prev, ...patch };
     });
+  }, []);
+
+  const setWalletIntensity = useCallback((walletId: string, level: number) => {
+    const clamped = Math.max(1, Math.min(5, Math.round(level) || 1));
+    setSettings((prev) => ({
+      ...prev,
+      intensityByWallet: { ...prev.intensityByWallet, [walletId]: clamped },
+    }));
   }, []);
 
   const toggleEnabled = useCallback(() => {
@@ -885,7 +895,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
 
   return (
     <AutoTraderContext.Provider
-      value={{ settings: effectiveSettings, baseIntensity: settings.intensity, update, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
+      value={{ settings: effectiveSettings, baseIntensity: settings.intensity, update, setWalletIntensity, toggleEnabled, startBoost, stopBoost, getBotStat, recordBotResult, resetBotStats, getAssetStat, getAssetCaution, recordAssetResult, resetAssetStats, getRiskGuard, evaluateRisk, resetRiskGuard, alpha, publishAlpha }}
     >
       {children}
     </AutoTraderContext.Provider>
