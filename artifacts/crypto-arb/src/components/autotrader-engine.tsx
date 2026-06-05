@@ -105,7 +105,7 @@ export function AutoTraderEngine() {
   // cadence — tiny cooldowns, faster polling and fast profit-banking.
   const boostActive = settings.boostUntil > Date.now();
   // Trading-intensity gear (economy↔sport). Boost still overrides cadence below.
-  const prof = intensityProfile(settings.intensity);
+  const prof = intensityProfile(settings.intensity, settings.tradeMode);
   // Sub-second crypto prices from the free Binance WebSocket — lets SL/TP and the
   // pre-liquidation guard react near-instantly instead of waiting on 30s polling.
   const { get: getLivePrice, version: liveVersion } = useLivePrices();
@@ -293,13 +293,26 @@ export function AutoTraderEngine() {
     // ever closes positions that are in profit, so it never deepens a loss.
     if (settings.smartExitEnabled) {
       const now = Date.now();
-      // In Boost mode, bank wins on the tiniest favorable tick and recycle even
-      // flat-green trades within seconds — the whole point is rapid turnover.
-      const takeProfitPct = boostActive ? Math.min(settings.scalpTakeProfitPct, 0.2) : settings.scalpTakeProfitPct;
-      const givebackPct = boostActive ? 0.1 : settings.scalpGivebackPct;
+      // Boost banks wins on the tiniest tick and recycles flat-green trades in
+      // seconds (rapid turnover). CALCULATED is the opposite: only bank once a
+      // real move has built, give winners far more room, and never fast-recycle
+      // a green trade — let it ride toward a long-term target.
+      const calcMode = settings.tradeMode === "CALCULATED";
+      const takeProfitPct = boostActive
+        ? Math.min(settings.scalpTakeProfitPct, 0.2)
+        : calcMode
+          ? Math.max(settings.scalpTakeProfitPct, 1.5)
+          : settings.scalpTakeProfitPct;
+      const givebackPct = boostActive
+        ? 0.1
+        : calcMode
+          ? Math.max(settings.scalpGivebackPct, 1.0)
+          : settings.scalpGivebackPct;
       const recycleSec = boostActive
         ? Math.min(settings.maxScalpHoldSec || 12, 12)
-        : settings.maxScalpHoldSec;
+        : calcMode
+          ? 0
+          : settings.maxScalpHoldSec;
       for (const pos of binancePositions) {
         if (!pos.auto) continue;
         const price = priceMap[pos.asset];

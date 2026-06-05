@@ -56,7 +56,7 @@ export function ExtraBotsEngine() {
   // Boost mode: tiny cooldowns + faster polling so these bots churn quickly too.
   const boostActive = settings.boostUntil > Date.now();
   // Trading-intensity gear (economy↔sport) shared with the rest of the fleet.
-  const prof = intensityProfile(settings.intensity);
+  const prof = intensityProfile(settings.intensity, settings.tradeMode);
   const cooldownMs = boostActive ? BOOST_COOLDOWN_MS : Math.round(COOLDOWN_MS * prof.cooldownMult);
   const cryptoArmed = settings.dipEnabled || settings.breakoutEnabled;
 

@@ -2,17 +2,26 @@ import { useMemo, useState, useEffect } from "react";
 import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
-  Network, ArrowUpRight, ArrowDownRight, Minus, Trophy,
+  Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { usePortfolio, type ClosedTrade } from "@/contexts/portfolio-context";
 import {
   useAutoTrader, computeDynamicSizing, intensityProfile,
   ALPHA_COMMIT_PCT, ALPHA_STRONG_PCT,
-  type AutoTraderSettings, type NewBotId, type RiskGuard,
+  type AutoTraderSettings, type NewBotId, type RiskGuard, type TradeMode,
 } from "@/contexts/autotrader-context";
+import { useLivePrices } from "@/contexts/live-price-context";
+import { toast } from "@/hooks/use-toast";
+import {
+  useGetMarketOverview, getGetMarketOverviewQueryKey,
+  useGetStocks, getGetStocksQueryKey,
+  useGetShortTermMarkets, getGetShortTermMarketsQueryKey,
+  type PolymarketMarket,
+} from "@workspace/api-client-react";
 import { AlphaBotEmblem } from "@/components/alpha-bot-emblem";
 
 /** Preset boost durations in minutes (5 min → 5 h, the BOOST_MAX_MS ceiling). */
@@ -139,7 +148,15 @@ const NEW_BOT_META: {
 
 export default function Bots() {
   const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getAssetCaution, resetAssetStats, getRiskGuard, resetRiskGuard, alpha } = useAutoTrader();
-  const { binancePositions, stockPositions, polyPositions, cash, totalDeposited, tradeHistory } = usePortfolio();
+  const { binancePositions, stockPositions, polyPositions, cash, totalDeposited, tradeHistory, closeAllBotPositions } = usePortfolio();
+  const { get: getLivePrice } = useLivePrices();
+
+  // Cached market data shared with the trading engines (same query keys), used to
+  // close positions at a real mark price during an emergency stop. Crypto also
+  // reads the sub-second live WS price below; stocks/poly use these REST quotes.
+  const { data: overview } = useGetMarketOverview({ query: { queryKey: getGetMarketOverviewQueryKey() } });
+  const { data: stocks } = useGetStocks({ query: { queryKey: getGetStocksQueryKey() } });
+  const { data: shortTerm } = useGetShortTermMarkets({ query: { queryKey: getGetShortTermMarketsQueryKey() } });
 
   // Live boost countdown — tick once a second only while a boost is running.
   const [now, setNow] = useState(() => Date.now());
@@ -247,6 +264,50 @@ export default function Bots() {
     });
   };
 
+  // ── Speed-of-light cancel ("ביטול מסחר במהירות האור") ──
+  // One emergency kill-switch: instantly disarm every bot, end any active boost
+  // and close ALL bot-placed positions at the latest live price (falling back to
+  // the entry price so nothing is ever left hanging open). Manual trades the user
+  // opened by hand are untouched. Paper-trading only.
+  const emergencyStop = () => {
+    // Crypto: prefer the sub-second WS price, then the cached REST overview quote,
+    // and only fall back to entry price if neither exists — so a position is never
+    // left hanging open just because a single quote is missing.
+    const bnPrices: Record<string, number> = {};
+    for (const c of overview ?? []) bnPrices[c.asset] = c.price;
+    for (const p of binancePositions) {
+      if (!p.auto) continue;
+      const live = getLivePrice(p.asset)?.price;
+      if (live && Number.isFinite(live)) bnPrices[p.asset] = live;
+      else if (!Number.isFinite(bnPrices[p.asset])) bnPrices[p.asset] = p.entryPrice;
+    }
+    // Stocks: cached REST quotes, entry price as a last resort.
+    const stPrices: Record<string, number> = {};
+    for (const s of stocks ?? []) stPrices[s.symbol] = s.price;
+    for (const p of stockPositions) {
+      if (p.auto && !Number.isFinite(stPrices[p.symbol])) stPrices[p.symbol] = p.entryPrice;
+    }
+    // Polymarket: mark each open side at its current live yes/no price; if the
+    // market isn't in the live feed, closeAllBotPositions falls back to entry.
+    const polyLive = new Map(((shortTerm ?? []) as PolymarketMarket[]).map((m) => [m.conditionId, m]));
+    const polyPrices: Record<string, number> = {};
+    for (const p of polyPositions) {
+      if (!p.auto) continue;
+      const m = polyLive.get(p.conditionId);
+      if (m) polyPrices[p.conditionId] = p.side === "YES" ? m.yesPrice : m.noPrice;
+    }
+    const closed = closeAllBotPositions(bnPrices, stPrices, polyPrices);
+    armAll(false);
+    stopBoost();
+    toast({
+      title: "עצירת חירום — מסחר בוטל במהירות האור",
+      description: closed > 0
+        ? `כל הבוטים כובו ו-${closed} פוזיציות נסגרו מיידית.`
+        : "כל הבוטים כובו. לא היו פוזיציות בוט פתוחות לסגירה.",
+      variant: "destructive",
+    });
+  };
+
   const totalOpenAuto = binancePositions.filter((p) => p.auto).length +
     stockPositions.filter((p) => p.auto).length + polyPositions.filter((p) => p.auto).length;
 
@@ -315,6 +376,15 @@ export default function Bots() {
           >
             <Power className="h-4 w-4" />
             {anyOn ? "כבה הכול" : "הפעל הכול"}
+          </Button>
+          <Button
+            onClick={emergencyStop}
+            variant="destructive"
+            className="gap-2 font-mono font-bold animate-none border border-red-400/60 shadow-[0_0_18px_hsl(0_72%_51%/0.45)]"
+            title="עצירת חירום: מכבה את כל הבוטים וסוגר מיד את כל פוזיציות הבוט"
+          >
+            <Siren className="h-4 w-4" />
+            ביטול במהירות האור
           </Button>
         </div>
       </header>
@@ -513,6 +583,87 @@ export default function Bots() {
             {boostActive && (
               <p className="mt-2 text-[10px] text-primary/90" dir="rtl">
                 בזמן בוסט הקצב נדרס לקצב המהיר ביותר ללא קשר להילוך; ההילוך חוזר לפעול כשהבוסט מסתיים.
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
+      {/* ── Trade mode — סגנון מסחר: רגיל ↔ מחושב אקסטרא (טווח ארוך) ── */}
+      {(() => {
+        const calc = settings.tradeMode === "CALCULATED";
+        const accent = calc ? "199 89% 55%" : "43 74% 52%";
+        const setMode = (mode: TradeMode) => update({ tradeMode: mode });
+        return (
+          <section className="rounded-lg border p-4" style={{ borderColor: `hsl(${accent} / 0.4)`, background: `hsl(${accent} / 0.05)` }} dir="rtl">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-md flex items-center justify-center shrink-0" style={{ background: `hsl(${accent} / 0.15)` }}>
+                <Crosshair className="h-4 w-4" style={{ color: `hsl(${accent})` }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold tracking-wide">סגנון מסחר — בורר לכל הבוטים</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  בורר נוסף שמשפיע על <span className="text-foreground font-medium">כל הבוטים</span> יחד, בנוסף להילוך העוצמה. <span className="text-foreground font-medium">רגיל</span> — ההתנהגות הרגילה. <span className="text-foreground font-medium">מחושב אקסטרא</span> — מצב סבלני לטווח ארוך: הבוטים נעשים הרבה יותר בררנים, פותחים פחות עסקאות ובתדירות נמוכה בהרבה, ונותנים לרווחים לרוץ זמן רב יותר במקום לממש סקאלפים מהירים.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("NORMAL")}
+                aria-pressed={!calc}
+                className={`flex items-center justify-center gap-2 rounded-md border p-3 transition-all ${
+                  !calc ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(43_74%_52%/0.4)]" : "border-border/60 bg-background/40 hover:bg-secondary/40"
+                }`}
+              >
+                <Rabbit className={`h-4 w-4 ${!calc ? "text-primary" : "text-muted-foreground"}`} />
+                <div className="text-right">
+                  <div className={`text-sm font-semibold leading-none ${!calc ? "text-foreground" : "text-muted-foreground"}`}>רגיל</div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">קצב ובררנות לפי ההילוך</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("CALCULATED")}
+                aria-pressed={calc}
+                className={`flex items-center justify-center gap-2 rounded-md border p-3 transition-all ${
+                  calc ? "border-sky-400 bg-sky-400/10 shadow-[0_0_0_1px_hsl(199_89%_55%/0.45)]" : "border-border/60 bg-background/40 hover:bg-secondary/40"
+                }`}
+              >
+                <Turtle className={`h-4 w-4 ${calc ? "text-sky-400" : "text-muted-foreground"}`} />
+                <div className="text-right">
+                  <div className={`text-sm font-semibold leading-none ${calc ? "text-foreground" : "text-muted-foreground"}`}>מחושב אקסטרא</div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">בררני וסבלני · טווח ארוך</div>
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-4 px-1">
+              <Slider
+                value={[calc ? 1 : 0]}
+                min={0}
+                max={1}
+                step={1}
+                onValueChange={(v) => setMode(v[0] >= 1 ? "CALCULATED" : "NORMAL")}
+                aria-label="בורר סגנון מסחר"
+                dir="rtl"
+              />
+              <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-muted-foreground">
+                <span className={!calc ? "text-primary" : ""}>רגיל</span>
+                <span className={calc ? "text-sky-400" : ""}>מחושב אקסטרא</span>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatChip label="מצב נוכחי" value={calc ? "מחושב אקסטרא" : "רגיל"} tone={calc ? "good" : undefined} />
+              <StatChip label="בררנות" value={calc ? "מחמירה מאוד" : "לפי ההילוך"} tone={calc ? "good" : undefined} />
+              <StatChip label="תדירות עסקאות" value={calc ? "נמוכה בהרבה" : "רגילה"} />
+              <StatChip label="החזקת רווחים" value={calc ? "ארוכה (נותן לרוץ)" : "רגילה"} />
+            </div>
+            {calc && boostActive && (
+              <p className="mt-2 text-[10px] text-amber-400/90" dir="rtl">
+                שים לב: בוסט פעיל דורס את הקצב למהיר ביותר וסותר את מצב טווח ארוך. כדאי לעצור את הבוסט כדי לתת למצב המחושב לעבוד.
               </p>
             )}
           </section>

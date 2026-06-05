@@ -236,19 +236,42 @@ const INTENSITY_CONFRANK = [1, 1, 0, 0, -1] as const;
 const INTENSITY_SCOREADD = [12, 6, 0, -6, -12] as const;
 const INTENSITY_SELECTIVITY = [1.3, 1.15, 1, 0.85, 0.7] as const;
 
-/** Resolve the multipliers for a trading-intensity gear (clamps to 1-5). */
-export function intensityProfile(level: number): IntensityProfile {
+/**
+ * Fleet-wide trading temperament, applied on top of the intensity gear and to
+ * EVERY bot at once:
+ * - `NORMAL`   — the regular behaviour (the gear alone governs cadence).
+ * - `CALCULATED` — an extra-deliberate, long-horizon mode: the bots become far
+ *   stricter, open fewer trades far less often, and ride winners much longer
+ *   instead of banking quick scalps. Built for patient, long-term paper trades.
+ */
+export type TradeMode = "NORMAL" | "CALCULATED";
+
+/** Extra multipliers the CALCULATED long-term mode layers over the gear. */
+const CALC_COOLDOWN_MULT = 2.5;
+const CALC_MAXOPEN_MULT = 0.6;
+const CALC_SELECTIVITY_MULT = 1.6;
+const CALC_CONFRANK_ADD = 1;
+const CALC_SCORE_ADD = 10;
+const CALC_TRADERATE_MULT = 0.4;
+
+/**
+ * Resolve the multipliers for a trading-intensity gear (clamps to 1-5),
+ * optionally layered with the fleet-wide trade mode. CALCULATED makes every
+ * bot stricter and slower for long-term, higher-conviction paper trades.
+ */
+export function intensityProfile(level: number, mode: TradeMode = "NORMAL"): IntensityProfile {
   const l = Math.max(1, Math.min(5, Math.round(level) || 1));
   const i = l - 1;
+  const calc = mode === "CALCULATED";
   return {
     level: l,
     label: INTENSITY_LABELS[i],
-    tradeRate: Math.round(Math.pow(1.5, i) * 100) / 100,
-    cooldownMult: INTENSITY_COOLDOWN[i],
-    maxOpenMult: INTENSITY_MAXOPEN[i],
-    confRankAdd: INTENSITY_CONFRANK[i],
-    scoreAdd: INTENSITY_SCOREADD[i],
-    selectivityMult: INTENSITY_SELECTIVITY[i],
+    tradeRate: Math.round(Math.pow(1.5, i) * (calc ? CALC_TRADERATE_MULT : 1) * 100) / 100,
+    cooldownMult: INTENSITY_COOLDOWN[i] * (calc ? CALC_COOLDOWN_MULT : 1),
+    maxOpenMult: INTENSITY_MAXOPEN[i] * (calc ? CALC_MAXOPEN_MULT : 1),
+    confRankAdd: INTENSITY_CONFRANK[i] + (calc ? CALC_CONFRANK_ADD : 0),
+    scoreAdd: INTENSITY_SCOREADD[i] + (calc ? CALC_SCORE_ADD : 0),
+    selectivityMult: INTENSITY_SELECTIVITY[i] * (calc ? CALC_SELECTIVITY_MULT : 1),
   };
 }
 
@@ -306,6 +329,14 @@ export interface AutoTraderSettings {
    * `settings.intensity`, so every engine keeps reading one value.
    */
   intensityByWallet: Record<string, number>;
+
+  /**
+   * Fleet-wide trade temperament applied to EVERY bot on top of the gear:
+   * "NORMAL" = regular behaviour; "CALCULATED" = an extra-deliberate, long-term
+   * mode that makes the bots much stricter, trade far less often, and ride
+   * winners longer instead of banking quick scalps.
+   */
+  tradeMode: TradeMode;
 
   /* ── Warrior-trading additions ── */
   /** Signal sources: scalp setups, momentum runners, or both. */
@@ -455,6 +486,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   cashFloorPct: 15,
   intensity: 3,
   intensityByWallet: {},
+  tradeMode: "NORMAL",
 
   strategy: "BOTH",
   minMomentumScore: 55,
