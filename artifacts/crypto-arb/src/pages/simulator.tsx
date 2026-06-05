@@ -184,6 +184,7 @@ function PosFilterToggle({ value, onChange, counts }: { value: PosFilter; onChan
 
 function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { binancePrices: Record<string, number>; posFilter: PosFilter; setPosFilter: (v: PosFilter) => void }) {
   const { binancePositions, closeBinancePosition, tradeHistory } = usePortfolio();
+  const [histFilter, setHistFilter] = useState<PosFilter>("ALL");
   const binanceTrades = tradeHistory.filter(t => t.type === "BINANCE");
   const autoBinancePositions = binancePositions.filter(p => p.auto);
 
@@ -289,6 +290,12 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { bin
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card/40 shrink-0">
           <History className="h-3 w-3 text-muted-foreground" />
           <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">History</span>
+          <div className="flex-1" />
+          <PosFilterToggle
+            value={histFilter}
+            onChange={setHistFilter}
+            counts={{ ALL: binanceTrades.length, BOT: binanceTrades.filter(t => t.auto).length, MANUAL: binanceTrades.filter(t => !t.auto).length }}
+          />
         </div>
         {binanceTrades.length > 0 && (() => {
           const botPnl = binanceTrades.filter(t => t.auto).reduce((s, t) => s + t.pnl, 0);
@@ -313,7 +320,7 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { bin
             <div className="px-3 py-3 text-[10px] text-muted-foreground font-mono text-center">No closed trades</div>
           ) : (
             <div className="divide-y divide-border/50">
-              {binanceTrades.slice(0, 20).map(t => (
+              {binanceTrades.filter(t => histFilter === "ALL" ? true : histFilter === "BOT" ? !!t.auto : !t.auto).slice(0, 20).map(t => (
                 <div key={t.id} className="px-3 py-1.5 flex items-center gap-2">
                   <span className="text-[10px] font-mono text-muted-foreground truncate flex-1">{t.description}</span>
                   {t.source ? (
@@ -984,16 +991,23 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
 /* ─── Trade History (for Stocks/Poly tabs) ─── */
 function TradeHistoryPanel() {
   const { tradeHistory } = usePortfolio();
+  const [histFilter, setHistFilter] = useState<PosFilter>("ALL");
   const nonBinance = tradeHistory.filter(t => t.type !== "BINANCE");
   if (nonBinance.length === 0) return null;
   const botPnl = nonBinance.filter(t => t.auto).reduce((s, t) => s + t.pnl, 0);
   const manualPnl = nonBinance.filter(t => !t.auto).reduce((s, t) => s + t.pnl, 0);
+  const visibleTrades = nonBinance.filter(t => histFilter === "ALL" ? true : histFilter === "BOT" ? !!t.auto : !t.auto);
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <History className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-[11px] font-bold tracking-widest uppercase text-muted-foreground">Trade History</span>
         <div className="flex-1 h-px bg-border" />
+        <PosFilterToggle
+          value={histFilter}
+          onChange={setHistFilter}
+          counts={{ ALL: nonBinance.length, BOT: nonBinance.filter(t => t.auto).length, MANUAL: nonBinance.filter(t => !t.auto).length }}
+        />
       </div>
       <div className="flex items-center gap-3 px-3 py-1.5 rounded border border-border/50 bg-secondary/10 flex-wrap">
         <div className="flex items-center gap-1 text-[10px] font-mono">
@@ -1008,7 +1022,9 @@ function TradeHistoryPanel() {
         </div>
       </div>
       <div className="space-y-1.5">
-        {nonBinance.slice(0, 10).map(t => (
+        {visibleTrades.length === 0 ? (
+          <div className="text-center py-4 text-[10px] text-muted-foreground font-mono">No trades match filter</div>
+        ) : visibleTrades.slice(0, 10).map(t => (
           <div key={t.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded border border-border/50 bg-card/30 text-xs">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <Badge variant="outline" className="text-[9px] font-mono flex-shrink-0">
