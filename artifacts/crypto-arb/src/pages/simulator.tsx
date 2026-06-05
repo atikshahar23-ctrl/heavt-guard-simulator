@@ -316,6 +316,15 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { bin
               {binanceTrades.slice(0, 20).map(t => (
                 <div key={t.id} className="px-3 py-1.5 flex items-center gap-2">
                   <span className="text-[10px] font-mono text-muted-foreground truncate flex-1">{t.description}</span>
+                  {t.source ? (
+                    <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 shrink-0 max-w-[72px] truncate" title={t.source}>
+                      {t.source}
+                    </span>
+                  ) : t.auto ? null : (
+                    <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-secondary/40 text-muted-foreground border border-border/40 shrink-0">
+                      Manual
+                    </span>
+                  )}
                   <span className={`text-[10px] font-black font-mono shrink-0 flex items-center gap-0.5 ${pnlColor(t.pnl)}`}>
                     {t.pnl >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
                     {t.pnl >= 0 ? "+" : ""}{fmtUsd(t.pnl)}
@@ -1001,12 +1010,21 @@ function TradeHistoryPanel() {
       <div className="space-y-1.5">
         {nonBinance.slice(0, 10).map(t => (
           <div key={t.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded border border-border/50 bg-card/30 text-xs">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <Badge variant="outline" className="text-[9px] font-mono flex-shrink-0">
                 {t.type === "STOCK" ? "STK" : "PRED"}
               </Badge>
               <span className="text-muted-foreground truncate font-mono">{t.description}</span>
             </div>
+            {t.source ? (
+              <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 flex-shrink-0 max-w-[72px] truncate" title={t.source}>
+                {t.source}
+              </span>
+            ) : !t.auto ? (
+              <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-secondary/40 text-muted-foreground border border-border/40 flex-shrink-0">
+                Manual
+              </span>
+            ) : null}
             <div className={`font-black font-mono flex-shrink-0 flex items-center gap-1 ${pnlColor(t.pnl)}`}>
               {t.pnl >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
               {t.pnl >= 0 ? "+" : ""}{fmtUsd(t.pnl)}
