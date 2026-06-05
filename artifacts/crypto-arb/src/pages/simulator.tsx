@@ -155,10 +155,29 @@ function CompactStats({ unrealizedPnl, totalPositionValue }: { unrealizedPnl: nu
 }
 
 /* ─── Futures: Right panel (positions + history) ─── */
+type PosFilter = "ALL" | "BOT" | "MANUAL";
+
+function PosFilterToggle({ value, onChange }: { value: PosFilter; onChange: (v: PosFilter) => void }) {
+  return (
+    <div className="flex items-center rounded border border-border overflow-hidden text-[9px] font-mono font-bold">
+      {(["ALL", "BOT", "MANUAL"] as const).map(f => (
+        <button
+          key={f}
+          onClick={() => onChange(f)}
+          className={`px-1.5 py-0.5 transition-colors ${value === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          {f === "ALL" ? "All" : f === "BOT" ? "Bot" : "Manual"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string, number> }) {
   const { binancePositions, closeBinancePosition, tradeHistory } = usePortfolio();
   const binanceTrades = tradeHistory.filter(t => t.type === "BINANCE");
   const autoBinancePositions = binancePositions.filter(p => p.auto);
+  const [posFilter, setPosFilter] = useState<PosFilter>("ALL");
 
   function closeAllBotBinance() {
     if (!confirm(`Close all ${autoBinancePositions.length} bot-placed futures position${autoBinancePositions.length !== 1 ? "s" : ""}?`)) return;
@@ -175,6 +194,7 @@ function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string
         <div className="sticky top-0 bg-card/80 backdrop-blur-sm flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Open Positions</span>
           <div className="flex items-center gap-2">
+            <PosFilterToggle value={posFilter} onChange={setPosFilter} />
             {autoBinancePositions.length > 0 && (
               <button
                 onClick={closeAllBotBinance}
@@ -189,11 +209,17 @@ function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string
             )}
           </div>
         </div>
-        {binancePositions.length === 0 ? (
-          <div className="px-3 py-6 text-center text-[11px] text-muted-foreground font-mono">No open positions</div>
+        {(() => {
+          const visible = binancePositions.filter(p =>
+            posFilter === "ALL" ? true : posFilter === "BOT" ? !!p.auto : !p.auto
+          );
+          return visible.length === 0 ? (
+          <div className="px-3 py-6 text-center text-[11px] text-muted-foreground font-mono">
+            {binancePositions.length === 0 ? "No open positions" : "No positions match filter"}
+          </div>
         ) : (
           <div className="divide-y divide-border">
-            {binancePositions.map(pos => {
+            {visible.map(pos => {
               const currentPrice = binancePrices[pos.asset] ?? pos.entryPrice;
               const priceDelta = pos.direction === "LONG"
                 ? (currentPrice - pos.entryPrice) / pos.entryPrice
@@ -246,7 +272,8 @@ function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string
               );
             })}
           </div>
-        )}
+        );
+        })()}
       </div>
 
       {/* Trade History */}
@@ -490,6 +517,7 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
   const [search, setSearch] = useState("");
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [posFilter, setPosFilter] = useState<PosFilter>("ALL");
 
   const autoPolyPositions = polyPositions.filter(p => p.auto);
 
@@ -524,10 +552,11 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
     <div className="space-y-4">
       {polyPositions.length > 0 && (
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <BarChart3 className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold tracking-widest uppercase text-primary">Open Prediction Positions</span>
             <div className="flex-1 h-px bg-border" />
+            <PosFilterToggle value={posFilter} onChange={setPosFilter} />
             {autoPolyPositions.length > 0 && (
               <button
                 onClick={closeAllBotPoly}
@@ -538,7 +567,13 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
               </button>
             )}
           </div>
-          {polyPositions.map(pos => {
+          {(() => {
+            const visiblePoly = polyPositions.filter(p =>
+              posFilter === "ALL" ? true : posFilter === "BOT" ? !!p.auto : !p.auto
+            );
+            return visiblePoly.length === 0 ? (
+              <div className="py-4 text-center text-[11px] text-muted-foreground font-mono">No positions match filter</div>
+            ) : visiblePoly.map(pos => {
             const live = allMarkets.find(m => m.conditionId === pos.conditionId);
             const currentPrice = live ? (pos.side === "YES" ? live.yesPrice : live.noPrice) : pos.entryPrice;
             const value = pos.shares * currentPrice;
@@ -572,7 +607,8 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
                 </button>
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
       <div className="relative">
@@ -669,6 +705,7 @@ function StockRecommendationsStrip({ recs, onPick }: { recs: StockRecommendation
 function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices: Record<string, number> }) {
   const { stockPositions, cash, openStockPosition, closeStockPosition } = usePortfolio();
   const autoStockPositions = stockPositions.filter(p => p.auto);
+  const [posFilter, setPosFilter] = useState<PosFilter>("ALL");
 
   function closeAllBotStocks() {
     if (!confirm(`Close all ${autoStockPositions.length} bot-placed stock position${autoStockPositions.length !== 1 ? "s" : ""}?`)) return;
@@ -743,10 +780,11 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
 
       {stockPositions.length > 0 && (
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <LineChart className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold tracking-widest uppercase text-primary">Open Stock Positions</span>
             <div className="flex-1 h-px bg-border" />
+            <PosFilterToggle value={posFilter} onChange={setPosFilter} />
             {autoStockPositions.length > 0 && (
               <button
                 onClick={closeAllBotStocks}
@@ -757,7 +795,13 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
               </button>
             )}
           </div>
-          {stockPositions.map(pos => {
+          {(() => {
+            const visibleStocks = stockPositions.filter(p =>
+              posFilter === "ALL" ? true : posFilter === "BOT" ? !!p.auto : !p.auto
+            );
+            return visibleStocks.length === 0 ? (
+              <div className="py-4 text-center text-[11px] text-muted-foreground font-mono">No positions match filter</div>
+            ) : visibleStocks.map(pos => {
             const currentPrice = stockPrices[pos.symbol] ?? pos.entryPrice;
             const pnl = pos.shares * (pos.direction === "SHORT" ? pos.entryPrice - currentPrice : currentPrice - pos.entryPrice);
             const equity = Math.max(0, pos.cost + pnl);
@@ -799,7 +843,8 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
                 </button>
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
 
