@@ -157,18 +157,27 @@ function CompactStats({ unrealizedPnl, totalPositionValue }: { unrealizedPnl: nu
 /* ─── Futures: Right panel (positions + history) ─── */
 type PosFilter = "ALL" | "BOT" | "MANUAL";
 
-function PosFilterToggle({ value, onChange }: { value: PosFilter; onChange: (v: PosFilter) => void }) {
+function PosFilterToggle({ value, onChange, counts }: { value: PosFilter; onChange: (v: PosFilter) => void; counts?: { ALL: number; BOT: number; MANUAL: number } }) {
+  const labels: Record<PosFilter, string> = { ALL: "All", BOT: "Bot", MANUAL: "Manual" };
   return (
     <div className="flex items-center rounded border border-border overflow-hidden text-[9px] font-mono font-bold">
-      {(["ALL", "BOT", "MANUAL"] as const).map(f => (
-        <button
-          key={f}
-          onClick={() => onChange(f)}
-          className={`px-1.5 py-0.5 transition-colors ${value === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          {f === "ALL" ? "All" : f === "BOT" ? "Bot" : "Manual"}
-        </button>
-      ))}
+      {(["ALL", "BOT", "MANUAL"] as const).map(f => {
+        const cnt = counts?.[f];
+        return (
+          <button
+            key={f}
+            onClick={() => onChange(f)}
+            className={`flex items-center gap-0.5 px-1.5 py-0.5 transition-colors ${value === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {labels[f]}
+            {cnt != null && cnt > 0 && (
+              <span className={`ml-0.5 rounded-full px-1 leading-[1.4] text-[8px] ${value === f ? "bg-primary/30 text-primary" : "bg-muted text-muted-foreground"}`}>
+                {cnt}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -194,7 +203,7 @@ function FuturesPositionsPanel({ binancePrices }: { binancePrices: Record<string
         <div className="sticky top-0 bg-card/80 backdrop-blur-sm flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Open Positions</span>
           <div className="flex items-center gap-2">
-            <PosFilterToggle value={posFilter} onChange={setPosFilter} />
+            <PosFilterToggle value={posFilter} onChange={setPosFilter} counts={{ ALL: binancePositions.length, BOT: autoBinancePositions.length, MANUAL: binancePositions.length - autoBinancePositions.length }} />
             {autoBinancePositions.length > 0 && (
               <button
                 onClick={closeAllBotBinance}
@@ -556,7 +565,7 @@ function PolymarketTab({ allMarkets }: { allMarkets: { conditionId: string; ques
             <BarChart3 className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold tracking-widest uppercase text-primary">Open Prediction Positions</span>
             <div className="flex-1 h-px bg-border" />
-            <PosFilterToggle value={posFilter} onChange={setPosFilter} />
+            <PosFilterToggle value={posFilter} onChange={setPosFilter} counts={{ ALL: polyPositions.length, BOT: autoPolyPositions.length, MANUAL: polyPositions.length - autoPolyPositions.length }} />
             {autoPolyPositions.length > 0 && (
               <button
                 onClick={closeAllBotPoly}
@@ -784,7 +793,7 @@ function StocksTab({ stocks, stockPrices }: { stocks: StockQuote[]; stockPrices:
             <LineChart className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold tracking-widest uppercase text-primary">Open Stock Positions</span>
             <div className="flex-1 h-px bg-border" />
-            <PosFilterToggle value={posFilter} onChange={setPosFilter} />
+            <PosFilterToggle value={posFilter} onChange={setPosFilter} counts={{ ALL: stockPositions.length, BOT: autoStockPositions.length, MANUAL: stockPositions.length - autoStockPositions.length }} />
             {autoStockPositions.length > 0 && (
               <button
                 onClick={closeAllBotStocks}
