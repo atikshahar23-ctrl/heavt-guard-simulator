@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
+import { toast } from "@/hooks/use-toast";
 
 export const STARTING_BALANCE = 10_000;
 
@@ -311,6 +312,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       wallets: [...prev.wallets, wallet],
       activeWalletId: wallet.id,
     }));
+    // Signal every auto-trader engine & UI to disarm all bots on the new wallet.
+    // Settings (leverage, stakes, etc.) stay untouched; only the master arms are switched off.
+    window.dispatchEvent(new CustomEvent("wallet-created", { detail: { walletId: wallet.id } }));
+    toast({
+      title: "ארנק חדש נפתח",
+      description: "כל הבוטים הוחזו אוטומטית — הגדרות המינוף והסטייק נשמרו. הדליק הבוט שבו ייטב החזיר אותם לפעולה.",
+    });
     return null;
   }, []);
 

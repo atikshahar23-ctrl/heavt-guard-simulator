@@ -583,6 +583,27 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
   const [alpha, setAlpha] = useState<AlphaState>(NEUTRAL_ALPHA);
   const publishAlpha = useCallback((a: AlphaState) => setAlpha(a), []);
 
+  // When a new wallet is created, disarm every bot so the user starts fresh
+  // with no automated trading. All leverage/stake settings stay untouched.
+  useEffect(() => {
+    const handler = () => {
+      setSettings((prev) => ({
+        ...prev,
+        enabled: false,
+        stocksEnabled: false,
+        polyEnabled: false,
+        dipEnabled: false,
+        breakoutEnabled: false,
+        dcaEnabled: false,
+        alphaCoordinatorEnabled: false,
+        dynamicCapitalEnabled: false,
+        boostUntil: 0,
+      }));
+    };
+    window.addEventListener("wallet-created", handler);
+    return () => window.removeEventListener("wallet-created", handler);
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
