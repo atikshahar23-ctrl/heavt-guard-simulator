@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { CalendarClock, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   getMarketNotes, formatHebrewDate, formatClock, type MarketNoteKind,
@@ -37,6 +38,7 @@ export function MarketClock() {
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const containerRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLSpanElement>(null);
   const hoverRef = useRef(false);
 
   useEffect(() => {
@@ -95,6 +97,7 @@ export function MarketClock() {
         </span>
       </div>
       <span
+        ref={dateRef}
         className="text-[9px] short:text-[8px] text-muted-foreground tracking-wide cursor-pointer hover:text-primary transition-colors"
         onMouseEnter={() => { hoverRef.current = true; setOpen(true); }}
         onMouseLeave={() => { hoverRef.current = false; setTimeout(() => { if (!hoverRef.current) setOpen(false); }, 300); }}
@@ -117,10 +120,19 @@ export function MarketClock() {
       )}
 
       {/* ── Calendar tooltip ── */}
-      {open && (
+      {open && createPortal(
         <div
-          className="absolute z-50 top-full mt-2 w-[260px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-2xl p-3"
-          style={{ left: "50%", transform: "translateX(-50%)", boxShadow: "0 8px 32px rgba(0,0,0,0.55)" }}
+          ref={(el) => {
+            if (!el || !dateRef.current) return;
+            const rect = dateRef.current.getBoundingClientRect();
+            const tipWidth = 260;
+            const left = rect.left + rect.width / 2 - tipWidth / 2;
+            el.style.position = "fixed";
+            el.style.top = `${rect.bottom + 8}px`;
+            el.style.left = `${Math.max(8, left)}px`;
+          }}
+          className="z-50 w-[260px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-2xl p-3"
+          style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.55)" }}
           onMouseEnter={() => { hoverRef.current = true; }}
           onMouseLeave={() => { hoverRef.current = false; setTimeout(() => { if (!hoverRef.current) setOpen(false); }, 300); }}
         >
@@ -201,7 +213,7 @@ export function MarketClock() {
             </div>
           )}
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

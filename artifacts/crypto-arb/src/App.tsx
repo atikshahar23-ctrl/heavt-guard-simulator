@@ -20,6 +20,7 @@ import TradeDesk from "@/pages/trade-desk";
 import Bots from "@/pages/bots";
 import Research from "@/pages/research";
 import Briefing from "@/pages/briefing";
+import Tools from "@/pages/tools";
 import Layout from "@/components/layout";
 import { PortfolioProvider } from "@/contexts/portfolio-context";
 import { FavoritesProvider } from "@/contexts/favorites-context";
@@ -51,6 +52,7 @@ function Router() {
         <Route path="/simulator" component={Simulator} />
         <Route path="/bots" component={Bots} />
         <Route path="/briefing" component={Briefing} />
+        <Route path="/tools" component={Tools} />
         <Route path="/research" component={Research} />
         <Route component={NotFound} />
       </Switch>

@@ -4,7 +4,7 @@ import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-re
 import { usePortfolio } from "@/contexts/portfolio-context";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
-  TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper,
+  TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
@@ -77,6 +77,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       title: "כלים",
       links: [
         { href: "/briefing", label: "תדריך שוק", icon: Newspaper },
+        { href: "/tools", label: "כלי סחור", icon: Calculator },
         { href: "/research", label: "Research Desk", icon: Search },
         { href: "/history", label: "Trade History", icon: History },
       ],
