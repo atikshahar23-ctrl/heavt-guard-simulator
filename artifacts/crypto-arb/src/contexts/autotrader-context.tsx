@@ -141,13 +141,32 @@ export function evaluateRiskGuard(
   return next;
 }
 
+/**
+ * The cash reserve the Account Manager always keeps free — a percentage of the
+ * deposited equity that the bots are never allowed to commit. This is the core
+ * of "never run the account down to almost no money": new positions are only
+ * opened while free cash stays above this floor. `cashFloorPct` is clamped 0-90.
+ */
+export function cashReserveFloor(totalDeposited: number, cashFloorPct: number): number {
+  const pct = Math.max(0, Math.min(90, cashFloorPct || 0));
+  return Math.max(0, (totalDeposited || 0) * (pct / 100));
+}
+
 /** Pure helper — computes dynamic position sizing based on portfolio state.
- *  Accepts any array with a `pnl` field so it stays free of circular imports. */
-export interface DynamicSizing { margin: number; leverage: number; }
+ *  Accepts any array with a `pnl` field so it stays free of circular imports.
+ *
+ *  The Account Manager (the "80-year-veteran" brain) sizes off the *investable*
+ *  cash that sits ABOVE the reserve floor — never the whole balance — so the
+ *  account can keep trading and compounding without ever draining to near-zero.
+ *  When investable cash is thin it shrinks the position (and relaxes the normal
+ *  $50 floor) instead of over-committing; when it is exhausted it returns a
+ *  margin of 0 so the engines simply wait for open trades to bank cash back. */
+export interface DynamicSizing { margin: number; leverage: number; recoveryMode: boolean; }
 export function computeDynamicSizing(
   cash: number,
   totalDeposited: number,
   recentTrades: { pnl: number }[],
+  cashFloorPct = 0,
 ): DynamicSizing {
   // Portfolio health ratio (1.0 = break-even, >1 = winning, <1 = losing)
   const ratio = totalDeposited > 0 ? cash / totalDeposited : 1;
@@ -156,19 +175,33 @@ export function computeDynamicSizing(
   const sample = recentTrades.slice(0, 10);
   const wr = sample.length >= 3 ? sample.filter((t) => t.pnl > 0).length / sample.length : 0.5;
 
-  // Position size: 4% of cash, then scaled by portfolio health, $50–$600
-  const rawMargin = cash * 0.04;
-  const sizeScale =
-    ratio >= 1.15 ? 1.25 : ratio >= 1.05 ? 1.1 : ratio <= 0.80 ? 0.65 : ratio <= 0.90 ? 0.80 : 1.0;
-  const margin = Math.max(50, Math.min(600, Math.round((rawMargin * sizeScale) / 10) * 10));
+  // Capital the manager is willing to put to work: only cash ABOVE the reserve.
+  const floor = cashReserveFloor(totalDeposited, cashFloorPct);
+  const investable = Math.max(0, cash - floor);
 
-  // Leverage: base 3×, win-rate + health weighted, clamped 2×–8×
+  // Recovery mode: balance is low / running down. Trade smaller and calmer until
+  // the account refills, rather than swinging the last dollars on big leverage.
+  const recoveryMode = investable <= 0 || ratio <= 0.85;
+
+  // Position size: 4% of *investable* cash, scaled by portfolio health.
+  const rawMargin = investable * 0.04;
+  const sizeScale =
+    ratio >= 1.15 ? 1.25 : ratio >= 1.05 ? 1.1 : ratio <= 0.80 ? 0.55 : ratio <= 0.90 ? 0.75 : 1.0;
+  // When cash is scarce, don't force the usual $50 minimum — probe with whatever
+  // is investable (rounded to $5) so a low balance can't be over-committed.
+  const minMargin = investable >= 50 ? 50 : Math.floor(investable / 5) * 5;
+  const sized = Math.round((rawMargin * sizeScale) / 10) * 10;
+  const margin = investable <= 0 ? 0 : Math.max(minMargin, Math.min(600, sized));
+
+  // Leverage: base 3×, win-rate + health weighted, clamped 2×–8×. In recovery the
+  // manager caps leverage low to protect the thin remaining capital.
   const winScore    = Math.max(-1, Math.min(1, (wr - 0.5) * 4));
   const healthScore = Math.max(-1, Math.min(1, (ratio - 1) * 6));
   const combined    = Math.max(-1, Math.min(1, (winScore + healthScore) / 2));
-  const leverage    = Math.max(2, Math.min(8, Math.round(3 + combined * 3)));
+  let leverage      = Math.max(2, Math.min(8, Math.round(3 + combined * 3)));
+  if (recoveryMode) leverage = Math.min(leverage, 3);
 
-  return { margin, leverage };
+  return { margin, leverage, recoveryMode };
 }
 
 /**
@@ -240,6 +273,16 @@ export interface AutoTraderSettings {
    * up many small, quick paper trades. 0 = off / expired.
    */
   boostUntil: number;
+  /** User-chosen boost run length in minutes (5 min – 5 h). Persisted so the
+   *  boost button reuses the last duration. */
+  boostDurationMin: number;
+
+  /**
+   * Account Manager cash reserve: the % of deposited equity the manager always
+   * keeps as free cash. Bots never open a trade that would push free cash below
+   * this floor, so the account can't be run down to almost no money. 0 = off.
+   */
+  cashFloorPct: number;
 
   /**
    * Trading-intensity gear (1-5) applied to EVERY bot, like an economy↔sport
@@ -394,6 +437,8 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   maxOpenPositions: 5,
   favoritesOnly: false,
   boostUntil: 0,
+  boostDurationMin: 5,
+  cashFloorPct: 15,
   intensity: 3,
 
   strategy: "BOTH",
@@ -521,6 +566,8 @@ const STORAGE_KEY = "arb_scan_autotrader";
 
 /** Default length of a Boost run (max-cadence trading) in milliseconds. */
 export const BOOST_DURATION_MS = 5 * 60 * 1000;
+/** Hard ceiling on a single Boost run — 5 hours. */
+export const BOOST_MAX_MS = 5 * 60 * 60 * 1000;
 
 interface AutoTraderContextValue {
   settings: AutoTraderSettings;
@@ -629,7 +676,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
       dipEnabled: true,
       breakoutEnabled: true,
       dcaEnabled: true,
-      boostUntil: Date.now() + Math.max(1000, durationMs),
+      boostUntil: Date.now() + Math.min(BOOST_MAX_MS, Math.max(1000, durationMs)),
     }));
   }, []);
 

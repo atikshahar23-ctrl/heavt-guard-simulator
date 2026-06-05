@@ -5,7 +5,7 @@ import {
 } from "@workspace/api-client-react";
 import type { CoinTicker, StockQuote } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
-import { useAutoTrader, computeDynamicSizing, intensityProfile, type NewBotId } from "@/contexts/autotrader-context";
+import { useAutoTrader, computeDynamicSizing, cashReserveFloor, intensityProfile, type NewBotId } from "@/contexts/autotrader-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { toast } from "@/hooks/use-toast";
@@ -143,9 +143,10 @@ export function ExtraBotsEngine() {
     if (!settings.dipEnabled || !(settings.dipStake > 0)) return;
     if (pausedBots.has("dipbuyer")) return;
     const dynSizing = settings.dynamicCapitalEnabled
-      ? computeDynamicSizing(cash, totalDeposited, tradeHistory) : null;
+      ? computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct) : null;
     const lev = Math.max(1, dynSizing ? dynSizing.leverage : settings.newBotLeverage);
     const dipStake = dynSizing ? dynSizing.margin : settings.dipStake;
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
     const edge = getBotStat("dipbuyer").edge;
     // Intensity gear: calm demands a deeper dip; turbo steps in sooner.
     const minDrop = settings.dipMinDropPct * edge * prof.selectivityMult;
@@ -166,14 +167,14 @@ export function ExtraBotsEngine() {
 
     for (const c of ranked) {
       if (open >= dipMaxOpen) break;
-      if (avail < dipStake) break;
+      if (avail - dipStake < cashFloor) break;
       const price = cryptoPrice(c.asset) ?? c.price;
       const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.03, tpPct: 0.06 });
       const err = openBinancePosition({
         asset: c.asset, direction: "LONG", notional: dipStake * lev,
         entryPrice: price, leverage: lev, slPrice: sl, tpPrice: tp,
         auto: true, source: SOURCE.dipbuyer,
-      });
+      }, cashFloor);
       if (err) continue;
       cryptoCooldownRef.current[c.asset] = now;
       avail -= dipStake;
@@ -188,9 +189,10 @@ export function ExtraBotsEngine() {
     if (!settings.breakoutEnabled || !(settings.breakoutStake > 0)) return;
     if (pausedBots.has("breakout")) return;
     const dynSizingB = settings.dynamicCapitalEnabled
-      ? computeDynamicSizing(cash, totalDeposited, tradeHistory) : null;
+      ? computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct) : null;
     const lev = Math.max(1, dynSizingB ? dynSizingB.leverage : settings.newBotLeverage);
     const breakoutStake = dynSizingB ? dynSizingB.margin : settings.breakoutStake;
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
     const edge = getBotStat("breakout").edge;
     // Intensity gear: calm demands a stronger breakout; turbo chases earlier.
     const minGain = settings.breakoutMinGainPct * edge * prof.selectivityMult;
@@ -211,14 +213,14 @@ export function ExtraBotsEngine() {
 
     for (const c of ranked) {
       if (open >= breakoutMaxOpen) break;
-      if (avail < breakoutStake) break;
+      if (avail - breakoutStake < cashFloor) break;
       const price = cryptoPrice(c.asset) ?? c.price;
       const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.04, tpPct: 0.08 });
       const err = openBinancePosition({
         asset: c.asset, direction: "LONG", notional: breakoutStake * lev,
         entryPrice: price, leverage: lev, slPrice: sl, tpPrice: tp,
         auto: true, source: SOURCE.breakout,
-      });
+      }, cashFloor);
       if (err) continue;
       cryptoCooldownRef.current[c.asset] = now;
       avail -= breakoutStake;
@@ -240,13 +242,14 @@ export function ExtraBotsEngine() {
       : Math.max(5_000, (Math.max(1, settings.dcaIntervalMin) * 60_000) / prof.tradeRate);
     if (now - lastDcaRef.current < intervalMs) return;
     const dcaStake = settings.dynamicCapitalEnabled
-      ? computeDynamicSizing(cash, totalDeposited, tradeHistory).margin
+      ? computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct).margin
       : settings.dcaStake;
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
 
     const dcaMaxOpen = Math.max(1, Math.round(settings.dcaMaxOpen * prof.maxOpenMult));
     const open = stockPositions.filter((p) => p.source === SOURCE.dca).length;
     if (open >= dcaMaxOpen) return;
-    if (cash < dcaStake) return;
+    if (!(dcaStake > 0) || cash - dcaStake < cashFloor) return;
 
     const priceOf = (sym: string): number | undefined =>
       ((stocks ?? []) as StockQuote[]).find((s) => s.symbol === sym)?.price;
@@ -258,7 +261,7 @@ export function ExtraBotsEngine() {
       if (!price || price <= 0) continue;
       const err = openStockPosition(
         { symbol: pick.symbol, name: pick.name, direction: "LONG", entryPrice: price, auto: true, source: SOURCE.dca },
-        dcaStake, 1,
+        dcaStake, 1, cashFloor,
       );
       if (err) continue;
       dcaIdxRef.current = (dcaIdxRef.current + i + 1) % BLUE_CHIPS.length;

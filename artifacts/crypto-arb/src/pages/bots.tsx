@@ -15,6 +15,16 @@ import {
 } from "@/contexts/autotrader-context";
 import { AlphaBotEmblem } from "@/components/alpha-bot-emblem";
 
+/** Preset boost durations in minutes (5 min → 5 h, the BOOST_MAX_MS ceiling). */
+const BOOST_PRESETS = [5, 15, 30, 60, 120, 180, 300] as const;
+
+/** Hebrew label for a boost duration given in minutes. */
+function boostDurationLabel(min: number): string {
+  if (min < 60) return `${min} דק'`;
+  const h = min / 60;
+  return Number.isInteger(h) ? `${h} שע'` : `${h.toFixed(1)} שע'`;
+}
+
 function StatChip({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
   const color = tone === "good" ? "text-emerald-400" : tone === "bad" ? "text-red-400" : "text-foreground";
   return (
@@ -140,9 +150,14 @@ export default function Bots() {
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, [settings.boostUntil]);
-  const boostClock = `${Math.floor(boostRemainMs / 60000)}:${String(
-    Math.floor((boostRemainMs % 60000) / 1000),
-  ).padStart(2, "0")}`;
+  const boostClock = (() => {
+    const totalSec = Math.floor(boostRemainMs / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+  })();
 
   // Coins the bots have learned to be cautious on (caution multiplier > 1),
   // sorted by how cautious the bots have become, then by how badly they bled.
@@ -269,15 +284,28 @@ export default function Bots() {
               </Button>
             </div>
           ) : (
-            <Button
-              onClick={() => startBoost()}
-              variant="outline"
-              className="gap-2 font-mono border-primary/60 text-primary hover:bg-primary/10"
-              title="מפעיל את כל הבוטים במצב מסחר מהיר ל-5 דקות"
-            >
-              <Zap className="h-4 w-4" />
-              בוסט · 5 דק'
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button
+                onClick={() => startBoost(settings.boostDurationMin * 60_000)}
+                variant="outline"
+                className="gap-2 font-mono border-primary/60 text-primary hover:bg-primary/10"
+                title={`מפעיל את כל הבוטים במצב מסחר מהיר ל-${boostDurationLabel(settings.boostDurationMin)}`}
+              >
+                <Zap className="h-4 w-4" />
+                בוסט · {boostDurationLabel(settings.boostDurationMin)}
+              </Button>
+              <select
+                value={settings.boostDurationMin}
+                onChange={(e) => update({ boostDurationMin: Number(e.target.value) })}
+                className="h-9 rounded-md border border-primary/40 bg-background/60 px-2 text-xs font-mono text-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+                aria-label="Boost duration"
+                title="משך הבוסט"
+              >
+                {BOOST_PRESETS.map((m) => (
+                  <option key={m} value={m}>{boostDurationLabel(m)}</option>
+                ))}
+              </select>
+            </div>
           )}
           <Button
             onClick={() => armAll(!anyOn)}
@@ -545,7 +573,7 @@ export default function Bots() {
 
       {/* ── Dynamic Capital Agent ── */}
       {(() => {
-        const dyn = computeDynamicSizing(cash, totalDeposited, tradeHistory);
+        const dyn = computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct);
         const portfolioRatio = totalDeposited > 0 ? cash / totalDeposited : 1;
         const ratioLabel = portfolioRatio >= 1.05 ? "מצב רווח" : portfolioRatio <= 0.92 ? "מצב הפסד" : "מאוזן";
         const ratioTone = portfolioRatio >= 1.05 ? "good" : portfolioRatio <= 0.92 ? "bad" : undefined;
@@ -588,6 +616,52 @@ export default function Bots() {
                 </p>
               )}
             </div>
+
+            {/* Account Manager — cash reserve (never run the account dry) */}
+            {(() => {
+              const floor = (totalDeposited * Math.max(0, Math.min(90, settings.cashFloorPct))) / 100;
+              const freeCash = Math.max(0, cash - floor);
+              return (
+                <div className="mt-3 rounded-md border border-border/40 bg-background/40 p-3" dir="rtl">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(196 80% 60%)" }} />
+                      <span className="text-xs font-semibold">מנהל החשבון — רזרבת מזומן</span>
+                    </div>
+                    <span className="font-mono text-sm font-bold" style={{ color: "hsl(196 80% 60%)" }}>
+                      {settings.cashFloorPct}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">
+                    המנהל הוותיק שומר תמיד אחוז מההון כמזומן פנוי ואף פעם לא פותח עסקה שתוריד את המזומן מתחת לרצפה הזו — כך החשבון לא נתקע ליד אפס וממשיך לצמוח. מטרתו: למלא את החשבון במזומן.
+                  </p>
+                  <input
+                    type="range"
+                    min={0}
+                    max={50}
+                    step={5}
+                    value={settings.cashFloorPct}
+                    onChange={(e) => update({ cashFloorPct: Number(e.target.value) })}
+                    className="w-full accent-cyan-500"
+                    aria-label="Cash reserve floor percent"
+                  />
+                  <div className="mt-2 grid grid-cols-3 gap-3">
+                    <StatChip label="רצפת רזרבה" value={`$${floor.toFixed(0)}`} />
+                    <StatChip label="מזומן פנוי למסחר" value={`$${freeCash.toFixed(0)}`} tone={freeCash > 0 ? "good" : "bad"} />
+                    <StatChip
+                      label="מצב מנהל"
+                      value={dyn.recoveryMode ? "מצב התאוששות" : "צמיחה"}
+                      tone={dyn.recoveryMode ? "bad" : "good"}
+                    />
+                  </div>
+                  {dyn.recoveryMode && (
+                    <p className="mt-2 text-[10px] text-amber-400">
+                      מצב התאוששות פעיל — המנהל מקטין פוזיציות ומגביל מינוף (עד 3x) כדי להגן על ההון שנותר עד שהחשבון יתמלא מחדש.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </section>
         );
       })()}

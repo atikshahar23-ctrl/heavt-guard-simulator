@@ -144,17 +144,20 @@ interface PortfolioContextValue extends PortfolioState {
   addFunds: (amountUsd: number) => string | null;
   openPolyPosition: (
     market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">,
-    amountUsd: number
+    amountUsd: number,
+    minCashReserve?: number
   ) => string | null;
   closePolyPosition: (id: string, currentPrice: number) => void;
   openBinancePosition: (
-    pos: Omit<BinancePosition, "id" | "openedAt">
+    pos: Omit<BinancePosition, "id" | "openedAt">,
+    minCashReserve?: number
   ) => string | null;
   closeBinancePosition: (id: string, currentPrice: number, exit?: ClosedTrade["exit"]) => void;
   openStockPosition: (
     stock: Omit<StockPosition, "id" | "shares" | "cost" | "openedAt" | "leverage">,
     amountUsd: number,
-    leverage?: number
+    leverage?: number,
+    minCashReserve?: number
   ) => string | null;
   closeStockPosition: (id: string, currentPrice: number) => void;
   checkSlTp: (prices: Record<string, number>) => void;
@@ -360,11 +363,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openPolyPosition = useCallback(
-    (market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">, amountUsd: number) => {
+    (market: Omit<PolyPosition, "id" | "shares" | "cost" | "openedAt">, amountUsd: number, minCashReserve = 0) => {
       if (amountUsd <= 0) return "Amount must be positive";
       if (!Number.isFinite(market.entryPrice) || market.entryPrice <= 0 || market.entryPrice >= 1)
         return "Invalid market price";
       if (stateRef.current.cash < amountUsd) return "Insufficient balance";
+      // Account Manager cash reserve: enforced atomically against live cash so
+      // concurrent same-tick opens across bots can't collectively breach it.
+      if (stateRef.current.cash - amountUsd < Math.max(0, minCashReserve)) return "Below cash reserve";
       const shares = amountUsd / market.entryPrice;
       const position: PolyPosition = {
         ...market,
@@ -423,10 +429,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openBinancePosition = useCallback(
-    (pos: Omit<BinancePosition, "id" | "openedAt">) => {
+    (pos: Omit<BinancePosition, "id" | "openedAt">, minCashReserve = 0) => {
       if (pos.notional <= 0) return "Amount must be positive";
       const margin = pos.notional / pos.leverage;
       if (stateRef.current.cash < margin) return "Insufficient margin";
+      // Account Manager cash reserve: enforced atomically against live cash so
+      // concurrent same-tick opens across bots can't collectively breach it.
+      if (stateRef.current.cash - margin < Math.max(0, minCashReserve)) return "Below cash reserve";
       const position: BinancePosition = {
         ...pos,
         id: crypto.randomUUID(),
@@ -490,11 +499,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   );
 
   const openStockPosition = useCallback(
-    (stock: Omit<StockPosition, "id" | "shares" | "cost" | "openedAt" | "leverage">, amountUsd: number, leverage: number = 1) => {
+    (stock: Omit<StockPosition, "id" | "shares" | "cost" | "openedAt" | "leverage">, amountUsd: number, leverage: number = 1, minCashReserve = 0) => {
       if (amountUsd <= 0) return "Amount must be positive";
       if (stock.entryPrice <= 0) return "Price unavailable";
       const lev = leverage >= 1 ? leverage : 1;
       if (stateRef.current.cash < amountUsd) return "Insufficient balance";
+      // Account Manager cash reserve: enforced atomically against live cash so
+      // concurrent same-tick opens across bots can't collectively breach it.
+      if (stateRef.current.cash - amountUsd < Math.max(0, minCashReserve)) return "Below cash reserve";
       const shares = (amountUsd * lev) / stock.entryPrice;
       const position: StockPosition = {
         ...stock,

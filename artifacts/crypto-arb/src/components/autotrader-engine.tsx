@@ -11,7 +11,7 @@ import {
 import type { ScalpSignal, MomentumCoin, PolymarketMarket, StockRecommendation, InfluencerSignal, StockQuote } from "@workspace/api-client-react";
 import { usePortfolio, type TrailConfig } from "@/contexts/portfolio-context";
 import { recommendLevels } from "@/lib/recommend-levels";
-import { useAutoTrader, computeDynamicSizing, intensityProfile, alphaAdjust, NEUTRAL_ALPHA, ALPHA_COMMIT_PCT, ALPHA_STRONG_PCT, type AlphaState, type ScalpConfidence } from "@/contexts/autotrader-context";
+import { useAutoTrader, computeDynamicSizing, cashReserveFloor, intensityProfile, alphaAdjust, NEUTRAL_ALPHA, ALPHA_COMMIT_PCT, ALPHA_STRONG_PCT, type AlphaState, type ScalpConfidence } from "@/contexts/autotrader-context";
 import { useFavorites } from "@/contexts/favorites-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { toast } from "@/hooks/use-toast";
@@ -389,11 +389,13 @@ export function AutoTraderEngine() {
   useEffect(() => {
     if (!settings.enabled) return;
     const dynSizing = settings.dynamicCapitalEnabled
-      ? computeDynamicSizing(cash, totalDeposited, tradeHistory)
+      ? computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct)
       : null;
     const margin = dynSizing ? dynSizing.margin : settings.marginPerTrade;
     const effectiveLeverage = dynSizing ? dynSizing.leverage : settings.leverage;
     if (!(margin > 0) || !(effectiveLeverage >= 1)) return;
+    // Account Manager cash reserve: never commit below the protected floor.
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
 
     // Daily loss guard — stop opening once today's realized loss hits the cap.
     if (settings.dailyStopEnabled) {
@@ -480,7 +482,7 @@ export function AutoTraderEngine() {
 
     for (const c of ranked) {
       if (autoOpen >= maxOpen) break;
-      if (availableCash < margin) break;
+      if (availableCash - margin < cashFloor) break;
 
       const notional = margin * effectiveLeverage;
       const err = openBinancePosition({
@@ -494,7 +496,7 @@ export function AutoTraderEngine() {
         auto: true,
         source: c.source,
         trail,
-      });
+      }, cashFloor);
       if (err) continue;
 
       cooldownRef.current[c.asset] = now;
@@ -515,10 +517,12 @@ export function AutoTraderEngine() {
   useEffect(() => {
     if (!settings.stocksEnabled) return;
     const dynStake = settings.dynamicCapitalEnabled
-      ? computeDynamicSizing(cash, totalDeposited, tradeHistory).margin
+      ? computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct).margin
       : null;
     const stake = dynStake ?? settings.stockStakePerTrade;
     if (!(stake > 0)) return;
+    // Account Manager cash reserve: never commit below the protected floor.
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
 
     // Daily loss guard shared with the rest of the book.
     if (settings.dailyStopEnabled) {
@@ -609,7 +613,7 @@ export function AutoTraderEngine() {
 
     for (const c of ranked) {
       if (autoOpen >= stockMaxOpen) break;
-      if (availableCash < stake) break;
+      if (availableCash - stake < cashFloor) break;
 
       // 2:1 reward at a conviction-tightened stop (higher conviction → wider room).
       const slPct = c.conviction >= 75 ? 0.04 : 0.03;
@@ -627,6 +631,7 @@ export function AutoTraderEngine() {
         },
         stake,
         1,
+        cashFloor,
       );
       if (err) continue;
 
@@ -685,6 +690,8 @@ export function AutoTraderEngine() {
     const btcBias = changeFor("BTC");
 
     if (settings.polyStakePerBet <= 0) return;
+    // Account Manager cash reserve: never commit below the protected floor.
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
     let openBets = polyPositions.length;
     let availableCash = cash;
     const openConditions = new Set(polyPositions.map((p) => p.conditionId));
@@ -701,7 +708,7 @@ export function AutoTraderEngine() {
 
     for (const m of candidates) {
       if (openBets >= polyMaxOpen) break;
-      if (availableCash < settings.polyStakePerBet) break;
+      if (availableCash - settings.polyStakePerBet < cashFloor) break;
 
       const asset = assetForQuestion(m.question)!;
       const bias = changeFor(asset) ?? btcBias;
@@ -728,6 +735,7 @@ export function AutoTraderEngine() {
           source: "Polymarket BTC",
         },
         settings.polyStakePerBet,
+        cashFloor,
       );
       if (err) continue;
 
