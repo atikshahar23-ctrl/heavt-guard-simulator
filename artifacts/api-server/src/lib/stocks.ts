@@ -452,10 +452,27 @@ export async function buildStockRecommendations(): Promise<StockRecommendation[]
   });
 
   // Surface the strongest convictions first (BUY and SELL over HOLD), by score magnitude.
-  const actionable = scored.filter((s) => s.action !== "HOLD");
-  actionable.sort((a, b) => Math.abs(b._score) - Math.abs(a._score));
+  const actionable = scored
+    .filter((s) => s.action !== "HOLD")
+    .sort((a, b) => Math.abs(b._score) - Math.abs(a._score));
 
-  return actionable.slice(0, 24).map(({ _score, ...rest }, i) => ({ rank: i + 1, ...rest }));
+  // The agent must always present a meaningful watchlist. In a flat market the
+  // BUY/SELL set can be thin, so backfill with the most notable HOLD candidates
+  // (largest |score|) until we reach MIN_RECS — guaranteeing at least 20 picks
+  // whenever the universe allows. Cap the list at MAX_RECS overall.
+  const MIN_RECS = 20;
+  const MAX_RECS = 24;
+  const holds = scored
+    .filter((s) => s.action === "HOLD")
+    .sort((a, b) => Math.abs(b._score) - Math.abs(a._score));
+
+  const combined = [...actionable];
+  for (const h of holds) {
+    if (combined.length >= Math.max(MIN_RECS, actionable.length)) break;
+    combined.push(h);
+  }
+
+  return combined.slice(0, MAX_RECS).map(({ _score, ...rest }, i) => ({ rank: i + 1, ...rest }));
 }
 
 // ── Universal symbol search ────────────────────────────────────────────────────

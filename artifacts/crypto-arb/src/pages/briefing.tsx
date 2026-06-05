@@ -14,6 +14,7 @@ import {
   type StockRecommendation, type PolymarketMarket,
 } from "@workspace/api-client-react";
 import { getMarketNotes, formatHebrewDate } from "@/lib/market-calendar";
+import { Link } from "wouter";
 
 type Scenario = { icon: typeof TrendingUp; tone: "up" | "down" | "flat"; title: string; body: string };
 
@@ -63,7 +64,10 @@ export default function BriefingPage() {
     () => [...mom].sort((a, b) => b.rvol - a.rvol).slice(0, 3),
     [mom],
   );
-  const buys = recs.filter((r) => r.action === "BUY").slice(0, 3);
+  const topStockSignals = useMemo(
+    () => recs.filter((r) => r.action !== "HOLD").slice(0, 6),
+    [recs],
+  );
   const strongPoly = useMemo(
     () => [...poly]
       .filter((m) => m.active)
@@ -176,11 +180,22 @@ export default function BriefingPage() {
 
         {/* Stocks */}
         <section className="rounded-xl border border-border bg-card/40 p-4 space-y-2">
-          <h2 className="text-sm font-bold flex items-center gap-1.5"><LineChart className="h-4 w-4 text-primary" /> מניות</h2>
-          <p className="text-[10px] text-muted-foreground">איתותי הסוכן החכם (BUY) המובילים:</p>
-          {buys.length === 0 && <p className="text-[11px] text-muted-foreground">אין איתותי קנייה חזקים כרגע.</p>}
-          {buys.map((r) => (
-            <Row key={r.symbol} symbol={r.symbol} right={r.confidence} up={r.changePercent >= 0} note={`${r.changePercent >= 0 ? "+" : ""}${r.changePercent.toFixed(2)}% · ${r.name}`} />
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold flex items-center gap-1.5"><LineChart className="h-4 w-4 text-primary" /> מניות</h2>
+            <Link href="/stock-desk" className="text-[10px] font-mono font-bold text-primary hover:underline flex items-center gap-0.5">
+              חדר מניות <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <p className="text-[10px] text-muted-foreground">איתותי הסוכן החכם המובילים (קנייה ומכירה):</p>
+          {topStockSignals.length === 0 && <p className="text-[11px] text-muted-foreground">אין איתותים חזקים כרגע.</p>}
+          {topStockSignals.map((r) => (
+            <Row
+              key={r.symbol}
+              symbol={r.symbol}
+              right={`${r.action === "BUY" ? "▲ קנייה" : "▼ מכירה"}`}
+              up={r.action === "BUY"}
+              note={`${r.changePercent >= 0 ? "+" : ""}${r.changePercent.toFixed(2)}% · ${r.name}`}
+            />
           ))}
         </section>
 
