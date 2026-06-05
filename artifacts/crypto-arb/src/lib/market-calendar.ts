@@ -13,6 +13,8 @@ export type MarketNoteKind = "holiday" | "macro" | "expiry" | "weekend" | "info"
 
 export interface MarketNote {
   label: string;
+  /** Short tag for display inside a compact calendar cell. */
+  short: string;
   kind: MarketNoteKind;
 }
 
@@ -80,31 +82,31 @@ export function getMarketNotes(date: Date): MarketNote[] {
   const dow = date.getDay(); // 0 = Sun .. 6 = Sat
   const month = date.getMonth() + 1;
 
-  if (HOLIDAYS_2026[key]) notes.push({ label: HOLIDAYS_2026[key], kind: "holiday" });
-  if (FOMC_2026[key]) notes.push({ label: FOMC_2026[key], kind: "macro" });
+  if (HOLIDAYS_2026[key]) notes.push({ label: HOLIDAYS_2026[key], short: "חג · שוק סגור", kind: "holiday" });
+  if (FOMC_2026[key]) notes.push({ label: FOMC_2026[key], short: "ריבית הפד", kind: "macro" });
 
   // Weekend — stocks closed, crypto keeps trading.
   if (dow === 0 || dow === 6) {
-    notes.push({ label: "סוף שבוע — שוק המניות סגור, הקריפטו ממשיך לסחור 24/7", kind: "weekend" });
+    notes.push({ label: "סוף שבוע — שוק המניות סגור, הקריפטו ממשיך לסחור 24/7", short: "סופ״ש", kind: "weekend" });
   }
 
   // First Friday → US Non-Farm Payrolls (jobs report).
   if (dow === 5 && weekdayOccurrence(date) === 1) {
-    notes.push({ label: "דו״ח התעסוקה בארה״ב (NFP) — צפויה תנודתיות בפתיחה", kind: "macro" });
+    notes.push({ label: "דו״ח התעסוקה בארה״ב (NFP) — צפויה תנודתיות בפתיחה", short: "NFP תעסוקה", kind: "macro" });
   }
 
   // Third Friday → monthly options expiry; quarterly months → triple witching.
   if (dow === 5 && weekdayOccurrence(date) === 3) {
     if (month === 3 || month === 6 || month === 9 || month === 12) {
-      notes.push({ label: "תפוגה משולשת (Triple Witching) — מחזורי מסחר גבוהים", kind: "expiry" });
+      notes.push({ label: "תפוגה משולשת (Triple Witching) — מחזורי מסחר גבוהים", short: "תפוגה משולשת", kind: "expiry" });
     } else {
-      notes.push({ label: "תפוגת אופציות חודשית — ייתכנו תנודות חדות", kind: "expiry" });
+      notes.push({ label: "תפוגת אופציות חודשית — ייתכנו תנודות חדות", short: "תפוגת אופציות", kind: "expiry" });
     }
   }
 
   // Last trading day of the month → month-end rebalancing.
   if (isLastBusinessDayOfMonth(date)) {
-    notes.push({ label: "סוף חודש — איזון תיקים מוסדי, ייתכנו תנועות חדות בסגירה", kind: "info" });
+    notes.push({ label: "סוף חודש — איזון תיקים מוסדי, ייתכנו תנועות חדות בסגירה", short: "סוף חודש", kind: "info" });
   }
 
   return notes;
@@ -142,6 +144,10 @@ export const HEB_WEEKDAY_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳"
 /** A single cell in the calendar grid. */
 export interface CalendarDay {
   day: number | null;
+  /** Absolute calendar year this cell belongs to (may differ from the viewed month). */
+  year: number;
+  /** Absolute calendar month (0-11) this cell belongs to. */
+  month: number;
   notes: MarketNote[];
   isToday: boolean;
   isCurrentMonth: boolean;
@@ -160,7 +166,7 @@ export function getCalendarMonth(year: number, month: number): CalendarDay[] {
   // Pad with previous-month trailing days
   for (let i = startDow - 1; i >= 0; i--) {
     const d = new Date(year, month - 1, prevMonthDays - i);
-    cells.push({ day: prevMonthDays - i, notes: getMarketNotes(d), isToday: false, isCurrentMonth: false, isWeekend: d.getDay() === 0 || d.getDay() === 6 });
+    cells.push({ day: prevMonthDays - i, year: d.getFullYear(), month: d.getMonth(), notes: getMarketNotes(d), isToday: false, isCurrentMonth: false, isWeekend: d.getDay() === 0 || d.getDay() === 6 });
   }
 
   // Current month
@@ -169,6 +175,8 @@ export function getCalendarMonth(year: number, month: number): CalendarDay[] {
     const date = new Date(year, month, d);
     cells.push({
       day: d,
+      year,
+      month,
       notes: getMarketNotes(date),
       isToday: today.getDate() === d && today.getMonth() === month && today.getFullYear() === year,
       isCurrentMonth: true,
@@ -180,7 +188,7 @@ export function getCalendarMonth(year: number, month: number): CalendarDay[] {
   let next = 1;
   while (cells.length < 42) {
     const d = new Date(year, month + 1, next);
-    cells.push({ day: next, notes: getMarketNotes(d), isToday: false, isCurrentMonth: false, isWeekend: d.getDay() === 0 || d.getDay() === 6 });
+    cells.push({ day: next, year: d.getFullYear(), month: d.getMonth(), notes: getMarketNotes(d), isToday: false, isCurrentMonth: false, isWeekend: d.getDay() === 0 || d.getDay() === 6 });
     next++;
   }
 

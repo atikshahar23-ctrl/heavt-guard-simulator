@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { CalendarClock, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  getMarketNotes, formatHebrewDate, formatClock, type MarketNoteKind,
+  CalendarClock, AlertTriangle, ChevronLeft, ChevronRight,
+  ChevronsLeft, ChevronsRight, X,
+} from "lucide-react";
+import {
+  getMarketNotes, formatHebrewDate, formatClock, type MarketNoteKind, type MarketNote,
   getCalendarMonth, HEB_MONTH_NAMES, HEB_WEEKDAY_SHORT, type CalendarDay,
 } from "@/lib/market-calendar";
 
@@ -14,6 +17,14 @@ const KIND_COLOR: Record<MarketNoteKind, string> = {
   info: "152 50% 50%",
 };
 
+const KIND_LABEL: Record<MarketNoteKind, string> = {
+  holiday: "חג",
+  macro: "FOMC/NFP",
+  expiry: "תפוגה",
+  weekend: "סוף שבוע",
+  info: "סוף חודש",
+};
+
 const DOT_PRIORITY: Record<MarketNoteKind, number> = {
   holiday: 5,
   macro: 4,
@@ -22,14 +33,15 @@ const DOT_PRIORITY: Record<MarketNoteKind, number> = {
   info: 2,
 };
 
-function topNoteKind(day: CalendarDay): MarketNoteKind | null {
-  if (!day.notes.length) return null;
-  return day.notes.reduce((a, b) => (DOT_PRIORITY[a.kind] > DOT_PRIORITY[b.kind] ? a : b)).kind;
+/** Notes sorted by market impact (most impactful first). */
+function sortedNotes(notes: MarketNote[]): MarketNote[] {
+  return [...notes].sort((a, b) => DOT_PRIORITY[b.kind] - DOT_PRIORITY[a.kind]);
 }
 
 /**
  * Live digital clock with seconds + Hebrew date, plus a note about any special
- * market day. Hovering the date opens a mini calendar tooltip with all events.
+ * market day. Clicking the date opens a full calendar with month/year navigation
+ * and the events shown inside each day cell.
  * Educational calendar only — not live data and not advice.
  */
 export function MarketClock() {
@@ -37,29 +49,24 @@ export function MarketClock() {
   const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLSpanElement>(null);
-  const hoverRef = useRef(false);
+  const [selected, setSelected] = useState<{ year: number; month: number; day: number } | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Close tooltip when clicking outside
+  // Close on Escape
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
   const notes = getMarketNotes(now);
   const top = notes[0];
   const cells = getCalendarMonth(viewYear, viewMonth);
-  const today = new Date();
 
   const nextMonth = () => {
     if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
@@ -69,47 +76,22 @@ export function MarketClock() {
     if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
     else setViewMonth((m) => m - 1);
   };
+  const goToday = () => {
+    const t = new Date();
+    setViewYear(t.getFullYear());
+    setViewMonth(t.getMonth());
+    setSelected({ year: t.getFullYear(), month: t.getMonth(), day: t.getDate() });
+  };
 
-  // All upcoming events in the next 6 months
-  const upcoming = useMemo(() => {
-    const items: { date: string; label: string; kind: MarketNoteKind }[] = [];
-    const seen = new Set<string>();
-    for (let offset = 1; offset <= 180; offset++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() + offset);
-      const ns = getMarketNotes(d);
-      for (const n of ns) {
-        const key = ymd(d) + "|" + n.label;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const label = d.toLocaleDateString("he-IL", { day: "numeric", month: "short" }) + " — " + n.label;
-        items.push({ date: ymd(d), label, kind: n.kind });
-      }
-    }
-    return items;
-  }, [today]);
-
-  // Past events in the previous 6 months
-  const pastEvents = useMemo(() => {
-    const items: { date: string; label: string; kind: MarketNoteKind }[] = [];
-    const seen = new Set<string>();
-    for (let offset = 1; offset <= 180; offset++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - offset);
-      const ns = getMarketNotes(d);
-      for (const n of ns) {
-        const key = ymd(d) + "|" + n.label;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const label = d.toLocaleDateString("he-IL", { day: "numeric", month: "short" }) + " — " + n.label;
-        items.push({ date: ymd(d), label, kind: n.kind });
-      }
-    }
-    return items.reverse();
-  }, [today]);
+  // The notes for the currently selected day (shown in the detail panel).
+  const selectedNotes = useMemo(() => {
+    if (!selected) return null;
+    const d = new Date(selected.year, selected.month, selected.day);
+    return { date: d, notes: sortedNotes(getMarketNotes(d)) };
+  }, [selected]);
 
   return (
-    <div ref={containerRef} className="w-full flex flex-col items-center gap-1 relative" dir="rtl">
+    <div className="w-full flex flex-col items-center gap-1 relative" dir="rtl">
       <div className="flex items-center gap-1.5">
         <CalendarClock className="h-3 w-3 text-primary/80" />
         <span
@@ -119,15 +101,19 @@ export function MarketClock() {
           {formatClock(now)}
         </span>
       </div>
-      <span
-        ref={dateRef}
+      <button
+        type="button"
         className="text-[9px] short:text-[8px] text-muted-foreground tracking-wide cursor-pointer hover:text-primary transition-colors"
-        onMouseEnter={() => { hoverRef.current = true; setOpen(true); }}
-        onMouseLeave={() => { hoverRef.current = false; setTimeout(() => { if (!hoverRef.current) setOpen(false); }, 300); }}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          const t = new Date();
+          setViewYear(t.getFullYear());
+          setViewMonth(t.getMonth());
+          setSelected({ year: t.getFullYear(), month: t.getMonth(), day: t.getDate() });
+          setOpen(true);
+        }}
       >
         {formatHebrewDate(now)}
-      </span>
+      </button>
       {top && (
         <div
           className="mt-0.5 flex items-start gap-1 rounded-md px-2 py-1 w-full"
@@ -142,121 +128,169 @@ export function MarketClock() {
         </div>
       )}
 
-      {/* ── Calendar tooltip ── */}
+      {/* ── Full calendar modal ── */}
       {open && createPortal(
         <div
-          ref={(el) => {
-            if (!el || !dateRef.current) return;
-            const rect = dateRef.current.getBoundingClientRect();
-            const tipWidth = 260;
-            const left = rect.left + rect.width / 2 - tipWidth / 2;
-            el.style.position = "fixed";
-            el.style.top = `${rect.bottom + 8}px`;
-            el.style.left = `${Math.max(8, left)}px`;
-          }}
-          className="z-50 w-[260px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-2xl p-3"
-          style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.55)" }}
-          onMouseEnter={() => { hoverRef.current = true; }}
-          onMouseLeave={() => { hoverRef.current = false; setTimeout(() => { if (!hoverRef.current) setOpen(false); }, 300); }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+          dir="rtl"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2">
-            <button className="rounded p-0.5 hover:bg-primary/10 transition-colors" onClick={prevMonth}>
-              <ChevronRight className="h-3.5 w-3.5 text-primary" />
-            </button>
-            <span className="text-xs font-bold text-primary">
-              {HEB_MONTH_NAMES[viewMonth]} {viewYear}
-            </span>
-            <button className="rounded p-0.5 hover:bg-primary/10 transition-colors" onClick={nextMonth}>
-              <ChevronLeft className="h-3.5 w-3.5 text-primary" />
-            </button>
-          </div>
-
-          {/* Weekday header */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {HEB_WEEKDAY_SHORT.map((w) => (
-              <div key={w} className="text-center text-[8px] font-bold text-muted-foreground uppercase">{w}</div>
-            ))}
-          </div>
-
-          {/* Day grid */}
-          <div className="grid grid-cols-7 gap-y-1.5 gap-x-1">
-            {cells.map((day, i) => {
-              const kind = topNoteKind(day);
-              return (
-                <div key={i} className="relative flex flex-col items-center justify-center gap-0.5 py-1 rounded">
-                  <span
-                    className={`text-[10px] leading-none ${day.isCurrentMonth ? (day.isToday ? "font-bold text-primary" : "text-foreground/90") : "text-muted-foreground/50"}`}
-                  >
-                    {day.day}
-                  </span>
-                  {kind && (
-                    <span
-                      className="h-1 w-1 rounded-full"
-                      style={{ background: `hsl(${KIND_COLOR[kind]})` }}
-                      title={day.notes.map((n) => n.label).join(" · ")}
-                    />
-                  )}
-                  {day.isToday && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-3 rounded-full bg-primary/80" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {(
-              [
-                ["holiday", "חג"],
-                ["macro", "FOMC/NFP"],
-                ["expiry", "תפוגה"],
-                ["weekend", "סוף שבוע"],
-                ["info", "סוף חודש"],
-              ] as [MarketNoteKind, string][]
-            ).map(([k, label]) => (
-              <div key={k} className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: `hsl(${KIND_COLOR[k]})` }} />
-                <span className="text-[8px] text-muted-foreground">{label}</span>
+          <div
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border/70 bg-card shadow-2xl"
+            style={{ boxShadow: "0 8px 48px rgba(0,0,0,0.6)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header: navigation */}
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/50 bg-card/95 backdrop-blur-md px-4 py-3">
+              <div className="flex items-center gap-1">
+                <button
+                  className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
+                  onClick={() => setViewYear((y) => y - 1)}
+                  title="שנה קודמת"
+                >
+                  <ChevronsRight className="h-4 w-4 text-primary" />
+                </button>
+                <button
+                  className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
+                  onClick={prevMonth}
+                  title="חודש קודם"
+                >
+                  <ChevronRight className="h-4 w-4 text-primary" />
+                </button>
               </div>
-            ))}
-          </div>
 
-          {/* אירועים בגואה עומדים + הבאים */}
-          <div className="mt-2 border-t border-border/40 pt-2 space-y-1">
-            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">אירועים חוזרים ועתידים</div>
-            <div className="max-h-[140px] overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
-              {pastEvents.length > 0 && (
-                <div className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-wider pt-1">חוזרים</div>
-              )}
-              {pastEvents.map((ev, i) => (
-                <div key={"past-" + i} className="flex items-start gap-1.5 rounded-md bg-secondary/20 px-1.5 py-1 opacity-60">
-                  <span className="h-1.5 w-1.5 mt-0.5 rounded-full shrink-0" style={{ background: `hsl(${KIND_COLOR[ev.kind]})` }} />
-                  <span className="text-[9px] text-foreground/80 leading-snug">{ev.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-black text-primary tabular-nums min-w-[140px] text-center">
+                  {HEB_MONTH_NAMES[viewMonth]} {viewYear}
+                </span>
+                <button
+                  className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition-colors"
+                  onClick={goToday}
+                >
+                  היום
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
+                  onClick={nextMonth}
+                  title="חודש הבא"
+                >
+                  <ChevronLeft className="h-4 w-4 text-primary" />
+                </button>
+                <button
+                  className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
+                  onClick={() => setViewYear((y) => y + 1)}
+                  title="שנה הבאה"
+                >
+                  <ChevronsLeft className="h-4 w-4 text-primary" />
+                </button>
+                <button
+                  className="rounded-lg p-1.5 hover:bg-secondary transition-colors mr-1"
+                  onClick={() => setOpen(false)}
+                  title="סגירה"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {/* Weekday header */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {HEB_WEEKDAY_SHORT.map((w) => (
+                  <div key={w} className="text-center text-[10px] font-bold text-muted-foreground uppercase py-1">{w}</div>
+                ))}
+              </div>
+
+              {/* Day grid — events inside each cell */}
+              <div className="grid grid-cols-7 gap-1">
+                {cells.map((day, i) => {
+                  const isSel = selected && day.day != null && selected.day === day.day &&
+                    selected.month === day.month && selected.year === day.year;
+                  const ns = sortedNotes(day.notes);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => day.day != null && setSelected({ year: day.year, month: day.month, day: day.day })}
+                      className={`relative flex flex-col items-stretch gap-0.5 rounded-lg p-1 min-h-[56px] sm:min-h-[68px] text-right border transition-colors
+                        ${day.isCurrentMonth ? "bg-secondary/20 hover:bg-secondary/40" : "bg-transparent opacity-40 hover:opacity-70"}
+                        ${day.isToday ? "border-primary/70 ring-1 ring-primary/40" : "border-border/30"}
+                        ${isSel ? "ring-2 ring-primary bg-primary/10" : ""}`}
+                    >
+                      <span
+                        className={`text-[11px] leading-none font-bold tabular-nums px-0.5
+                          ${day.isToday ? "text-primary" : day.isCurrentMonth ? "text-foreground/90" : "text-muted-foreground/60"}
+                          ${day.isWeekend && day.isCurrentMonth ? "text-cyan-400/80" : ""}`}
+                      >
+                        {day.day}
+                      </span>
+                      <div className="flex flex-col gap-0.5 overflow-hidden">
+                        {ns.slice(0, 2).map((n, j) => (
+                          <span
+                            key={j}
+                            className="truncate rounded px-1 py-0.5 text-[7.5px] sm:text-[8.5px] leading-tight font-medium"
+                            style={{
+                              background: `hsl(${KIND_COLOR[n.kind]} / 0.18)`,
+                              color: `hsl(${KIND_COLOR[n.kind]})`,
+                            }}
+                            title={n.label}
+                          >
+                            {n.short}
+                          </span>
+                        ))}
+                        {ns.length > 2 && (
+                          <span className="text-[7.5px] text-muted-foreground px-1">+{ns.length - 2}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-3 flex flex-wrap gap-2.5 border-t border-border/40 pt-3">
+                {(Object.keys(KIND_LABEL) as MarketNoteKind[]).map((k) => (
+                  <div key={k} className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full" style={{ background: `hsl(${KIND_COLOR[k]})` }} />
+                    <span className="text-[9px] text-muted-foreground">{KIND_LABEL[k]}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Selected-day details */}
+              {selectedNotes && (
+                <div className="mt-3 rounded-xl border border-border/50 bg-secondary/20 p-3">
+                  <div className="text-xs font-bold text-primary mb-2">
+                    {formatHebrewDate(selectedNotes.date)}
+                  </div>
+                  {selectedNotes.notes.length === 0 ? (
+                    <div className="text-[11px] text-muted-foreground">אין אירועים מיוחדים ביום זה — מסחר רגיל.</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {selectedNotes.notes.map((n, i) => (
+                        <div key={i} className="flex items-start gap-2 rounded-lg bg-card/60 px-2 py-1.5">
+                          <span
+                            className="h-2 w-2 mt-1 rounded-full shrink-0"
+                            style={{ background: `hsl(${KIND_COLOR[n.kind]})` }}
+                          />
+                          <span className="text-[11px] leading-snug text-foreground/85">{n.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-              {upcoming.length > 0 && (
-                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider pt-1">עתידים</div>
               )}
-              {upcoming.map((ev, i) => (
-                <div key={"up-" + i} className="flex items-start gap-1.5 rounded-md bg-secondary/20 px-1.5 py-1">
-                  <span className="h-1.5 w-1.5 mt-0.5 rounded-full shrink-0" style={{ background: `hsl(${KIND_COLOR[ev.kind]})` }} />
-                  <span className="text-[9px] text-foreground/80 leading-snug">{ev.label}</span>
-                </div>
-              ))}
+
+              <div className="mt-3 text-center text-[8.5px] text-muted-foreground/70">
+                לוח חינוכי בלבד — תאריכים ידועים מראש, לא נתונים חיים ולא ייעוץ פיננסי.
+              </div>
             </div>
           </div>
         </div>
       , document.body)}
     </div>
   );
-}
-
-/** helper for YYYY-MM-DD */
-function ymd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
