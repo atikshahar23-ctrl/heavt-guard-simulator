@@ -129,3 +129,60 @@ export function formatClock(date: Date): string {
     hour12: false,
   });
 }
+
+/** Hebrew month names for the calendar header. */
+export const HEB_MONTH_NAMES = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+
+/** Hebrew weekday short names for the calendar header. */
+export const HEB_WEEKDAY_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+
+/** A single cell in the calendar grid. */
+export interface CalendarDay {
+  day: number | null;
+  notes: MarketNote[];
+  isToday: boolean;
+  isCurrentMonth: boolean;
+  isWeekend: boolean;
+}
+
+/** Build a full 7×6 week grid for a given month (year, month 0-11). */
+export function getCalendarMonth(year: number, month: number): CalendarDay[] {
+  const firstDay = new Date(year, month, 1);
+  const startDow = firstDay.getDay(); // 0 = Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  const cells: CalendarDay[] = [];
+
+  // Pad with previous-month trailing days
+  for (let i = startDow - 1; i >= 0; i--) {
+    const d = new Date(year, month - 1, prevMonthDays - i);
+    cells.push({ day: prevMonthDays - i, notes: getMarketNotes(d), isToday: false, isCurrentMonth: false, isWeekend: d.getDay() === 0 || d.getDay() === 6 });
+  }
+
+  // Current month
+  const today = new Date();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    cells.push({
+      day: d,
+      notes: getMarketNotes(date),
+      isToday: today.getDate() === d && today.getMonth() === month && today.getFullYear() === year,
+      isCurrentMonth: true,
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+    });
+  }
+
+  // Pad with next-month leading days to fill the grid (max 42 cells)
+  let next = 1;
+  while (cells.length < 42) {
+    const d = new Date(year, month + 1, next);
+    cells.push({ day: next, notes: getMarketNotes(d), isToday: false, isCurrentMonth: false, isWeekend: d.getDay() === 0 || d.getDay() === 6 });
+    next++;
+  }
+
+  return cells.slice(0, 42);
+}
