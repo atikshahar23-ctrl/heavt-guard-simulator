@@ -6,16 +6,21 @@ import {
   getCheckFundingAssetQueryKey,
   useBacktestFundingAsset,
   getBacktestFundingAssetQueryKey,
+  useGetStocks,
+  getGetStocksQueryKey,
 } from "@workspace/api-client-react";
 import type {
   FundingOpportunity,
   FundingAssetCheck,
   FundingBacktest,
+  StockQuote,
 } from "@workspace/api-client-react";
 import {
   Coins, RefreshCw, Search, TrendingUp, TrendingDown, Wallet,
   ArrowDownUp, Activity, ShieldCheck, AlertTriangle, Languages, Scale,
+  Building2,
 } from "lucide-react";
+import { useLivePrice } from "@/contexts/live-price-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +32,7 @@ import { usePortfolio } from "@/contexts/portfolio-context";
 import { toast } from "@/hooks/use-toast";
 
 type Lang = "he" | "en";
+type Suggestion = { kind: "crypto" | "stock"; symbol: string; sub: string };
 const LANG_STORAGE = "jarvis-lang";
 
 function loadLang(): Lang {
@@ -81,6 +87,18 @@ const T = {
   bal: { he: "יתרה", en: "Bal" },
   notional: { he: "נפח לכל רגל", en: "Notional / leg" },
   open: { he: "פתח", en: "Open" },
+  live: { he: "חי", en: "LIVE" },
+  kindCrypto: { he: "קריפטו", en: "Crypto" },
+  kindStock: { he: "מניה", en: "Stock" },
+  stockTitle: { he: "רגל בסיס · מניה", en: "Base leg · Stock" },
+  price: { he: "מחיר", en: "Price" },
+  change: { he: "שינוי יומי", en: "Day change" },
+  dayRange: { he: "טווח יומי", en: "Day range" },
+  momentum: { he: "מומנטום 5 ימים", en: "5-day momentum" },
+  stockNote: {
+    he: "למניות אין שיעור מימון — זו רגל הבסיס/מחיר בלבד. ארביטראז' מימון דורש חוזה עתידי בקריפטו שגובה/משלם מימון. השתמש בנכס קריפטו לתרחיש דלתא-ניטרלי מלא.",
+    en: "Stocks have no funding rate — this is the base/price leg only. Funding arbitrage needs a crypto perpetual that collects/pays funding. Pick a crypto asset for a full delta-neutral scenario.",
+  },
 };
 
 function viabilityColor(v: string): string {
@@ -104,6 +122,8 @@ function PaperEntry({ asset, spotPrice, side, annualizedPercent, lang }: {
   const { cash, openFundingPosition } = usePortfolio();
   const [open, setOpen] = useState(false);
   const [notional, setNotional] = useState(500);
+  const lp = useLivePrice(asset);
+  const effSpot = lp?.price ?? spotPrice;
 
   function submit() {
     if (!(notional > 0)) {
@@ -122,7 +142,7 @@ function PaperEntry({ asset, spotPrice, side, annualizedPercent, lang }: {
       asset,
       side: side === "SHORT_PERP" ? "SHORT_PERP" : "LONG_PERP",
       notionalPerLeg: notional,
-      entryPrice: spotPrice,
+      entryPrice: effSpot,
       annualizedPercent,
       source: lang === "he" ? "ארביטראז' מימון" : "Funding arb",
     });
@@ -161,7 +181,7 @@ function PaperEntry({ asset, spotPrice, side, annualizedPercent, lang }: {
         </div>
         <div className="rounded bg-secondary/40 p-2 space-y-1 text-[10px] font-mono">
           <div className="flex justify-between"><span className="text-muted-foreground">{T.side[lang]}</span><span className="text-foreground font-bold">{sideMeta(side, lang).label}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">{T.spot[lang]}</span><span className="text-foreground">${fmtPrice(spotPrice)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">{T.spot[lang]}</span><span className="inline-flex items-center gap-1.5 text-foreground">{lp && <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" title={T.live[lang]} />}${fmtPrice(effSpot)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">{T.annualized[lang]}</span><span className="text-emerald-400 font-bold">{fmtPct(annualizedPercent)}</span></div>
         </div>
         <Button onClick={submit} className="w-full h-8 font-mono font-bold" style={{ background: "hsl(43 74% 52%)", color: "#0a0a0a" }}>
@@ -175,6 +195,8 @@ function PaperEntry({ asset, spotPrice, side, annualizedPercent, lang }: {
 function OpportunityCard({ o, lang }: { o: FundingOpportunity; lang: Lang }) {
   const sm = sideMeta(o.side, lang);
   const vc = viabilityColor(o.viability);
+  const lp = useLivePrice(o.asset);
+  const displaySpot = lp?.price ?? o.spotPrice;
   return (
     <div className="rounded-lg border bg-card p-4 flex flex-col gap-3 transition-colors" style={{ borderColor: `${vc}33` }}>
       <div className="flex items-center justify-between">
@@ -195,8 +217,11 @@ function OpportunityCard({ o, lang }: { o: FundingOpportunity; lang: Lang }) {
           <span className="font-mono text-2xl font-black" style={{ color: vc }}>{fmtPct(o.annualizedPercent)}</span>
         </div>
         <div className="text-right">
-          <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{T.spot[lang]}</div>
-          <span className="font-mono text-sm font-bold text-foreground">${fmtPrice(o.spotPrice)}</span>
+          <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground flex items-center justify-end gap-1">
+            {lp && <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" title={T.live[lang]} />}
+            {T.spot[lang]}
+          </div>
+          <span className="font-mono text-sm font-bold text-foreground">${fmtPrice(displaySpot)}</span>
         </div>
       </div>
 
@@ -272,13 +297,18 @@ function CheckResult({ chk, lang }: { chk: FundingAssetCheck; lang: Lang }) {
   const sm = sideMeta(chk.side, lang);
   const vc = viabilityColor(chk.viability);
   const hasCarry = chk.annualizedPercent > 0;
+  const lp = useLivePrice(chk.asset);
+  const displaySpot = lp?.price ?? chk.spotPrice;
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3" style={{ borderColor: `${vc}33` }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <CryptoIcon asset={chk.asset} size={24} />
           <span className="font-mono font-black text-base text-foreground">{chk.asset}</span>
-          <span className="text-[10px] font-mono text-muted-foreground">${fmtPrice(chk.spotPrice)}</span>
+          <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+            {lp && <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" title={T.live[lang]} />}
+            ${fmtPrice(displaySpot)}
+          </span>
         </div>
         <div className="flex items-center gap-1 px-2 py-0.5 rounded font-mono font-bold text-[10px]" style={{ background: `${vc}1a`, color: vc }}>
           {chk.viability}
@@ -320,6 +350,55 @@ function CheckResult({ chk, lang }: { chk: FundingAssetCheck; lang: Lang }) {
   );
 }
 
+/** Stocks have no funding rate, so they only stand in as the base/price leg. */
+function StockLegPanel({ stock, lang }: { stock: StockQuote; lang: Lang }) {
+  const up = stock.changePercent >= 0;
+  const gold = "hsl(43 74% 52%)";
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3" style={{ borderColor: `${gold.replace(")", " / 0.2)")}` }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="font-mono font-black text-base text-foreground leading-none">{stock.symbol}</div>
+            <div className="text-[10px] text-muted-foreground truncate">{stock.name}</div>
+          </div>
+        </div>
+        <span className="flex items-center gap-1 px-2 py-0.5 rounded font-mono font-bold text-[10px] flex-shrink-0" style={{ background: "hsl(43 74% 52% / 0.12)", color: gold }}>
+          <Building2 className="h-3 w-3" /> {T.kindStock[lang]}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded bg-secondary/40 py-2">
+          <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{T.price[lang]}</div>
+          <div className="font-mono text-sm font-bold text-foreground">${fmtPrice(stock.price)}</div>
+        </div>
+        <div className="rounded bg-secondary/40 py-2">
+          <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{T.change[lang]}</div>
+          <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{fmtPct(stock.changePercent)}</div>
+        </div>
+        <div className="rounded bg-secondary/40 py-2">
+          <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{T.momentum[lang]}</div>
+          <div className="font-mono text-sm font-bold text-foreground">{stock.momentum5dPercent == null ? "—" : fmtPct(stock.momentum5dPercent)}</div>
+        </div>
+      </div>
+
+      {stock.dayLow != null && stock.dayHigh != null && (
+        <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+          <span>{T.dayRange[lang]}</span>
+          <span className="text-foreground">${fmtPrice(stock.dayLow)} – ${fmtPrice(stock.dayHigh)}</span>
+        </div>
+      )}
+
+      <p className="text-[10px] text-amber-400/90 leading-snug border-t border-border/50 pt-2 flex gap-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-px" />
+        <span>{T.stockNote[lang]}</span>
+      </p>
+    </div>
+  );
+}
+
 export default function FundingArbPage() {
   const [lang, setLang] = useState<Lang>(loadLang);
   const langRef = useRef(lang);
@@ -327,6 +406,7 @@ export default function FundingArbPage() {
 
   const [query, setQuery] = useState("");
   const [checkAsset, setCheckAsset] = useState<string | null>(null);
+  const [checkStock, setCheckStock] = useState<StockQuote | null>(null);
   const [showSuggest, setShowSuggest] = useState(false);
 
   useEffect(() => {
@@ -340,6 +420,11 @@ export default function FundingArbPage() {
       staleTime: 90000,
     },
   });
+
+  const { data: stocksData } = useGetStocks({
+    query: { queryKey: getGetStocksQueryKey(), refetchInterval: 30000, staleTime: 20000 },
+  });
+  const stocks = useMemo(() => (stocksData ?? []) as StockQuote[], [stocksData]);
 
   const checkQ = useCheckFundingAsset(
     { asset: checkAsset ?? "" },
@@ -355,32 +440,58 @@ export default function FundingArbPage() {
 
   const normalize = (s: string) => s.trim().toUpperCase().replace(/USDT?$/, "");
 
-  // Typeahead suggestions drawn from the live opportunities data pool.
-  const suggestions = useMemo(() => {
+  // Unified typeahead drawn from the existing data pool: crypto funding
+  // opportunities + tracked stocks. Stocks have no funding leg, so picking one
+  // shows its price as the base leg with a clear note.
+  const suggestions = useMemo<Suggestion[]>(() => {
     const q = normalize(query);
+    const out: Suggestion[] = [];
     const seen = new Set<string>();
-    return opportunities
-      .filter((o) => {
-        if (seen.has(o.asset)) return false;
-        if (q && !o.asset.toUpperCase().includes(q)) return false;
-        seen.add(o.asset);
-        return true;
-      })
-      .slice(0, 8);
-  }, [query, opportunities]);
+    for (const o of opportunities) {
+      const sym = o.asset.toUpperCase();
+      if (seen.has(sym)) continue;
+      if (q && !sym.includes(q)) continue;
+      seen.add(sym);
+      out.push({ kind: "crypto", symbol: o.asset, sub: `${o.annualizedPercent >= 0 ? "+" : ""}${o.annualizedPercent.toFixed(1)}% APR` });
+    }
+    for (const s of stocks) {
+      const sym = s.symbol.toUpperCase();
+      if (seen.has(sym)) continue;
+      if (q && !sym.includes(q) && !s.name.toUpperCase().includes(q)) continue;
+      seen.add(sym);
+      out.push({ kind: "stock", symbol: s.symbol, sub: s.name });
+    }
+    return out.slice(0, 8);
+  }, [query, opportunities, stocks]);
+
+  function findStock(sym: string): StockQuote | undefined {
+    return stocks.find((s) => s.symbol.toUpperCase() === sym.toUpperCase());
+  }
 
   function runCheck() {
     const a = normalize(query);
-    if (a) {
+    if (!a) return;
+    setShowSuggest(false);
+    const stock = findStock(a);
+    if (stock) {
+      setCheckAsset(null);
+      setCheckStock(stock);
+    } else {
+      setCheckStock(null);
       setCheckAsset(a);
-      setShowSuggest(false);
     }
   }
 
-  function selectSuggestion(asset: string) {
-    setQuery(asset);
-    setCheckAsset(normalize(asset));
+  function selectSuggestion(s: Suggestion) {
+    setQuery(s.symbol);
     setShowSuggest(false);
+    if (s.kind === "stock") {
+      setCheckAsset(null);
+      setCheckStock(findStock(s.symbol) ?? null);
+    } else {
+      setCheckStock(null);
+      setCheckAsset(normalize(s.symbol));
+    }
   }
 
   return (
@@ -429,18 +540,28 @@ export default function FundingArbPage() {
                 className="absolute z-30 mt-1 w-full overflow-hidden rounded-md border bg-card shadow-lg"
                 dir="ltr"
               >
-                {suggestions.map((o) => (
+                {suggestions.map((s) => (
                   <button
-                    key={o.asset}
+                    key={`${s.kind}-${s.symbol}`}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectSuggestion(o.asset)}
-                    className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-secondary/60 transition-colors"
+                    onClick={() => selectSuggestion(s)}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-secondary/60 transition-colors"
                   >
-                    <span className="font-mono font-bold">{o.asset}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {o.annualizedPercent >= 0 ? "+" : ""}{o.annualizedPercent.toFixed(1)}% APR
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span
+                        className="flex-shrink-0 rounded px-1 py-px text-[9px] font-mono font-bold uppercase"
+                        style={
+                          s.kind === "crypto"
+                            ? { background: "hsl(43 74% 52% / 0.15)", color: "hsl(43 74% 52%)" }
+                            : { background: "hsl(217 91% 60% / 0.15)", color: "hsl(217 91% 70%)" }
+                        }
+                      >
+                        {s.kind === "crypto" ? T.kindCrypto[lang] : T.kindStock[lang]}
+                      </span>
+                      <span className="font-mono font-bold">{s.symbol}</span>
                     </span>
+                    <span className="font-mono text-xs text-muted-foreground truncate text-right">{s.sub}</span>
                   </button>
                 ))}
               </div>
@@ -450,6 +571,8 @@ export default function FundingArbPage() {
             {T.check[lang]}
           </Button>
         </div>
+
+        {checkStock && <StockLegPanel stock={checkStock} lang={lang} />}
 
         {checkAsset && (checkQ.isLoading || backtestQ.isLoading) && (
           <div className="space-y-3">

@@ -22,6 +22,7 @@
 - [RTL bidi number/slash flip](rtl-bidi-numbers.md) — bare "A / B" number pairs visually reorder in RTL Hebrew; spell sides out in words or wrap in LTR/bdi
 - [Fleet trade modes](trade-modes.md) — NORMAL/CALCULATED/SHLOMI layer over the gear; SHLOMI leverage cap must be enforced in BOTH resolveSizing branches (dynamic returns early)
 - [Render perf boundaries](render-perf-boundaries.md) — autotrader priceMap must NOT be memoized (needs live prices each 250ms tick); data-derived values are safe to memoize; pages are React.lazy
+- [Stale lib .d.ts after merges](stale-lib-typecheck.md) — phantom "property does not exist" errors; run full `pnpm run typecheck` (builds libs) not per-artifact
 - [JARVIS bilingual (he/en)](jarvis-bilingual.md) — langRef.current in send/speak/listen avoids stale-closure; store per-message lang and render dir from m.lang (toggling must not flip past msgs); English = British-male butler voice.
 - [Funding Arb Agent](funding-arb-agent.md) — delta-neutral paper carry: capital=notionalPerLeg, funding-only PnL (no price), idempotent accrual via lastAccrualAt; fundingPositions is its own array — update every fleet op in lockstep.
 - [Stock short interest (synthetic)](stock-short-interest.md) — Free APIs geo-blocked. Backend generates educational estimates per symbol (high/mid/low buckets based on known character). Fields: shortInterest, shortRatio, shortPercentOfFloat. Displayed on Stock Detail Panel and Agent Row with "educational only" badge.
