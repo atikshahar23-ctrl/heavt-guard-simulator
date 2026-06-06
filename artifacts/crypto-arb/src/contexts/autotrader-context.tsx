@@ -222,7 +222,10 @@ export function resolveSizing(
   botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly",
 ): { margin: number; leverage: number; recoveryMode: boolean } {
   if (settings.dynamicCapitalEnabled) {
-    return computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct);
+    const dyn = computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct);
+    // SHLOMI's low-leverage rule is mode-level — enforce it even under dynamic sizing.
+    if (settings.tradeMode === "SHLOMI") dyn.leverage = Math.min(dyn.leverage, SHLOMI_MAX_LEVERAGE);
+    return dyn;
   }
   let leverage = settings.leverage;
   let margin = settings.marginPerTrade;
@@ -234,6 +237,9 @@ export function resolveSizing(
   else if (botId === "poly") margin = settings.polyStakePerBet;
   if (settings.globalLeverageEnabled) leverage = settings.globalLeverage;
   if (settings.fixedAmountEnabled) margin = settings.fixedAmount;
+  // SHLOMI mode enforces god-tier risk management: leverage is hard-capped low,
+  // overriding even the global leverage slider.
+  if (settings.tradeMode === "SHLOMI") leverage = Math.min(leverage, SHLOMI_MAX_LEVERAGE);
   return { margin, leverage, recoveryMode: false };
 }
 
@@ -276,34 +282,46 @@ const INTENSITY_SELECTIVITY = [1.3, 1.15, 1, 0.85, 0.7] as const;
  *   stricter, open fewer trades far less often, and ride winners much longer
  *   instead of banking quick scalps. Built for patient, long-term paper trades.
  */
-export type TradeMode = "NORMAL" | "CALCULATED";
+export type TradeMode = "NORMAL" | "CALCULATED" | "SHLOMI";
 
-/** Extra multipliers the CALCULATED long-term mode layers over the gear. */
-const CALC_COOLDOWN_MULT = 2.5;
-const CALC_MAXOPEN_MULT = 0.6;
-const CALC_SELECTIVITY_MULT = 1.6;
-const CALC_CONFRANK_ADD = 1;
-const CALC_SCORE_ADD = 10;
-const CALC_TRADERATE_MULT = 0.4;
+/** Extra multipliers each long-term trade mode layers over the gear.
+ *  SHLOMI ("מצב שלומי") is the most extreme: a maximally patient, ultra-selective
+ *  long-term temperament with the lowest cadence and the fewest, highest-quality
+ *  paper trades. Its leverage is also hard-capped low in resolveSizing(). */
+const TRADE_MODE_MULTS = {
+  NORMAL: {
+    cooldown: 1, maxOpen: 1, selectivity: 1, confRank: 0, score: 0, tradeRate: 1,
+  },
+  CALCULATED: {
+    cooldown: 2.5, maxOpen: 0.6, selectivity: 1.6, confRank: 1, score: 10, tradeRate: 0.4,
+  },
+  SHLOMI: {
+    cooldown: 4.5, maxOpen: 0.35, selectivity: 2.4, confRank: 2, score: 20, tradeRate: 0.15,
+  },
+} as const;
+
+/** Hard ceiling on leverage while in SHLOMI mode — god-tier risk management. */
+export const SHLOMI_MAX_LEVERAGE = 2;
 
 /**
  * Resolve the multipliers for a trading-intensity gear (clamps to 1-5),
- * optionally layered with the fleet-wide trade mode. CALCULATED makes every
- * bot stricter and slower for long-term, higher-conviction paper trades.
+ * optionally layered with the fleet-wide trade mode. CALCULATED and SHLOMI make
+ * every bot stricter and slower for long-term, higher-conviction paper trades;
+ * SHLOMI is the most extreme, patient, quality-over-quantity temperament.
  */
 export function intensityProfile(level: number, mode: TradeMode = "NORMAL"): IntensityProfile {
   const l = Math.max(1, Math.min(5, Math.round(level) || 1));
   const i = l - 1;
-  const calc = mode === "CALCULATED";
+  const m = TRADE_MODE_MULTS[mode] ?? TRADE_MODE_MULTS.NORMAL;
   return {
     level: l,
     label: INTENSITY_LABELS[i],
-    tradeRate: Math.round(Math.pow(1.5, i) * (calc ? CALC_TRADERATE_MULT : 1) * 100) / 100,
-    cooldownMult: INTENSITY_COOLDOWN[i] * (calc ? CALC_COOLDOWN_MULT : 1),
-    maxOpenMult: INTENSITY_MAXOPEN[i] * (calc ? CALC_MAXOPEN_MULT : 1),
-    confRankAdd: INTENSITY_CONFRANK[i] + (calc ? CALC_CONFRANK_ADD : 0),
-    scoreAdd: INTENSITY_SCOREADD[i] + (calc ? CALC_SCORE_ADD : 0),
-    selectivityMult: INTENSITY_SELECTIVITY[i] * (calc ? CALC_SELECTIVITY_MULT : 1),
+    tradeRate: Math.round(Math.pow(1.5, i) * m.tradeRate * 100) / 100,
+    cooldownMult: INTENSITY_COOLDOWN[i] * m.cooldown,
+    maxOpenMult: INTENSITY_MAXOPEN[i] * m.maxOpen,
+    confRankAdd: INTENSITY_CONFRANK[i] + m.confRank,
+    scoreAdd: INTENSITY_SCOREADD[i] + m.score,
+    selectivityMult: INTENSITY_SELECTIVITY[i] * m.selectivity,
   };
 }
 

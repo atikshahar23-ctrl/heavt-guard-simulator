@@ -297,17 +297,22 @@ export function AutoTraderEngine() {
       // seconds (rapid turnover). CALCULATED is the opposite: only bank once a
       // real move has built, give winners far more room, and never fast-recycle
       // a green trade — let it ride toward a long-term target.
-      const calcMode = settings.tradeMode === "CALCULATED";
+      const shlomiMode = settings.tradeMode === "SHLOMI";
+      const calcMode = settings.tradeMode === "CALCULATED" || shlomiMode;
       const takeProfitPct = boostActive
         ? Math.min(settings.scalpTakeProfitPct, 0.2)
-        : calcMode
-          ? Math.max(settings.scalpTakeProfitPct, 1.5)
-          : settings.scalpTakeProfitPct;
+        : shlomiMode
+          ? Math.max(settings.scalpTakeProfitPct, 2.5)
+          : calcMode
+            ? Math.max(settings.scalpTakeProfitPct, 1.5)
+            : settings.scalpTakeProfitPct;
       const givebackPct = boostActive
         ? 0.1
-        : calcMode
-          ? Math.max(settings.scalpGivebackPct, 1.0)
-          : settings.scalpGivebackPct;
+        : shlomiMode
+          ? Math.max(settings.scalpGivebackPct, 1.5)
+          : calcMode
+            ? Math.max(settings.scalpGivebackPct, 1.0)
+            : settings.scalpGivebackPct;
       const recycleSec = boostActive
         ? Math.min(settings.maxScalpHoldSec || 12, 12)
         : calcMode

@@ -640,81 +640,87 @@ export default function Bots() {
         );
       })()}
 
-      {/* ── Trade mode — סגנון מסחר: רגיל ↔ מחושב אקסטרא (טווח ארוך) ── */}
+      {/* ── Trade mode — סגנון מסחר: רגיל ↔ מחושב אקסטרא ↔ מצב שלומי ── */}
       {(() => {
-        const calc = settings.tradeMode === "CALCULATED";
-        const accent = calc ? "199 89% 55%" : "43 74% 52%";
-        const setMode = (mode: TradeMode) => update({ tradeMode: mode });
+        const mode = settings.tradeMode;
+        const calc = mode === "CALCULATED";
+        const shlomi = mode === "SHLOMI";
+        const longTerm = calc || shlomi;
+        const accent = shlomi ? "152 60% 50%" : calc ? "199 89% 55%" : "43 74% 52%";
+        const setMode = (m: TradeMode) => update({ tradeMode: m });
+        const HeaderIcon = shlomi ? Sparkles : Crosshair;
+        const modeBtn = (
+          target: TradeMode,
+          active: boolean,
+          Icon: typeof Rabbit,
+          activeColor: string,
+          shadow: string,
+          title: string,
+          sub: string,
+        ) => (
+          <button
+            type="button"
+            onClick={() => setMode(target)}
+            aria-pressed={active}
+            className={`flex items-center justify-center gap-2 rounded-md border p-3 transition-all ${
+              active ? `${shadow}` : "border-border/60 bg-background/40 hover:bg-secondary/40"
+            }`}
+          >
+            <Icon className={`h-4 w-4 ${active ? activeColor : "text-muted-foreground"}`} />
+            <div className="text-right">
+              <div className={`text-sm font-semibold leading-none ${active ? "text-foreground" : "text-muted-foreground"}`}>{title}</div>
+              <div className="text-[9px] text-muted-foreground mt-0.5">{sub}</div>
+            </div>
+          </button>
+        );
+        const modeIdx = shlomi ? 2 : calc ? 1 : 0;
+        const idxToMode = (v: number): TradeMode => (v >= 2 ? "SHLOMI" : v >= 1 ? "CALCULATED" : "NORMAL");
         return (
           <section className="rounded-lg border p-4" style={{ borderColor: `hsl(${accent} / 0.4)`, background: `hsl(${accent} / 0.05)` }} dir="rtl">
             <div className="flex items-start gap-3">
               <div className="h-9 w-9 rounded-md flex items-center justify-center shrink-0" style={{ background: `hsl(${accent} / 0.15)` }}>
-                <Crosshair className="h-4 w-4" style={{ color: `hsl(${accent})` }} />
+                <HeaderIcon className="h-4 w-4" style={{ color: `hsl(${accent})` }} />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-sm font-semibold tracking-wide">סגנון מסחר — בורר לכל הבוטים</h2>
                 <p className="text-[11px] text-muted-foreground">
-                  בורר נוסף שמשפיע על <span className="text-foreground font-medium">כל הבוטים</span> יחד, בנוסף להילוך העוצמה. <span className="text-foreground font-medium">רגיל</span> — ההתנהגות הרגילה. <span className="text-foreground font-medium">מחושב אקסטרא</span> — מצב סבלני לטווח ארוך: הבוטים נעשים הרבה יותר בררנים, פותחים פחות עסקאות ובתדירות נמוכה בהרבה, ונותנים לרווחים לרוץ זמן רב יותר במקום לממש סקאלפים מהירים.
+                  בורר נוסף שמשפיע על <span className="text-foreground font-medium">כל הבוטים</span> יחד, בנוסף להילוך העוצמה. <span className="text-foreground font-medium">רגיל</span> — ההתנהגות הרגילה. <span className="text-foreground font-medium">מחושב אקסטרא</span> — מצב סבלני לטווח ארוך: בררני יותר, פחות עסקאות, נותן לרווחים לרוץ. <span style={{ color: "hsl(152 60% 50%)" }} className="font-medium">מצב שלומי</span> — הסוחר הנבון: הסבלנות הגבוהה ביותר, עסקאות לטווח ארוך, ניהול סיכונים ברמת-על, מינוף נמוך (עד {`x${2}`}) ומקסימום איכות לכל עסקה.
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setMode("NORMAL")}
-                aria-pressed={!calc}
-                className={`flex items-center justify-center gap-2 rounded-md border p-3 transition-all ${
-                  !calc ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(43_74%_52%/0.4)]" : "border-border/60 bg-background/40 hover:bg-secondary/40"
-                }`}
-              >
-                <Rabbit className={`h-4 w-4 ${!calc ? "text-primary" : "text-muted-foreground"}`} />
-                <div className="text-right">
-                  <div className={`text-sm font-semibold leading-none ${!calc ? "text-foreground" : "text-muted-foreground"}`}>רגיל</div>
-                  <div className="text-[9px] text-muted-foreground mt-0.5">קצב ובררנות לפי ההילוך</div>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("CALCULATED")}
-                aria-pressed={calc}
-                className={`flex items-center justify-center gap-2 rounded-md border p-3 transition-all ${
-                  calc ? "border-sky-400 bg-sky-400/10 shadow-[0_0_0_1px_hsl(199_89%_55%/0.45)]" : "border-border/60 bg-background/40 hover:bg-secondary/40"
-                }`}
-              >
-                <Turtle className={`h-4 w-4 ${calc ? "text-sky-400" : "text-muted-foreground"}`} />
-                <div className="text-right">
-                  <div className={`text-sm font-semibold leading-none ${calc ? "text-foreground" : "text-muted-foreground"}`}>מחושב אקסטרא</div>
-                  <div className="text-[9px] text-muted-foreground mt-0.5">בררני וסבלני · טווח ארוך</div>
-                </div>
-              </button>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {modeBtn("NORMAL", mode === "NORMAL", Rabbit, "text-primary", "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(43_74%_52%/0.4)]", "רגיל", "קצב ובררנות לפי ההילוך")}
+              {modeBtn("CALCULATED", calc, Turtle, "text-sky-400", "border-sky-400 bg-sky-400/10 shadow-[0_0_0_1px_hsl(199_89%_55%/0.45)]", "מחושב אקסטרא", "בררני וסבלני · טווח ארוך")}
+              {modeBtn("SHLOMI", shlomi, Sparkles, "text-emerald-400", "border-emerald-400 bg-emerald-400/10 shadow-[0_0_0_1px_hsl(152_60%_50%/0.45)]", "מצב שלומי", "סוחר נבון · מינוף נמוך · איכות מקס")}
             </div>
 
             <div className="mt-4 px-1">
               <Slider
-                value={[calc ? 1 : 0]}
+                value={[modeIdx]}
                 min={0}
-                max={1}
+                max={2}
                 step={1}
-                onValueChange={(v) => setMode(v[0] >= 1 ? "CALCULATED" : "NORMAL")}
+                onValueChange={(v) => setMode(idxToMode(v[0]))}
                 aria-label="בורר סגנון מסחר"
                 dir="rtl"
               />
               <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-muted-foreground">
-                <span className={!calc ? "text-primary" : ""}>רגיל</span>
-                <span className={calc ? "text-sky-400" : ""}>מחושב אקסטרא</span>
+                <span className={mode === "NORMAL" ? "text-primary" : ""}>רגיל</span>
+                <span className={calc ? "text-sky-400" : ""}>מחושב</span>
+                <span className={shlomi ? "text-emerald-400" : ""}>שלומי</span>
               </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatChip label="מצב נוכחי" value={calc ? "מחושב אקסטרא" : "רגיל"} tone={calc ? "good" : undefined} />
-              <StatChip label="בררנות" value={calc ? "מחמירה מאוד" : "לפי ההילוך"} tone={calc ? "good" : undefined} />
-              <StatChip label="תדירות עסקאות" value={calc ? "נמוכה בהרבה" : "רגילה"} />
-              <StatChip label="החזקת רווחים" value={calc ? "ארוכה (נותן לרוץ)" : "רגילה"} />
+              <StatChip label="מצב נוכחי" value={shlomi ? "מצב שלומי" : calc ? "מחושב אקסטרא" : "רגיל"} tone={longTerm ? "good" : undefined} />
+              <StatChip label="בררנות" value={shlomi ? "קיצונית" : calc ? "מחמירה מאוד" : "לפי ההילוך"} tone={longTerm ? "good" : undefined} />
+              <StatChip label="תדירות עסקאות" value={shlomi ? "מינימלית" : calc ? "נמוכה בהרבה" : "רגילה"} />
+              <StatChip label="מינוף" value={shlomi ? "נמוך (עד x2)" : "לפי ההגדרות"} tone={shlomi ? "good" : undefined} />
             </div>
-            {calc && boostActive && (
+            {longTerm && boostActive && (
               <p className="mt-2 text-[10px] text-amber-400/90" dir="rtl">
-                שים לב: בוסט פעיל דורס את הקצב למהיר ביותר וסותר את מצב טווח ארוך. כדאי לעצור את הבוסט כדי לתת למצב המחושב לעבוד.
+                שים לב: בוסט פעיל דורס את הקצב למהיר ביותר וסותר את מצב טווח ארוך. כדאי לעצור את הבוסט כדי לתת למצב {shlomi ? "שלומי" : "המחושב"} לעבוד.
               </p>
             )}
           </section>
