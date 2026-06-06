@@ -351,6 +351,7 @@ export function AutoTraderEngine() {
             closeBinancePosition(pos.id, price, "TP");
             peakRef.current.delete(pos.id);
             toast({
+              variant: "success",
               title: `סגירה חכמה · ${isRunner ? "ריצת רווח" : "סקאלפ מהיר"} ${pos.asset}`,
               description: `${pos.direction} +${gainPct.toFixed(2)}% (שיא +${peakGainPct.toFixed(2)}%)`,
             });
@@ -363,6 +364,7 @@ export function AutoTraderEngine() {
           closeBinancePosition(pos.id, price, "TP");
           peakRef.current.delete(pos.id);
           toast({
+            variant: "success",
             title: `סגירה חכמה · מִחזוּר ${pos.asset}`,
             description: `${pos.direction} +${gainPct.toFixed(2)}% אחרי ${Math.round(ageMs / 1000)} ש'`,
           });
@@ -377,6 +379,7 @@ export function AutoTraderEngine() {
           closeBinancePosition(pos.id, price, "SL");
           peakRef.current.delete(pos.id);
           toast({
+            variant: "destructive",
             title: `סגירה חכמה · קציצת הפסד ${pos.asset}`,
             description: `${pos.direction} ${gainPct.toFixed(2)}% אחרי ${Math.round(ageMs / 1000)} ש' · אין SL מוגדר`,
           });
@@ -732,6 +735,7 @@ export function AutoTraderEngine() {
         closePolyPosition(pos.id, price);
         polyCooldownRef.current[pos.conditionId] = nowMs;
         toast({
+          variant: pnlPct >= 0 ? "success" : "destructive",
           title: `Crypto Bet · ${pnlPct >= 0 ? "Take-profit" : "Stop-loss"}`,
           description: `${pos.side} @ ${pos.entryPrice.toFixed(2)} → ${price.toFixed(2)} (${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(0)}%)`,
         });

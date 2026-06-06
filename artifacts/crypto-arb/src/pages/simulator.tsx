@@ -361,6 +361,14 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
   const [slInput, setSlInput] = useState("");
   const [tpInput, setTpInput] = useState("");
   const [tradeError, setTradeError] = useState("");
+  // Mobile: user-adjustable chart height so the chart is always visible on small screens.
+  const [chartHeight, setChartHeight] = useState<number>(() => {
+    const saved = Number(localStorage.getItem("sim.chartHeight"));
+    return saved >= 200 && saved <= 640 ? saved : 340;
+  });
+  useEffect(() => {
+    localStorage.setItem("sim.chartHeight", String(chartHeight));
+  }, [chartHeight]);
 
   const currentPrice = binancePrices[selectedAsset] ?? 0;
   const notional = parseFloat(amount) || 0;
@@ -430,9 +438,27 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
         </div>
 
         {/* CENTER: Chart + Trade Form */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          {/* Chart */}
-          <div className="flex-1 min-h-0" style={{ minHeight: "220px" }}>
+        <div className="flex flex-col flex-1 min-w-0 overflow-y-auto lg:overflow-hidden">
+          {/* Mobile: chart-height resizer so the chart is always visible */}
+          <div className="lg:hidden flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/30 shrink-0">
+            <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground whitespace-nowrap">גובה גרף</span>
+            <input
+              type="range"
+              min={200}
+              max={640}
+              step={20}
+              value={chartHeight}
+              onChange={e => setChartHeight(Number(e.target.value))}
+              aria-label="Chart height"
+              className="flex-1 h-1.5 accent-primary cursor-pointer"
+            />
+            <span className="text-[9px] font-mono text-muted-foreground w-10 text-right">{chartHeight}px</span>
+          </div>
+          {/* Chart — fixed (slider-controlled) height on mobile, fills available space on desktop */}
+          <div
+            className="min-h-0 h-[var(--chart-h)] shrink-0 lg:h-auto lg:flex-1 lg:shrink"
+            style={{ ["--chart-h" as string]: `${chartHeight}px` }}
+          >
             <CandlestickChart
               symbol={selectedAsset}
               positions={binancePositions.filter(p => p.asset === selectedAsset)}
