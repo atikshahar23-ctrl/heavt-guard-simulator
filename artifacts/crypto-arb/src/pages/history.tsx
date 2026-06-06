@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useGetMarketOverview, getGetMarketOverviewQueryKey } from "@workspace/api-client-react";
 import {
@@ -404,7 +404,133 @@ function groupKey(t: ClosedTrade): string {
   return `${t.type}:${t.symbol || ""}:${t.direction || ""}`;
 }
 
+/* ─── Hover tooltip ──────────────────────────────────────────────────────── */
+function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: number }) {
+  const up = trade.pnl >= 0;
+  const pct = trade.cost > 0 ? (trade.pnl / trade.cost) * 100 : 0;
+  const ex = exit(trade);
+  const bot = botName(trade.source);
+  const dur = duration(trade);
+  const isLong = trade.direction === "LONG" || trade.direction === "YES";
+
+  // Flip left if too close to right edge
+  const flipLeft = x + 270 > window.innerWidth;
+  const left = flipLeft ? x - 268 : x + 14;
+  const top = Math.min(y - 8, window.innerHeight - 340);
+
+  return (
+    <div
+      className="fixed z-[9999] pointer-events-none select-none"
+      style={{ left, top, width: 256 }}
+    >
+      <div className="rounded-lg border border-border/80 bg-[hsl(0_0%_7%)] shadow-2xl overflow-hidden text-[11px] font-mono">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-secondary/20">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[trade.type]}</span>
+            {trade.symbol && <span className="font-bold text-primary">{trade.symbol}</span>}
+            {trade.direction && (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: isLong ? "#22c55e1a" : "#ef44441a", color: isLong ? "#22c55e" : "#ef4444" }}>
+                {trade.direction}
+              </span>
+            )}
+          </div>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
+        </div>
+
+        {/* Bot / source row */}
+        {(bot ?? trade.source) && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/40 bg-primary/5">
+            <Bot className="h-3 w-3 text-primary/70 shrink-0" />
+            <span className="text-primary font-bold truncate">{bot ?? trade.source}</span>
+            {!bot && trade.auto && <span className="text-[9px] text-muted-foreground">(אוטו)</span>}
+          </div>
+        )}
+        {!trade.source && !trade.auto && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/40 bg-secondary/10">
+            <Hand className="h-3 w-3 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground">ידני</span>
+          </div>
+        )}
+
+        {/* Price details */}
+        <div className="px-3 py-2 space-y-1">
+          {trade.entryPrice != null && trade.exitPrice != null && (
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">כניסה → יציאה</span>
+              <span>${fmtPrice(trade.entryPrice)} → ${fmtPrice(trade.exitPrice)}</span>
+            </div>
+          )}
+          {trade.leverage != null && trade.leverage > 1 && (
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">מינוף</span>
+              <span className="text-primary">{trade.leverage}x</span>
+            </div>
+          )}
+          {trade.slPrice != null && (
+            <div className="flex justify-between gap-3 text-red-400/80">
+              <span>Stop Loss</span>
+              <span>${fmtPrice(trade.slPrice)}</span>
+            </div>
+          )}
+          {trade.tpPrice != null && (
+            <div className="flex justify-between gap-3 text-emerald-400/80">
+              <span>Take Profit</span>
+              <span>${fmtPrice(trade.tpPrice)}</span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3">
+            <span className="text-muted-foreground">מרג'ין</span>
+            <span>${fmtUsd(trade.cost)}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-muted-foreground">תמורה</span>
+            <span>${fmtUsd(trade.proceeds)}</span>
+          </div>
+        </div>
+
+        {/* P&L bar */}
+        <div className="mx-3 mb-2 rounded px-2 py-1.5 flex justify-between items-center" style={{ background: up ? "#22c55e14" : "#ef444414" }}>
+          <span className="text-muted-foreground">רווח / הפסד</span>
+          <div className="text-right">
+            <span className="font-black text-sm" style={{ color: up ? "#22c55e" : "#ef4444" }}>
+              {up ? "+" : ""}{fmtUsd(trade.pnl)}
+            </span>
+            <span className="text-[10px] ml-1.5" style={{ color: up ? "#22c55e" : "#ef4444" }}>
+              ({up ? "+" : ""}{pct.toFixed(1)}%)
+            </span>
+          </div>
+        </div>
+
+        {/* Timing */}
+        <div className="px-3 pb-2 flex justify-between text-[10px] text-muted-foreground/70">
+          <span>{timeAgo(trade.closedAt)}</span>
+          {dur && <span>⏱ {dur}</span>}
+        </div>
+
+        {/* Description (truncated) */}
+        {trade.description && (
+          <div className="px-3 pb-2 pt-0 text-[10px] text-muted-foreground/60 border-t border-border/30 pt-1.5 line-clamp-2 leading-relaxed">
+            {trade.description}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelect: (t: ClosedTrade) => void }) {
+  const [hovered, setHovered] = useState<ClosedTrade | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const moveRef = useRef<number | null>(null);
+
+  const onMove = useCallback((e: React.MouseEvent) => {
+    if (moveRef.current !== null) cancelAnimationFrame(moveRef.current);
+    moveRef.current = requestAnimationFrame(() => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    });
+  }, []);
+
   const grouped = useMemo(() => {
     const map = new Map<string, ClosedTrade[]>();
     for (const t of trades) {
@@ -417,111 +543,120 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
   }, [trades]);
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 border-b border-border text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
-        <span>עסקה</span><span className="text-right">יציאה</span><span className="text-right">מרג'ין</span><span className="text-right">רווח/הפסד</span><span className="text-right">מתי</span>
-      </div>
-      <div className="divide-y divide-border/60">
-        {Array.from(grouped.entries()).map(([key, rows]) => {
-          const first = rows[0];
-          const isGroup = rows.length > 1;
-          const totalPnl = rows.reduce((s, t) => s + t.pnl, 0);
-          const totalCost = rows.reduce((s, t) => s + t.cost, 0);
-          const up = totalPnl >= 0;
-          const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
-          const ex = isGroup
-            ? { label: `${rows.length} טרידים`, color: up ? "#22c55e" : "#ef4444" }
-            : exit(first);
+    <>
+      {hovered && <TradeTooltip trade={hovered} x={mousePos.x} y={mousePos.y} />}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 border-b border-border text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
+          <span>עסקה</span><span className="text-right">יציאה</span><span className="text-right">מרג'ין</span><span className="text-right">רווח/הפסד</span><span className="text-right">מתי</span>
+        </div>
+        <div className="divide-y divide-border/60">
+          {Array.from(grouped.entries()).map(([key, rows]) => {
+            const first = rows[0];
+            const isGroup = rows.length > 1;
+            const totalPnl = rows.reduce((s, t) => s + t.pnl, 0);
+            const totalCost = rows.reduce((s, t) => s + t.cost, 0);
+            const up = totalPnl >= 0;
+            const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+            const ex = isGroup
+              ? { label: `${rows.length} טרידים`, color: up ? "#22c55e" : "#ef4444" }
+              : exit(first);
 
-          return (
-            <div
-              key={key}
-              className="group"
-              dir="rtl"
-            >
-              {/* Summary row */}
+            return (
               <div
-                onClick={() => onSelect(first)}
-                role="button"
-                tabIndex={0}
-                title="צפה בפרטי העסקה"
-                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs cursor-pointer transition-colors hover:bg-secondary/30"
+                key={key}
+                className="group"
+                dir="rtl"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[first.type]}</span>
-                    <ChartIcon className="h-3 w-3 text-muted-foreground/50" />
-                    {first.symbol && <span className="font-mono text-[9px] font-bold text-primary">{first.symbol}</span>}
-                    {first.direction && (
-                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: first.direction === "LONG" || first.direction === "YES" ? "#22c55e1a" : "#ef44441a", color: first.direction === "LONG" || first.direction === "YES" ? "#22c55e" : "#ef4444" }}>
-                        {first.direction}
-                      </span>
-                    )}
+                {/* Summary row */}
+                <div
+                  onClick={() => onSelect(first)}
+                  onMouseEnter={() => setHovered(first)}
+                  onMouseLeave={() => setHovered(null)}
+                  onMouseMove={onMove}
+                  role="button"
+                  tabIndex={0}
+                  title="צפה בפרטי העסקה"
+                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs cursor-pointer transition-colors hover:bg-secondary/30"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[first.type]}</span>
+                      <ChartIcon className="h-3 w-3 text-muted-foreground/50" />
+                      {first.symbol && <span className="font-mono text-[9px] font-bold text-primary">{first.symbol}</span>}
+                      {first.direction && (
+                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: first.direction === "LONG" || first.direction === "YES" ? "#22c55e1a" : "#ef44441a", color: first.direction === "LONG" || first.direction === "YES" ? "#22c55e" : "#ef4444" }}>
+                          {first.direction}
+                        </span>
+                      )}
+                      {isGroup && (
+                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                          {rows.length}x
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-mono text-[11px] text-foreground/90 break-words line-clamp-2 mt-0.5" title={first.description}>{first.description}</div>
                     {isGroup && (
-                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
-                        {rows.length}x
-                      </span>
+                      <div className="font-mono text-[9px] text-muted-foreground/60 mt-0.5">
+                        {rows.length} חזיוניות באותו הסווג
+                      </div>
                     )}
                   </div>
-                  <div className="font-mono text-[11px] text-foreground/90 break-words line-clamp-2 mt-0.5" title={first.description}>{first.description}</div>
-                  {isGroup && (
-                    <div className="font-mono text-[9px] text-muted-foreground/60 mt-0.5">
-                      {rows.length} חזיוניות באותו הסווג
-                    </div>
-                  )}
+                  <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
+                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
+                  </div>
+                  <div className="hidden sm:block text-right font-mono text-[11px] text-muted-foreground">${fmtUsd(totalCost)}</div>
+                  <div className="text-right">
+                    <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}${fmtUsd(totalPnl)}</div>
+                    <div className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}{pct.toFixed(1)}%</div>
+                  </div>
+                  <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">
+                    <div>{timeAgo(first.closedAt)}</div>
+                    {duration(first) && <div className="text-muted-foreground/50">{duration(first)}</div>}
+                  </div>
                 </div>
-                <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
-                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
-                </div>
-                <div className="hidden sm:block text-right font-mono text-[11px] text-muted-foreground">${fmtUsd(totalCost)}</div>
-                <div className="text-right">
-                  <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}${fmtUsd(totalPnl)}</div>
-                  <div className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}{pct.toFixed(1)}%</div>
-                </div>
-                <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">
-                  <div>{timeAgo(first.closedAt)}</div>
-                  {duration(first) && <div className="text-muted-foreground/50">{duration(first)}</div>}
-                </div>
-              </div>
 
-              {/* Expandable detail rows for groups */}
-              {isGroup && (
-                <div className="bg-background/30 border-t border-border/30">
-                  {rows.map((t, i) => {
-                    const u = t.pnl >= 0;
-                    const p = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
-                    const ex = exit(t);
-                    return (
-                      <div
-                        key={t.id}
-                        onClick={() => onSelect(t)}
-                        className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-1.5 items-center text-xs cursor-pointer hover:bg-secondary/20 transition-colors opacity-70"
-                        dir="rtl"
-                      >
-                        <div className="min-w-0">
-                          <span className="font-mono text-[10px] text-muted-foreground">{t.description}</span>
+                {/* Expandable detail rows for groups */}
+                {isGroup && (
+                  <div className="bg-background/30 border-t border-border/30">
+                    {rows.map((t) => {
+                      const u = t.pnl >= 0;
+                      const p = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
+                      const ex = exit(t);
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => onSelect(t)}
+                          onMouseEnter={() => setHovered(t)}
+                          onMouseLeave={() => setHovered(null)}
+                          onMouseMove={onMove}
+                          className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-1.5 items-center text-xs cursor-pointer hover:bg-secondary/20 transition-colors opacity-70"
+                          dir="rtl"
+                        >
+                          <div className="min-w-0">
+                            <span className="font-mono text-[10px] text-muted-foreground">{t.description}</span>
+                          </div>
+                          <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
+                            <span className="font-mono text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
+                          </div>
+                          <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">${fmtUsd(t.cost)}</div>
+                          <div className="text-right">
+                            <div className="font-mono text-[10px] font-bold" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}${fmtUsd(t.pnl)}</div>
+                            <div className="font-mono text-[9px]" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}{p.toFixed(1)}%</div>
+                          </div>
+                          <div className="hidden sm:block text-right font-mono text-[9px] text-muted-foreground">
+                            {timeAgo(t.closedAt)}
+                          </div>
                         </div>
-                        <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
-                          <span className="font-mono text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
-                        </div>
-                        <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">${fmtUsd(t.cost)}</div>
-                        <div className="text-right">
-                          <div className="font-mono text-[10px] font-bold" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}${fmtUsd(t.pnl)}</div>
-                          <div className="font-mono text-[9px]" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}{p.toFixed(1)}%</div>
-                        </div>
-                        <div className="hidden sm:block text-right font-mono text-[9px] text-muted-foreground">
-                          {timeAgo(t.closedAt)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
