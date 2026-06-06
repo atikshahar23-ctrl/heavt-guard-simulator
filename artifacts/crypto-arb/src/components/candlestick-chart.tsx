@@ -3,13 +3,16 @@ import {
   createChart,
   CandlestickSeries,
   ColorType,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type CandlestickData,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { applyTAOverlays, type TAHandle, autoAnalyze, type AnalysisResult } from "../lib/ta";
 import { TradingViewAdvancedChart } from "./tradingview-advanced-chart";
+import type { BinancePosition } from "@/contexts/portfolio-context";
 
 const INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1D"] as const;
 type Interval = typeof INTERVALS[number];
@@ -21,8 +24,6 @@ const SYMBOL_MAP: Record<string, string> = {
   BNB: "BNBUSDT",
 };
 
-// The base asset (e.g. "BTC") maps to its USDT pair; any new coin works without
-// a SYMBOL_MAP entry because we fall back to `${asset}USDT`.
 function toBinanceSymbol(asset: string): string {
   return SYMBOL_MAP[asset] ?? `${asset.toUpperCase()}USDT`;
 }
@@ -48,14 +49,24 @@ async function fetchKlines(
 
 interface Props {
   symbol: string;
+  /** Open positions for this asset — drawn as price lines + overlay cards. */
+  positions?: BinancePosition[];
+  /** Live mark price used to compute P&L in the overlay cards. */
+  currentPrice?: number;
+  /** Called when the user clicks the close button on an overlay card. */
+  onClosePosition?: (id: string, currentPrice: number) => void;
 }
 
-export function CandlestickChart({ symbol }: Props) {
+type PriceLineHandles = { entry: IPriceLine; sl?: IPriceLine; tp?: IPriceLine };
+
+export function CandlestickChart({ symbol, positions, currentPrice, onClosePosition }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const taRef = useRef<TAHandle | null>(null);
   const candlesRef = useRef<CandlestickData<UTCTimestamp>[]>([]);
+  const priceLineMapRef = useRef<Map<string, PriceLineHandles>>(new Map());
+
   const [period, setPeriod] = useState<Interval>("5m");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
@@ -116,6 +127,7 @@ export function CandlestickChart({ symbol }: Props) {
     return () => {
       disposed = true;
       ro.disconnect();
+      priceLineMapRef.current.clear();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -141,8 +153,7 @@ export function CandlestickChart({ symbol }: Props) {
       });
   }, [symbol, period]);
 
-  // TA overlays — recomputed only on full data load (`bars`) or toggle, never on a
-  // WS tick, so the live streaming path stays fast and untouched.
+  // TA overlays
   useEffect(() => {
     taRef.current?.remove();
     taRef.current = null;
@@ -154,12 +165,68 @@ export function CandlestickChart({ symbol }: Props) {
     };
   }, [bars, ta]);
 
-  // Live updates: prefer a zero-cost Binance kline WebSocket (sub-second, browser
-  // direct so no server geo-block). Fall back to REST polling only if the socket
-  // never opens (e.g. blocked network).
+  // ── Position price lines ─────────────────────────────────────────────────────
+  // Draws entry / SL / TP horizontal price lines on the chart for every open
+  // position on this asset. Lines are recreated from scratch whenever the
+  // positions array changes or the chart mode switches.
   useEffect(() => {
-    // In pro mode the TradingView widget streams its own data, so skip the
-    // native WS/polling entirely to avoid a duplicate live pipeline.
+    const series = seriesRef.current;
+
+    // Remove all existing lines
+    for (const h of priceLineMapRef.current.values()) {
+      try { series?.removePriceLine(h.entry); } catch { /* disposed */ }
+      if (h.sl) try { series?.removePriceLine(h.sl); } catch { /* disposed */ }
+      if (h.tp) try { series?.removePriceLine(h.tp); } catch { /* disposed */ }
+    }
+    priceLineMapRef.current.clear();
+
+    if (!series || mode === "pro" || !positions?.length) return;
+
+    for (const pos of positions) {
+      const isLong = pos.direction === "LONG";
+      const entryColor = isLong ? "#10b981" : "#ef4444";
+      const shortLabel = (pos.source ?? (pos.auto ? "Bot" : "Manual")).slice(0, 14);
+
+      const entry = series.createPriceLine({
+        price: pos.entryPrice,
+        color: entryColor,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `${pos.direction} ${pos.leverage}x · ${shortLabel}`,
+      });
+
+      let sl: IPriceLine | undefined;
+      if (pos.slPrice != null) {
+        sl = series.createPriceLine({
+          price: pos.slPrice,
+          color: "#ef4444",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: "SL",
+        });
+      }
+
+      let tp: IPriceLine | undefined;
+      if (pos.tpPrice != null) {
+        tp = series.createPriceLine({
+          price: pos.tpPrice,
+          color: "#22c55e",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: "TP",
+        });
+      }
+
+      priceLineMapRef.current.set(pos.id, { entry, sl, tp });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, mode, bars]);
+
+  // Live WebSocket / polling
+  useEffect(() => {
     if (mode === "pro") {
       setLive(false);
       return;
@@ -252,6 +319,8 @@ export function CandlestickChart({ symbol }: Props) {
     };
   }, [symbol, period, mode]);
 
+  const markPrice = currentPrice ?? 0;
+
   return (
     <div className="flex flex-col h-full bg-[hsl(0_0%_4%)]">
       <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border shrink-0 bg-card/20">
@@ -267,7 +336,6 @@ export function CandlestickChart({ symbol }: Props) {
             {live ? "LIVE" : "···"}
           </span>
         )}
-        {/* Live (integrated demo) ↔ Pro (TradingView drawing tools) toggle */}
         <div className="flex items-center gap-0.5 mr-2 rounded bg-secondary/30 p-0.5">
           <button
             onClick={() => setMode("live")}
@@ -332,6 +400,87 @@ export function CandlestickChart({ symbol }: Props) {
       </div>
       <div className="relative flex-1 min-h-0">
         <div ref={containerRef} className="absolute inset-0" />
+
+        {/* ── Open-position overlay cards ───────────────────────────────────── */}
+        {mode === "live" && positions && positions.length > 0 && (
+          <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 max-h-[calc(100%-16px)] overflow-y-auto pointer-events-none">
+            {positions.map((pos) => {
+              const isLong = pos.direction === "LONG";
+              const mark = markPrice > 0 ? markPrice : pos.entryPrice;
+              const delta = isLong
+                ? (mark - pos.entryPrice) / pos.entryPrice
+                : (pos.entryPrice - mark) / pos.entryPrice;
+              const pnl = delta * pos.notional;
+              const pnlPct = delta * pos.leverage * 100;
+              const margin = pos.notional / pos.leverage;
+              const accent = isLong ? "#10b981" : "#ef4444";
+              const pnlPositive = pnl >= 0;
+
+              return (
+                <div
+                  key={pos.id}
+                  className="pointer-events-auto rounded border bg-[hsl(0_0%_6%)/92] backdrop-blur-sm shadow-lg text-[10px] font-mono overflow-hidden"
+                  style={{ borderColor: `${accent}50`, minWidth: "148px", maxWidth: "190px" }}
+                >
+                  {/* Header row */}
+                  <div className="flex items-center justify-between px-1.5 py-1 gap-1" style={{ background: `${accent}18` }}>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="font-black" style={{ color: accent }}>{pos.direction}</span>
+                      <span className="text-[9px] font-bold px-1 rounded" style={{ background: `${accent}25`, color: accent }}>
+                        {pos.leverage}x
+                      </span>
+                      <span className="truncate text-[9px] text-muted-foreground">{pos.source ?? (pos.auto ? "Bot" : "Manual")}</span>
+                    </div>
+                    {onClosePosition && (
+                      <button
+                        onClick={() => onClosePosition(pos.id, mark)}
+                        className="flex-shrink-0 rounded p-0.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/15 transition-all"
+                        title="סגור פוזיציה"
+                      >
+                        <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 1l10 10M11 1L1 11" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Price rows */}
+                  <div className="px-1.5 py-1 space-y-0.5">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Entry</span>
+                      <span>${pos.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Mark</span>
+                      <span>{mark > 0 ? `$${mark.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
+                    </div>
+                    {pos.slPrice != null && (
+                      <div className="flex justify-between gap-2 text-red-400/80">
+                        <span>SL</span>
+                        <span>${pos.slPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {pos.tpPrice != null && (
+                      <div className="flex justify-between gap-2 text-emerald-400/80">
+                        <span>TP</span>
+                        <span>${pos.tpPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-2 pt-0.5 border-t border-border/40">
+                      <span className="text-muted-foreground">Margin</span>
+                      <span>${margin.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between gap-2 font-black" style={{ color: pnlPositive ? "#10b981" : "#ef4444" }}>
+                      <span>P&L</span>
+                      <span>{pnlPositive ? "+" : ""}{pnl.toFixed(2)} ({pnlPositive ? "+" : ""}{pnlPct.toFixed(1)}%)</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {mode === "pro" && (
           <div className="absolute inset-0 z-20 bg-[hsl(0_0%_4%)]">
             <TradingViewAdvancedChart tvSymbol={`BINANCE:${toBinanceSymbol(symbol)}`} />
@@ -348,7 +497,7 @@ export function CandlestickChart({ symbol }: Props) {
           </div>
         )}
         {showAnalysis && analysis && (
-          <div className="absolute top-2 left-2 right-2 max-w-sm mx-auto rounded-lg border border-border/80 bg-card/95 backdrop-blur p-3 shadow-lg z-10">
+          <div className="absolute top-2 right-2 max-w-sm rounded-lg border border-border/80 bg-card/95 backdrop-blur p-3 shadow-lg z-10">
             <div className="flex items-center justify-between mb-2">
               <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
                 analysis.verdict === "LONG" ? "bg-emerald-500/20 text-emerald-400"

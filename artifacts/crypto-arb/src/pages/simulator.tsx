@@ -348,7 +348,7 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { bin
 
 /* ─── Professional Futures Terminal ─── */
 function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPosFilter }: { binancePrices: Record<string, number>; initialAsset?: string; posFilter: PosFilter; setPosFilter: (v: PosFilter) => void }) {
-  const { cash, openBinancePosition } = usePortfolio();
+  const { cash, openBinancePosition, binancePositions, closeBinancePosition } = usePortfolio();
   // Allow ANY asset (e.g. deep-linked from trade history), not just the strip's presets.
   const [selectedAsset, setSelectedAsset] = useState<string>(initialAsset ? initialAsset.toUpperCase() : "BTC");
   const [leverage, setLeverage] = useState<Leverage>(1);
@@ -428,7 +428,12 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           {/* Chart */}
           <div className="flex-1 min-h-0" style={{ minHeight: "220px" }}>
-            <CandlestickChart symbol={selectedAsset} />
+            <CandlestickChart
+              symbol={selectedAsset}
+              positions={binancePositions.filter(p => p.asset === selectedAsset)}
+              currentPrice={currentPrice}
+              onClosePosition={(id, price) => closeBinancePosition(id, price)}
+            />
           </div>
 
           {/* Trade Form */}
