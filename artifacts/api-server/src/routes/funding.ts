@@ -4,6 +4,7 @@ import {
   buildFundingOpportunities,
   checkFundingAsset,
   backtestFundingAsset,
+  getFundingHistory,
 } from "../lib/funding-arb";
 import {
   GetFundingOpportunitiesResponse,
@@ -11,6 +12,8 @@ import {
   CheckFundingAssetResponse,
   BacktestFundingAssetQueryParams,
   BacktestFundingAssetResponse,
+  GetFundingHistoryQueryParams,
+  GetFundingHistoryResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -37,6 +40,21 @@ router.get("/funding/check", expensiveRateLimit, async (req, res): Promise<void>
   } catch (err) {
     req.log.error({ err }, "Failed to check funding asset");
     res.status(502).json({ error: "Failed to check funding asset" });
+  }
+});
+
+router.get("/funding/history", expensiveRateLimit, async (req, res): Promise<void> => {
+  const query = GetFundingHistoryQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: "Invalid params" });
+    return;
+  }
+  try {
+    const result = await getFundingHistory(query.data.asset, query.data.days ?? 30);
+    res.json(GetFundingHistoryResponse.parse(result));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch funding history");
+    res.status(502).json({ error: "Failed to fetch funding history" });
   }
 });
 

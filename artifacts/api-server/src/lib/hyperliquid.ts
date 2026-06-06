@@ -130,9 +130,20 @@ interface HlFundingHistoryItem {
 const _histCache = new Map<string, { data: FundingRatePoint[]; expiresAt: number }>();
 const HIST_TTL_MS = 5 * 60 * 1000;
 
+/** Hyperliquid funds hourly and caps each fundingHistory call at 500 rows. */
+const HL_MAX_ROWS_PER_REQ = 500;
+/** Max history depth we will fetch (1 year of hourly funding). */
+const MAX_HIST_DAYS = 365;
+/** Hard cap on paginated upstream calls per fetch to bound fan-out / latency. */
+const HL_MAX_PAGES = 20;
+
 /**
- * Hourly funding history for one asset over the last `hours` (default 7 days).
- * Returns oldest→newest points with per-interval and annualized percents.
+ * Fetch hourly Hyperliquid funding history for an asset, paginating backwards as
+ * far as `hours` allows. Hyperliquid returns at most 500 rows per request, so we
+ * walk forward from the window start, advancing the cursor past the newest row
+ * each page until we reach the present, hit the page cap, or a page returns
+ * short. Pages are deduped by timestamp; a failed page returns whatever we have
+ * so far rather than throwing, so the chart degrades gracefully.
  */
 export async function fetchHyperliquidFundingHistory(
   asset: string,
@@ -140,32 +151,51 @@ export async function fetchHyperliquidFundingHistory(
 ): Promise<FundingRatePoint[]> {
   const sym = asset.trim().toUpperCase();
   if (!/^[A-Z0-9]{1,20}$/.test(sym)) throw new Error("Invalid asset");
-  const clampedHours = Math.max(1, Math.min(24 * 30, Math.floor(hours)));
+  const clampedHours = Math.max(1, Math.min(24 * MAX_HIST_DAYS, Math.floor(hours)));
   const cacheKey = `${sym}|${clampedHours}`;
   const now = Date.now();
   const cached = _histCache.get(cacheKey);
   if (cached && now < cached.expiresAt) return cached.data;
 
-  const startTime = now - clampedHours * 60 * 60 * 1000;
-  const raw = await postInfo<HlFundingHistoryItem[]>({
-    type: "fundingHistory",
-    coin: sym,
-    startTime,
-  });
+  const windowStart = now - clampedHours * 60 * 60 * 1000;
+  const byTime = new Map<number, FundingRatePoint>();
+  let cursor = windowStart;
 
-  const out: FundingRatePoint[] = [];
-  for (const item of raw ?? []) {
-    const rate = parseFloat(item.fundingRate ?? "");
-    const t = item.time;
-    if (!Number.isFinite(rate) || typeof t !== "number") continue;
-    out.push({
-      time: Math.floor(t / 1000),
-      fundingRatePercent: rate * 100,
-      annualizedPercent: rate * HL_PERIODS_PER_YEAR * 100,
-      venue: "HYPERLIQUID",
-    });
+  for (let page = 0; page < HL_MAX_PAGES; page++) {
+    let raw: HlFundingHistoryItem[];
+    try {
+      raw = await postInfo<HlFundingHistoryItem[]>({
+        type: "fundingHistory",
+        coin: sym,
+        startTime: cursor,
+      });
+    } catch (err) {
+      logger.warn({ err, sym, page }, "Hyperliquid funding history page failed");
+      break; // degrade gracefully — return what we already collected
+    }
+    if (!raw || raw.length === 0) break;
+
+    let maxT = cursor;
+    for (const item of raw) {
+      const rate = parseFloat(item.fundingRate ?? "");
+      const t = item.time;
+      if (!Number.isFinite(rate) || typeof t !== "number") continue;
+      if (t > maxT) maxT = t;
+      byTime.set(t, {
+        time: Math.floor(t / 1000),
+        fundingRatePercent: rate * 100,
+        annualizedPercent: rate * HL_PERIODS_PER_YEAR * 100,
+        venue: "HYPERLIQUID",
+      });
+    }
+
+    if (raw.length < HL_MAX_ROWS_PER_REQ) break; // last (partial) page
+    if (maxT <= cursor) break; // no forward progress — avoid infinite loop
+    cursor = maxT + 1;
+    if (cursor >= now) break; // caught up to the present
   }
-  out.sort((a, b) => a.time - b.time);
+
+  const out = Array.from(byTime.values()).sort((a, b) => a.time - b.time);
   _histCache.set(cacheKey, { data: out, expiresAt: now + HIST_TTL_MS });
   return out;
 }

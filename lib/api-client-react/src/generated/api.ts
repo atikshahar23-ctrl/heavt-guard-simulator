@@ -23,9 +23,11 @@ import type {
   ErrorResponse,
   FundingAssetCheck,
   FundingBacktest,
+  FundingHistory,
   FundingOpportunity,
   GetAllMarketsParams,
   GetBinanceDataParams,
+  GetFundingHistoryParams,
   GetPolymarketMarketsParams,
   GetScanResultsParams,
   GetStockKlinesParams,
@@ -1575,6 +1577,91 @@ export function useCheckFundingAsset<TData = Awaited<ReturnType<typeof checkFund
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getCheckFundingAssetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFundingHistoryUrl = (params: GetFundingHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funding/history?${stringifiedParams}` : `/api/funding/history`
+}
+
+/**
+ * Returns paginated hourly Hyperliquid funding history for one asset over the requested lookback (up to 1 year, as far back as the venue has data), plus summary statistics (average / min / max annualized funding and the share of positive intervals) for the professional history chart.
+ * @summary Deep funding-rate history for one asset
+ */
+export const getFundingHistory = async (params: GetFundingHistoryParams, options?: RequestInit): Promise<FundingHistory> => {
+
+  return customFetch<FundingHistory>(getGetFundingHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFundingHistoryQueryKey = (params?: GetFundingHistoryParams,) => {
+    return [
+    `/api/funding/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFundingHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getFundingHistory>>, TError = ErrorType<ErrorResponse>>(params: GetFundingHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFundingHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFundingHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFundingHistory>>> = ({ signal }) => getFundingHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFundingHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFundingHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getFundingHistory>>>
+export type GetFundingHistoryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Deep funding-rate history for one asset
+ */
+
+export function useGetFundingHistory<TData = Awaited<ReturnType<typeof getFundingHistory>>, TError = ErrorType<ErrorResponse>>(
+ params: GetFundingHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFundingHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFundingHistoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

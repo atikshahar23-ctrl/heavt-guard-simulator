@@ -519,6 +519,42 @@ export const CheckFundingAssetResponse = zod.object({
 
 
 /**
+ * Returns paginated hourly Hyperliquid funding history for one asset over the requested lookback (up to 1 year, as far back as the venue has data), plus summary statistics (average / min / max annualized funding and the share of positive intervals) for the professional history chart.
+ * @summary Deep funding-rate history for one asset
+ */
+export const getFundingHistoryQueryDaysDefault = 30;
+export const getFundingHistoryQueryDaysMax = 365;
+
+
+
+export const GetFundingHistoryQueryParams = zod.object({
+  "asset": zod.coerce.string().describe('Asset symbol (e.g. BTC, ETH, SOL)'),
+  "days": zod.coerce.number().min(1).max(getFundingHistoryQueryDaysMax).default(getFundingHistoryQueryDaysDefault).describe('Lookback window in days (default 30, max 365)')
+})
+
+export const GetFundingHistoryResponse = zod.object({
+  "asset": zod.string(),
+  "venue": zod.enum(['HYPERLIQUID']),
+  "days": zod.number().describe('Requested lookback window in days (clamped 1..365)'),
+  "points": zod.array(zod.object({
+  "time": zod.number().describe('Epoch seconds of the funding event'),
+  "fundingRatePercent": zod.number().describe('Per-interval funding rate as a percent'),
+  "annualizedPercent": zod.number().describe('Annualized funding rate as a percent'),
+  "venue": zod.enum(['HYPERLIQUID', 'BINANCE'])
+})),
+  "stats": zod.object({
+  "count": zod.number().describe('Number of hourly funding points returned'),
+  "spanDays": zod.number().describe('Actual span covered in days (may be shorter than requested)'),
+  "avgAnnualizedPercent": zod.number().describe('Mean annualized funding across the window, percent'),
+  "minAnnualizedPercent": zod.number().describe('Lowest annualized funding in the window, percent'),
+  "maxAnnualizedPercent": zod.number().describe('Highest annualized funding in the window, percent'),
+  "positiveRatio": zod.number().describe('Fraction of intervals with positive funding (0..1)')
+}),
+  "fetchedAt": zod.string()
+})
+
+
+/**
  * Replays recent hourly funding history for one asset and reports the accrued carry, drawdown of the funding stream, and an educational verdict. Past funding never guarantees future carry.
  * @summary Educational funding backtest over recent history
  */

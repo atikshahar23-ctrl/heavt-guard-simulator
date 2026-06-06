@@ -8,11 +8,14 @@ import {
   getBacktestFundingAssetQueryKey,
   useGetStocks,
   getGetStocksQueryKey,
+  useGetFundingHistory,
+  getGetFundingHistoryQueryKey,
 } from "@workspace/api-client-react";
 import type {
   FundingOpportunity,
   FundingAssetCheck,
   FundingBacktest,
+  FundingRatePoint,
   StockQuote,
 } from "@workspace/api-client-react";
 import {
@@ -74,6 +77,18 @@ const T = {
   shortPerp: { he: "לונג בסיס · שורט חוזה", en: "Long base · Short perp" },
   longPerp: { he: "שורט בסיס · לונג חוזה", en: "Short base · Long perp" },
   fundingChart: { he: "היסטוריית מימון", en: "Funding history" },
+  histTitle: { he: "היסטוריית מימון (שנתי)", en: "Funding history (annualized)" },
+  histLoading: { he: "טוען היסטוריה…", en: "Loading history…" },
+  histEmpty: { he: "אין מספיק היסטוריית מימון להצגה.", en: "Not enough funding history to chart." },
+  statAvg: { he: "ממוצע", en: "Avg" },
+  statMin: { he: "מינ׳", en: "Min" },
+  statMax: { he: "מקס׳", en: "Max" },
+  statPositive: { he: "מחזורים חיוביים", en: "Positive" },
+  statSpan: { he: "טווח", en: "Span" },
+  histVenueNote: {
+    he: "מקור: Hyperliquid · מימון שעתי · עומק עד שנה (כפי שזמין בבורסה). ביצועי עבר אינם מבטיחים תקבולים עתידיים.",
+    en: "Source: Hyperliquid · hourly funding · up to 1y deep (as available). Past funding never guarantees future carry.",
+  },
   backtest: { he: "תרחיש לאחור", en: "Backtest scenario" },
   accrued: { he: "מימון מצטבר", en: "Accrued funding" },
   posIntervals: { he: "מחזורים חיוביים", en: "Positive intervals" },
@@ -293,6 +308,97 @@ function BacktestPanel({ bt, lang }: { bt: FundingBacktest; lang: Lang }) {
   );
 }
 
+/** Selectable lookback windows for the pro funding-history chart. */
+const HIST_RANGES: { days: number; label: string }[] = [
+  { days: 7, label: "7D" },
+  { days: 30, label: "30D" },
+  { days: 90, label: "90D" },
+  { days: 365, label: "1Y" },
+];
+
+/**
+ * Professional funding-history panel: a range selector (7D/30D/90D/1Y, fetched
+ * as deep as the venue has data), an area chart with crosshair tooltip + average
+ * reference line, and a summary stat strip. Falls back to the bundled check
+ * history while the deep series loads so the chart never flashes empty.
+ */
+function FundingHistorySection({ asset, fallback, lang }: { asset: string; fallback: FundingRatePoint[]; lang: Lang }) {
+  const [days, setDays] = useState(30);
+  const { data, isLoading, isFetching } = useGetFundingHistory(
+    { asset, days },
+    { query: { queryKey: getGetFundingHistoryQueryKey({ asset, days }), enabled: !!asset, staleTime: 300000 } },
+  );
+
+  const series = data && data.points.length > 1 ? data.points : fallback;
+  const stats = data?.stats ?? null;
+  const hasData = series.length > 1;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+          {T.histTitle[lang]}
+          {isFetching && <RefreshCw className="h-3 w-3 animate-spin text-primary/70" />}
+        </div>
+        <div className="flex items-center gap-1" dir="ltr">
+          {HIST_RANGES.map((r) => (
+            <button
+              key={r.days}
+              type="button"
+              onClick={() => setDays(r.days)}
+              className="rounded px-2 py-0.5 text-[10px] font-mono font-bold transition-colors"
+              style={
+                days === r.days
+                  ? { background: "hsl(43 74% 52%)", color: "#0a0a0a" }
+                  : { background: "hsl(0 0% 12%)", color: "hsl(0 0% 60%)" }
+              }
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {stats && (
+        <div className="grid grid-cols-4 gap-1.5 text-center" dir="ltr">
+          <HistStat label={T.statAvg[lang]} value={fmtPct(stats.avgAnnualizedPercent)} color={stats.avgAnnualizedPercent >= 0 ? "#22c55e" : "#ef4444"} />
+          <HistStat label={T.statMin[lang]} value={fmtPct(stats.minAnnualizedPercent)} color="#ef4444" />
+          <HistStat label={T.statMax[lang]} value={fmtPct(stats.maxAnnualizedPercent)} color="#22c55e" />
+          <HistStat label={T.statPositive[lang]} value={`${Math.round(stats.positiveRatio * 100)}%`} color="hsl(43 74% 60%)" />
+        </div>
+      )}
+
+      <div className="h-52 rounded-lg border border-border/50 overflow-hidden">
+        {isLoading && !hasData ? (
+          <div className="flex h-full items-center justify-center text-[10px] font-mono text-muted-foreground">{T.histLoading[lang]}</div>
+        ) : hasData ? (
+          <FundingChart series={series} metric="annualized" avgValue={stats?.avgAnnualizedPercent ?? null} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-[10px] font-mono text-muted-foreground">{T.histEmpty[lang]}</div>
+        )}
+      </div>
+
+      {stats && stats.count > 0 && (
+        <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground" dir="ltr">
+          <span>{stats.count} pts · {T.statSpan[lang]} {stats.spanDays}d</span>
+          <span>HYPERLIQUID · 1h</span>
+        </div>
+      )}
+
+      <p className="text-[9px] text-muted-foreground/70 leading-snug">{T.histVenueNote[lang]}</p>
+    </div>
+  );
+}
+
+function HistStat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="rounded bg-secondary/40 py-1.5">
+      <div className="text-[8px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="font-mono text-[11px] font-bold" style={{ color }}>{value}</div>
+    </div>
+  );
+}
+
 function CheckResult({ chk, lang }: { chk: FundingAssetCheck; lang: Lang }) {
   const sm = sideMeta(chk.side, lang);
   const vc = viabilityColor(chk.viability);
@@ -332,14 +438,7 @@ function CheckResult({ chk, lang }: { chk: FundingAssetCheck; lang: Lang }) {
 
       <p className="text-[10px] text-muted-foreground leading-snug">{lang === "he" ? chk.analysisHe : chk.analysisEn}</p>
 
-      {chk.history.length > 1 && (
-        <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">{T.fundingChart[lang]}</div>
-          <div className="h-48 rounded-lg border border-border/50 overflow-hidden">
-            <FundingChart series={chk.history} metric="annualized" />
-          </div>
-        </div>
-      )}
+      <FundingHistorySection asset={chk.asset} fallback={chk.history} lang={lang} />
 
       {hasCarry ? (
         <PaperEntry asset={chk.asset} spotPrice={chk.spotPrice} side={chk.side} annualizedPercent={chk.annualizedPercent} lang={lang} />

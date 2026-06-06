@@ -275,6 +275,73 @@ export async function buildFundingOpportunities(): Promise<FundingOpportunity[]>
   return promise;
 }
 
+/* ── Deep funding history (for the pro history chart) ────────────── */
+
+export interface FundingHistoryStats {
+  /** Number of hourly funding points returned. */
+  count: number;
+  /** Actual span covered, in days (may be shorter than requested for newer coins). */
+  spanDays: number;
+  /** Mean annualized funding across the window, percent. */
+  avgAnnualizedPercent: number;
+  /** Lowest annualized funding in the window, percent. */
+  minAnnualizedPercent: number;
+  /** Highest annualized funding in the window, percent. */
+  maxAnnualizedPercent: number;
+  /** Fraction of intervals with positive (collectable) funding, 0..1. */
+  positiveRatio: number;
+}
+
+export interface FundingHistoryResult {
+  asset: string;
+  venue: "HYPERLIQUID";
+  /** Requested lookback window in days (clamped 1..365). */
+  days: number;
+  points: FundingRatePoint[];
+  stats: FundingHistoryStats;
+  fetchedAt: string;
+}
+
+export async function getFundingHistory(
+  asset: string,
+  days: number,
+): Promise<FundingHistoryResult> {
+  const sym = asset.trim().toUpperCase();
+  if (!/^[A-Z0-9]{1,20}$/.test(sym)) throw new Error("Invalid asset");
+  const clampedDays = Math.max(1, Math.min(365, Math.floor(days)));
+
+  const points = await fetchHyperliquidFundingHistory(sym, clampedDays * 24);
+  const n = points.length;
+
+  let sum = 0;
+  let min = Infinity;
+  let max = -Infinity;
+  let positive = 0;
+  for (const p of points) {
+    sum += p.annualizedPercent;
+    if (p.annualizedPercent < min) min = p.annualizedPercent;
+    if (p.annualizedPercent > max) max = p.annualizedPercent;
+    if (p.fundingRatePercent > 0) positive++;
+  }
+  const spanSeconds = n > 1 ? points[n - 1].time - points[0].time : 0;
+
+  return {
+    asset: sym,
+    venue: "HYPERLIQUID",
+    days: clampedDays,
+    points,
+    stats: {
+      count: n,
+      spanDays: Math.round((spanSeconds / 86400) * 10) / 10,
+      avgAnnualizedPercent: n ? sum / n : 0,
+      minAnnualizedPercent: n ? min : 0,
+      maxAnnualizedPercent: n ? max : 0,
+      positiveRatio: n ? positive / n : 0,
+    },
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
 /* ── Single-asset check ─────────────────────────────────────────── */
 
 export async function checkFundingAsset(asset: string): Promise<FundingAssetCheck> {

@@ -447,6 +447,38 @@ export interface FundingRatePoint {
   venue: FundingRatePointVenue;
 }
 
+export interface FundingHistoryStats {
+  /** Number of hourly funding points returned */
+  count: number;
+  /** Actual span covered in days (may be shorter than requested) */
+  spanDays: number;
+  /** Mean annualized funding across the window, percent */
+  avgAnnualizedPercent: number;
+  /** Lowest annualized funding in the window, percent */
+  minAnnualizedPercent: number;
+  /** Highest annualized funding in the window, percent */
+  maxAnnualizedPercent: number;
+  /** Fraction of intervals with positive funding (0..1) */
+  positiveRatio: number;
+}
+
+export type FundingHistoryVenue = typeof FundingHistoryVenue[keyof typeof FundingHistoryVenue];
+
+
+export const FundingHistoryVenue = {
+  HYPERLIQUID: 'HYPERLIQUID',
+} as const;
+
+export interface FundingHistory {
+  asset: string;
+  venue: FundingHistoryVenue;
+  /** Requested lookback window in days (clamped 1..365) */
+  days: number;
+  points: FundingRatePoint[];
+  stats: FundingHistoryStats;
+  fetchedAt: string;
+}
+
 export type FundingOpportunityBestVenue = typeof FundingOpportunityBestVenue[keyof typeof FundingOpportunityBestVenue];
 
 
@@ -676,6 +708,19 @@ export type CheckFundingAssetParams = {
  * Asset symbol (e.g. BTC, ETH, SOL)
  */
 asset: string;
+};
+
+export type GetFundingHistoryParams = {
+/**
+ * Asset symbol (e.g. BTC, ETH, SOL)
+ */
+asset: string;
+/**
+ * Lookback window in days (default 30, max 365)
+ * @minimum 1
+ * @maximum 365
+ */
+days?: number;
 };
 
 export type BacktestFundingAssetParams = {

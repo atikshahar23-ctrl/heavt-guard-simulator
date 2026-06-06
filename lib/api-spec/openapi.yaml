@@ -528,6 +528,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /funding/history:
+    get:
+      operationId: getFundingHistory
+      tags: [funding]
+      summary: Deep funding-rate history for one asset
+      description: >-
+        Returns paginated hourly Hyperliquid funding history for one asset over
+        the requested lookback (up to 1 year, as far back as the venue has data),
+        plus summary statistics (average / min / max annualized funding and the
+        share of positive intervals) for the professional history chart.
+      parameters:
+        - in: query
+          name: asset
+          schema:
+            type: string
+          required: true
+          description: Asset symbol (e.g. BTC, ETH, SOL)
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 30
+            minimum: 1
+            maximum: 365
+          required: false
+          description: Lookback window in days (default 30, max 365)
+      responses:
+        "200":
+          description: Funding history with summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FundingHistory"
+        "400":
+          description: Invalid params
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Failed to fetch funding history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /funding/backtest:
     get:
       operationId: backtestFundingAsset
@@ -1238,6 +1284,62 @@ components:
         venue:
           type: string
           enum: [HYPERLIQUID, BINANCE]
+
+    FundingHistoryStats:
+      type: object
+      required:
+        - count
+        - spanDays
+        - avgAnnualizedPercent
+        - minAnnualizedPercent
+        - maxAnnualizedPercent
+        - positiveRatio
+      properties:
+        count:
+          type: integer
+          description: Number of hourly funding points returned
+        spanDays:
+          type: number
+          description: Actual span covered in days (may be shorter than requested)
+        avgAnnualizedPercent:
+          type: number
+          description: Mean annualized funding across the window, percent
+        minAnnualizedPercent:
+          type: number
+          description: Lowest annualized funding in the window, percent
+        maxAnnualizedPercent:
+          type: number
+          description: Highest annualized funding in the window, percent
+        positiveRatio:
+          type: number
+          description: Fraction of intervals with positive funding (0..1)
+
+    FundingHistory:
+      type: object
+      required:
+        - asset
+        - venue
+        - days
+        - points
+        - stats
+        - fetchedAt
+      properties:
+        asset:
+          type: string
+        venue:
+          type: string
+          enum: [HYPERLIQUID]
+        days:
+          type: integer
+          description: Requested lookback window in days (clamped 1..365)
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/FundingRatePoint"
+        stats:
+          $ref: "#/components/schemas/FundingHistoryStats"
+        fetchedAt:
+          type: string
 
     FundingOpportunity:
       type: object
