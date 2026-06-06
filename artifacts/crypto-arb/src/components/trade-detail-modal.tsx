@@ -12,6 +12,7 @@ const TYPE_LABEL: Record<ClosedTrade["type"], string> = {
   BINANCE: "פיוצ'רס קריפטו",
   STOCK: "מניות",
   POLYMARKET: "שוק חיזוי",
+  FUNDING: "מימון דלתא-נייטרל",
 };
 
 const BOT_SOURCE_LABEL: Record<string, string> = {

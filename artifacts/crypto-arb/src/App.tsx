@@ -15,6 +15,7 @@ const StockDesk = lazy(() => import("@/pages/stock-desk"));
 const SmartMoney = lazy(() => import("@/pages/smart-money"));
 const Movers = lazy(() => import("@/pages/movers"));
 const Scalp = lazy(() => import("@/pages/scalp"));
+const FundingArb = lazy(() => import("@/pages/funding-arb"));
 const Momentum = lazy(() => import("@/pages/momentum"));
 const QuickBets = lazy(() => import("@/pages/quickbets"));
 const History = lazy(() => import("@/pages/history"));
@@ -32,6 +33,7 @@ import { RefreshProvider } from "@/contexts/refresh-context";
 import { LivePriceProvider } from "@/contexts/live-price-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
 import { ExtraBotsEngine } from "@/components/extra-bots-engine";
+import { FundingBotEngine } from "@/components/funding-bot-engine";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,7 @@ function Router() {
         <Route path="/browse" component={Browse} />
         <Route path="/movers" component={Movers} />
         <Route path="/scalp" component={Scalp} />
+        <Route path="/funding-arb" component={FundingArb} />
         <Route path="/momentum" component={Momentum} />
         <Route path="/quickbets" component={QuickBets} />
         <Route path="/history" component={History} />
@@ -90,6 +93,7 @@ function App() {
         <TooltipProvider>
           <AutoTraderEngine />
           <ExtraBotsEngine />
+          <FundingBotEngine />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>

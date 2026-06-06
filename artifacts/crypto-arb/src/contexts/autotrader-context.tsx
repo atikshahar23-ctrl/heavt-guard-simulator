@@ -495,6 +495,14 @@ export interface AutoTraderSettings {
   /** Minutes between DCA accumulation buys. */
   dcaIntervalMin: number;
 
+  /** Funding Arb — opens delta-neutral cash-and-carry paper pairs that accrue simulated funding. */
+  fundingEnabled: boolean;
+  /** Capital committed per delta-neutral pair (USD). */
+  fundingStake: number;
+  fundingMaxOpen: number;
+  /** Minimum annualized funding (%) before the bot opens a pair. */
+  fundingMinAnnualizedPct: number;
+
   /** Per-bot rolling scorecards (keyed by NewBotId). */
   botStats: Record<string, BotStat>;
 
@@ -607,6 +615,11 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   dcaStake: 150,
   dcaMaxOpen: 6,
   dcaIntervalMin: 30,
+
+  fundingEnabled: false,
+  fundingStake: 200,
+  fundingMaxOpen: 4,
+  fundingMinAnnualizedPct: 8,
 
   botStats: {},
 
@@ -785,6 +798,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         dipEnabled: false,
         breakoutEnabled: false,
         dcaEnabled: false,
+        fundingEnabled: false,
         alphaCoordinatorEnabled: false,
         dynamicCapitalEnabled: false,
         boostUntil: 0,
@@ -849,6 +863,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
       dipEnabled: true,
       breakoutEnabled: true,
       dcaEnabled: true,
+      fundingEnabled: true,
       boostUntil: Date.now() + Math.min(BOOST_MAX_MS, Math.max(1000, durationMs)),
     }));
   }, []);

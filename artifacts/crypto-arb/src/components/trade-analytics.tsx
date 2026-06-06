@@ -23,6 +23,7 @@ const TYPE_LABEL_HE: Record<ClosedTrade["type"], string> = {
   BINANCE: "פיוצ'רס",
   STOCK: "מניות",
   POLYMARKET: "הימורי שוק",
+  FUNDING: "מימון דלתא-נייטרל",
 };
 
 const DAY_LABELS: Record<string, string> = {

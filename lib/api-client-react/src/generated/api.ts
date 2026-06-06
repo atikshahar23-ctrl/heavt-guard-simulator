@@ -16,9 +16,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BacktestFundingAssetParams,
   BinanceData,
+  CheckFundingAssetParams,
   CoinTicker,
   ErrorResponse,
+  FundingAssetCheck,
+  FundingBacktest,
+  FundingOpportunity,
   GetAllMarketsParams,
   GetBinanceDataParams,
   GetPolymarketMarketsParams,
@@ -1407,6 +1412,254 @@ export function useGetShortTermMarkets<TData = Awaited<ReturnType<typeof getShor
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetShortTermMarketsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFundingOpportunitiesUrl = () => {
+
+
+
+
+  return `/api/funding/opportunities`
+}
+
+/**
+ * Returns delta-neutral funding (cash-and-carry) opportunities across the major-coin universe, combining Binance (8h) and Hyperliquid (1h) funding, ranked by an educational viability score. Paper/educational only.
+ * @summary Ranked cash-and-carry funding opportunities
+ */
+export const getFundingOpportunities = async ( options?: RequestInit): Promise<FundingOpportunity[]> => {
+
+  return customFetch<FundingOpportunity[]>(getGetFundingOpportunitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFundingOpportunitiesQueryKey = () => {
+    return [
+    `/api/funding/opportunities`
+    ] as const;
+    }
+
+
+export const getGetFundingOpportunitiesQueryOptions = <TData = Awaited<ReturnType<typeof getFundingOpportunities>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFundingOpportunities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFundingOpportunitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFundingOpportunities>>> = ({ signal }) => getFundingOpportunities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFundingOpportunities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFundingOpportunitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getFundingOpportunities>>>
+export type GetFundingOpportunitiesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Ranked cash-and-carry funding opportunities
+ */
+
+export function useGetFundingOpportunities<TData = Awaited<ReturnType<typeof getFundingOpportunities>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFundingOpportunities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFundingOpportunitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCheckFundingAssetUrl = (params: CheckFundingAssetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funding/check?${stringifiedParams}` : `/api/funding/check`
+}
+
+/**
+ * Returns the live funding snapshot, viability verdict, bilingual analysis, and recent funding history for one asset.
+ * @summary On-demand funding check for a single asset
+ */
+export const checkFundingAsset = async (params: CheckFundingAssetParams, options?: RequestInit): Promise<FundingAssetCheck> => {
+
+  return customFetch<FundingAssetCheck>(getCheckFundingAssetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckFundingAssetQueryKey = (params?: CheckFundingAssetParams,) => {
+    return [
+    `/api/funding/check`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCheckFundingAssetQueryOptions = <TData = Awaited<ReturnType<typeof checkFundingAsset>>, TError = ErrorType<ErrorResponse>>(params: CheckFundingAssetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkFundingAsset>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckFundingAssetQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkFundingAsset>>> = ({ signal }) => checkFundingAsset(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkFundingAsset>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CheckFundingAssetQueryResult = NonNullable<Awaited<ReturnType<typeof checkFundingAsset>>>
+export type CheckFundingAssetQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary On-demand funding check for a single asset
+ */
+
+export function useCheckFundingAsset<TData = Awaited<ReturnType<typeof checkFundingAsset>>, TError = ErrorType<ErrorResponse>>(
+ params: CheckFundingAssetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkFundingAsset>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCheckFundingAssetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getBacktestFundingAssetUrl = (params: BacktestFundingAssetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/funding/backtest?${stringifiedParams}` : `/api/funding/backtest`
+}
+
+/**
+ * Replays recent hourly funding history for one asset and reports the accrued carry, drawdown of the funding stream, and an educational verdict. Past funding never guarantees future carry.
+ * @summary Educational funding backtest over recent history
+ */
+export const backtestFundingAsset = async (params: BacktestFundingAssetParams, options?: RequestInit): Promise<FundingBacktest> => {
+
+  return customFetch<FundingBacktest>(getBacktestFundingAssetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getBacktestFundingAssetQueryKey = (params?: BacktestFundingAssetParams,) => {
+    return [
+    `/api/funding/backtest`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getBacktestFundingAssetQueryOptions = <TData = Awaited<ReturnType<typeof backtestFundingAsset>>, TError = ErrorType<ErrorResponse>>(params: BacktestFundingAssetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof backtestFundingAsset>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBacktestFundingAssetQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof backtestFundingAsset>>> = ({ signal }) => backtestFundingAsset(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof backtestFundingAsset>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type BacktestFundingAssetQueryResult = NonNullable<Awaited<ReturnType<typeof backtestFundingAsset>>>
+export type BacktestFundingAssetQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Educational funding backtest over recent history
+ */
+
+export function useBacktestFundingAsset<TData = Awaited<ReturnType<typeof backtestFundingAsset>>, TError = ErrorType<ErrorResponse>>(
+ params: BacktestFundingAssetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof backtestFundingAsset>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getBacktestFundingAssetQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

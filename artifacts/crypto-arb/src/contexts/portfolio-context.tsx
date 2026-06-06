@@ -68,9 +68,35 @@ export interface StockPosition {
   source?: string;
 }
 
+/**
+ * Delta-neutral funding-arbitrage paper position: a base leg paired with an
+ * opposite-direction perp. Because the legs offset, there is no directional price
+ * P&L — the only return is the simulated funding that accrues while it's held.
+ * `notionalPerLeg` is the capital deployed (committed from cash at open).
+ */
+export interface FundingPosition {
+  id: string;
+  asset: string;
+  /** SHORT_PERP = long base + short perp (collect positive funding); LONG_PERP = the inverse. */
+  side: "SHORT_PERP" | "LONG_PERP";
+  notionalPerLeg: number;
+  entryPrice: number;
+  /** Absolute annualized funding magnitude (percent) captured at open, for the accrual model. */
+  annualizedPercent: number;
+  /** Simulated funding earned so far, in USD. */
+  accruedFundingUsd: number;
+  openedAt: string;
+  /** Last time the engine accrued funding into this position. */
+  lastAccrualAt: string;
+  /** Opened automatically by the funding bot engine. */
+  auto?: boolean;
+  /** Free-form source label, e.g. "Funding arb". */
+  source?: string;
+}
+
 export interface ClosedTrade {
   id: string;
-  type: "POLYMARKET" | "BINANCE" | "STOCK";
+  type: "POLYMARKET" | "BINANCE" | "STOCK" | "FUNDING";
   description: string;
   cost: number;
   proceeds: number;
@@ -110,6 +136,7 @@ interface PortfolioState {
   polyPositions: PolyPosition[];
   binancePositions: BinancePosition[];
   stockPositions: StockPosition[];
+  fundingPositions: FundingPosition[];
   tradeHistory: ClosedTrade[];
 }
 
@@ -164,6 +191,15 @@ interface PortfolioContextValue extends PortfolioState {
     minCashReserve?: number
   ) => string | null;
   closeStockPosition: (id: string, currentPrice: number) => void;
+  /** Open a delta-neutral funding-arb paper position (capital = notionalPerLeg). */
+  openFundingPosition: (
+    pos: Omit<FundingPosition, "id" | "openedAt" | "lastAccrualAt" | "accruedFundingUsd"> & { accruedFundingUsd?: number },
+    minCashReserve?: number
+  ) => string | null;
+  /** Close a funding position, returning capital + simulated accrued funding. */
+  closeFundingPosition: (id: string, exit?: ClosedTrade["exit"]) => void;
+  /** Accrue simulated funding into every open funding position up to `now` (ms epoch). */
+  accrueFunding: (now?: number) => void;
   checkSlTp: (prices: Record<string, number>) => void;
   /** Ratchet trailing stops on Binance positions toward the favorable price. */
   updateTrailingStops: (prices: Record<string, number>) => void;
@@ -202,6 +238,7 @@ function freshState(): PortfolioState {
     polyPositions: [],
     binancePositions: [],
     stockPositions: [],
+    fundingPositions: [],
     tradeHistory: [],
   };
 }
@@ -213,6 +250,7 @@ function normalizeState(parsed: Partial<PortfolioState>): PortfolioState {
     polyPositions: parsed.polyPositions ?? [],
     binancePositions: parsed.binancePositions ?? [],
     stockPositions: (parsed.stockPositions ?? []).map((p) => ({ ...p, leverage: p.leverage ?? 1, direction: p.direction ?? "LONG" })),
+    fundingPositions: (parsed.fundingPositions ?? []).map((p) => ({ ...p, accruedFundingUsd: p.accruedFundingUsd ?? 0, lastAccrualAt: p.lastAccrualAt ?? p.openedAt })),
     tradeHistory: parsed.tradeHistory ?? [],
   };
 }
@@ -271,6 +309,7 @@ function portfolioOf(w: Wallet): PortfolioState {
     polyPositions: w.polyPositions,
     binancePositions: w.binancePositions,
     stockPositions: w.stockPositions,
+    fundingPositions: w.fundingPositions,
     tradeHistory: w.tradeHistory,
   };
 }
@@ -513,6 +552,102 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const openFundingPosition = useCallback(
+    (
+      pos: Omit<FundingPosition, "id" | "openedAt" | "lastAccrualAt" | "accruedFundingUsd"> & { accruedFundingUsd?: number },
+      minCashReserve = 0
+    ) => {
+      if (!(pos.notionalPerLeg > 0)) return "Amount must be positive";
+      if (!Number.isFinite(pos.entryPrice) || pos.entryPrice <= 0) return "Invalid base price";
+      // Capital deployed for the delta-neutral pair = notionalPerLeg.
+      const capital = pos.notionalPerLeg;
+      if (stateRef.current.cash < capital) return "Insufficient balance";
+      if (stateRef.current.cash - capital < Math.max(0, minCashReserve)) return "Below cash reserve";
+      const now = new Date().toISOString();
+      const position: FundingPosition = {
+        ...pos,
+        accruedFundingUsd: pos.accruedFundingUsd ?? 0,
+        id: crypto.randomUUID(),
+        openedAt: now,
+        lastAccrualAt: now,
+      };
+      stateRef.current = {
+        ...stateRef.current,
+        cash: stateRef.current.cash - capital,
+        fundingPositions: [...stateRef.current.fundingPositions, position],
+      };
+      setState((prev) => ({
+        ...prev,
+        cash: prev.cash - capital,
+        fundingPositions: [...prev.fundingPositions, position],
+      }));
+      return null;
+    },
+    []
+  );
+
+  const closeFundingPosition = useCallback(
+    (id: string, exit: ClosedTrade["exit"] = "MANUAL") => {
+      setState((prev) => {
+        const pos = prev.fundingPositions.find((p) => p.id === id);
+        if (!pos) return prev;
+        const pnl = pos.accruedFundingUsd;
+        const proceeds = Math.max(0, pos.notionalPerLeg + pnl);
+        const sideLabel = pos.side === "SHORT_PERP" ? "Long base / Short perp" : "Short base / Long perp";
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "FUNDING",
+          symbol: pos.asset,
+          description: `${pos.asset} delta-neutral funding (${sideLabel}) · $${pos.notionalPerLeg.toLocaleString()}/leg · funding $${pnl.toFixed(2)}`,
+          cost: pos.notionalPerLeg,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit,
+          direction: pos.side === "SHORT_PERP" ? "SHORT" : "LONG",
+          entryPrice: pos.entryPrice,
+          exitPrice: pos.entryPrice,
+          leverage: 1,
+          qty: pos.notionalPerLeg,
+          source: pos.source,
+        };
+        return {
+          ...prev,
+          cash: prev.cash + proceeds,
+          fundingPositions: prev.fundingPositions.filter((p) => p.id !== id),
+          tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
+        };
+      });
+    },
+    []
+  );
+
+  /**
+   * Accrue simulated funding into every open funding position. Funding earned over
+   * an elapsed window = notionalPerLeg * (annualizedPercent/100) * (elapsed / 1 year).
+   * Idempotent against `lastAccrualAt` so repeated ticks don't double-count.
+   */
+  const accrueFunding = useCallback((now = Date.now()) => {
+    const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+    if (stateRef.current.fundingPositions.length === 0) return;
+    const apply = (list: FundingPosition[]): FundingPosition[] =>
+      list.map((p) => {
+        const last = new Date(p.lastAccrualAt).getTime();
+        const elapsed = now - last;
+        if (!(elapsed > 0)) return p;
+        const earned = p.notionalPerLeg * (p.annualizedPercent / 100) * (elapsed / YEAR_MS);
+        return {
+          ...p,
+          accruedFundingUsd: p.accruedFundingUsd + earned,
+          lastAccrualAt: new Date(now).toISOString(),
+        };
+      });
+    stateRef.current = { ...stateRef.current, fundingPositions: apply(stateRef.current.fundingPositions) };
+    setState((prev) => ({ ...prev, fundingPositions: apply(prev.fundingPositions) }));
+  }, []);
 
   const openStockPosition = useCallback(
     (stock: Omit<StockPosition, "id" | "shares" | "cost" | "openedAt" | "leverage">, amountUsd: number, leverage: number = 1, minCashReserve = 0) => {
@@ -891,9 +1026,39 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       closedCount += 1;
     }
 
+    // Funding positions are delta-neutral (no price), so the kill-switch can always
+    // close them, returning capital + accrued simulated funding.
+    const keptFunding: FundingPosition[] = [];
+    for (const pos of prev.fundingPositions) {
+      const pnl = pos.accruedFundingUsd;
+      const proceeds = Math.max(0, pos.notionalPerLeg + pnl);
+      const closed: ClosedTrade = {
+        id: crypto.randomUUID(),
+        type: "FUNDING",
+        symbol: pos.asset,
+        description: `KILL-SWITCH ${pos.asset} delta-neutral funding · funding $${pnl.toFixed(2)}`,
+        cost: pos.notionalPerLeg,
+        proceeds,
+        pnl,
+        closedAt: new Date().toISOString(),
+        openedAt: pos.openedAt,
+        auto: pos.auto,
+        exit: "LIQ",
+        direction: pos.side === "SHORT_PERP" ? "SHORT" : "LONG",
+        entryPrice: pos.entryPrice,
+        exitPrice: pos.entryPrice,
+        leverage: 1,
+        qty: pos.notionalPerLeg,
+        source: pos.source,
+      };
+      tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+      cash += proceeds;
+      closedCount += 1;
+    }
+
     if (closedCount === 0) return 0;
 
-    const next = { ...prev, cash, binancePositions: keptBinance, stockPositions: keptStocks, tradeHistory };
+    const next = { ...prev, cash, binancePositions: keptBinance, stockPositions: keptStocks, fundingPositions: keptFunding, tradeHistory };
     stateRef.current = next;
     setState(next);
     return closedCount;
@@ -1016,6 +1181,36 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         closedCount += 1;
       }
 
+      const keptFunding: FundingPosition[] = [];
+      for (const pos of prev.fundingPositions) {
+        if (!pos.auto) { keptFunding.push(pos); continue; }
+        const pnl = pos.accruedFundingUsd;
+        const proceeds = Math.max(0, pos.notionalPerLeg + pnl);
+        const sideLabel = pos.side === "SHORT_PERP" ? "Long base / Short perp" : "Short base / Long perp";
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "FUNDING",
+          symbol: pos.asset,
+          description: `${pos.asset} delta-neutral funding (${sideLabel}) · funding $${pnl.toFixed(2)}`,
+          cost: pos.notionalPerLeg,
+          proceeds,
+          pnl,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "MANUAL",
+          direction: pos.side === "SHORT_PERP" ? "SHORT" : "LONG",
+          entryPrice: pos.entryPrice,
+          exitPrice: pos.entryPrice,
+          leverage: 1,
+          qty: pos.notionalPerLeg,
+          source: pos.source,
+        };
+        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        cash += proceeds;
+        closedCount += 1;
+      }
+
       if (closedCount === 0) return 0;
 
       const next = {
@@ -1024,6 +1219,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         binancePositions: keptBinance,
         stockPositions: keptStocks,
         polyPositions: keptPoly,
+        fundingPositions: keptFunding,
         tradeHistory,
       };
       stateRef.current = next;
@@ -1040,6 +1236,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       polyPositions: [],
       binancePositions: [],
       stockPositions: [],
+      fundingPositions: [],
       tradeHistory: [],
     });
   }, []);
@@ -1050,7 +1247,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     cash: w.cash,
     totalDeposited: w.totalDeposited,
     openPositions:
-      w.polyPositions.length + w.binancePositions.length + w.stockPositions.length,
+      w.polyPositions.length + w.binancePositions.length + w.stockPositions.length + w.fundingPositions.length,
   }));
 
   return (
@@ -1072,6 +1269,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         closeBinancePosition,
         openStockPosition,
         closeStockPosition,
+        openFundingPosition,
+        closeFundingPosition,
+        accrueFunding,
         checkSlTp,
         updateTrailingStops,
         checkRiskGuards,

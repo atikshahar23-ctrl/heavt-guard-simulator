@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
-  Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit, Sparkles,
+  Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit, Sparkles, Coins,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -148,7 +148,7 @@ const NEW_BOT_META: {
 
 export default function Bots() {
   const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getAssetCaution, resetAssetStats, getRiskGuard, resetRiskGuard, alpha } = useAutoTrader();
-  const { binancePositions, stockPositions, polyPositions, cash, totalDeposited, tradeHistory, closeAllBotPositions } = usePortfolio();
+  const { binancePositions, stockPositions, polyPositions, fundingPositions, cash, totalDeposited, tradeHistory, closeAllBotPositions } = usePortfolio();
   const { get: getLivePrice } = useLivePrices();
 
   // Cached market data shared with the trading engines (same query keys), used to
@@ -201,8 +201,9 @@ export default function Bots() {
       dipbuyer: binancePositions.filter((p) => p.source === "Dip Buyer").length,
       breakout: binancePositions.filter((p) => p.source === "Breakout Hunter").length,
       dca: stockPositions.filter((p) => p.source === "Blue-Chip DCA").length,
+      funding: fundingPositions.filter((p) => p.source === "Funding Arb Agent").length,
     };
-  }, [binancePositions, stockPositions, polyPositions]);
+  }, [binancePositions, stockPositions, polyPositions, fundingPositions]);
 
   // ── Mega-Agent Coordinator ──
   // One supervisor view over the whole fleet: every bot's realized track record
@@ -221,19 +222,21 @@ export default function Bots() {
       { key: "dipbuyer", title: "Dip Buyer", icon: TrendingDown, market: "קריפטו", armed: settings.dipEnabled, match: (t) => t.source === "Dip Buyer" },
       { key: "breakout", title: "Breakout Hunter", icon: TrendingUp, market: "קריפטו", armed: settings.breakoutEnabled, match: (t) => t.source === "Breakout Hunter" },
       { key: "dca", title: "Blue-Chip DCA", icon: Layers, market: "מניות", armed: settings.dcaEnabled, match: (t) => t.source === "Blue-Chip DCA" },
+      { key: "funding", title: "Funding Arb Agent", icon: Coins, market: "קריפטו", armed: settings.fundingEnabled, match: (t) => t.type === "FUNDING" && t.source === "Funding Arb Agent" },
     ];
     const rows = defs.map((d) => {
       const ts = tradeHistory.filter((t) => d.match(t));
       const trades = ts.length;
       const wins = ts.filter((t) => t.pnl > 0).length;
       const net = ts.reduce((a, t) => a + t.pnl, 0);
+      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca";
       return {
         ...d,
         trades, wins, net,
         wr: trades > 0 ? (wins / trades) * 100 : 0,
         open: counts[d.key] ?? 0,
-        paused: getRiskGuard(d.key).paused,
-        edge: getBotStat(d.key).edge,
+        paused: isNewBot ? getRiskGuard(d.key).paused : false,
+        edge: isNewBot ? getBotStat(d.key).edge : 1,
       };
     });
     const totTrades = rows.reduce((a, r) => a + r.trades, 0);
@@ -253,14 +256,14 @@ export default function Bots() {
   }, [tradeHistory, counts, scalpOn, momOn, settings, getRiskGuard, getBotStat]);
 
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
-    settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled;
+    settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled;
 
   const armAll = (on: boolean) => {
     update({
       enabled: on,
       strategy: on ? "BOTH" : settings.strategy,
       stocksEnabled: on, polyEnabled: on,
-      dipEnabled: on, breakoutEnabled: on, dcaEnabled: on,
+      dipEnabled: on, breakoutEnabled: on, dcaEnabled: on, fundingEnabled: on,
     });
   };
 
@@ -363,7 +366,8 @@ export default function Bots() {
   };
 
   const totalOpenAuto = binancePositions.filter((p) => p.auto).length +
-    stockPositions.filter((p) => p.auto).length + polyPositions.filter((p) => p.auto).length;
+    stockPositions.filter((p) => p.auto).length + polyPositions.filter((p) => p.auto).length +
+    fundingPositions.filter((p) => p.auto).length;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -577,7 +581,7 @@ export default function Bots() {
 
       {/* Live summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border bg-secondary/20 p-4">
-        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled].filter(Boolean).length} / 7`} />
+        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled].filter(Boolean).length} / 8`} />
         <StatChip label="Open Auto Pos." value={String(totalOpenAuto)} tone={totalOpenAuto > 0 ? "good" : undefined} />
         <StatChip label="Adaptive Mgr" value={settings.adaptiveEnabled ? "ON" : "OFF"} tone={settings.adaptiveEnabled ? "good" : undefined} />
         <StatChip label="Leverage (new)" value={`${settings.newBotLeverage}x`} />
@@ -1235,6 +1239,39 @@ export default function Bots() {
               </BotCard>
             );
           })}
+          <BotCard
+            icon={Coins}
+            title="Funding Arb Agent"
+            subtitle="Delta-neutral cash-and-carry"
+            hint="פותח פוזיציות דלתא-נייטרל (בסיס + פרפ הפוך) שצוברות מימון מדומה — לימודי בלבד, ללא הבטחת תשואה"
+            active={settings.fundingEnabled}
+            onToggle={(v) => update({ fundingEnabled: v })}
+            open={counts.funding}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <NumField
+                label="Stake $ / leg"
+                value={settings.fundingStake}
+                min={10}
+                step={10}
+                onChange={(v) => update({ fundingStake: v })}
+              />
+              <NumField
+                label="Max Open"
+                value={settings.fundingMaxOpen}
+                min={1}
+                max={50}
+                onChange={(v) => update({ fundingMaxOpen: v })}
+              />
+              <NumField
+                label="מימון מינ' (% שנתי)"
+                value={settings.fundingMinAnnualizedPct}
+                min={1}
+                step={1}
+                onChange={(v) => update({ fundingMinAnnualizedPct: v })}
+              />
+            </div>
+          </BotCard>
         </div>
       </section>
 

@@ -414,6 +414,151 @@ export interface MomentumCoin {
   reasons: string[];
 }
 
+export type FundingRatePointVenue = typeof FundingRatePointVenue[keyof typeof FundingRatePointVenue];
+
+
+export const FundingRatePointVenue = {
+  HYPERLIQUID: 'HYPERLIQUID',
+  BINANCE: 'BINANCE',
+} as const;
+
+export interface FundingRatePoint {
+  /** Epoch seconds of the funding event */
+  time: number;
+  /** Per-interval funding rate as a percent */
+  fundingRatePercent: number;
+  /** Annualized funding rate as a percent */
+  annualizedPercent: number;
+  venue: FundingRatePointVenue;
+}
+
+export type FundingOpportunityBestVenue = typeof FundingOpportunityBestVenue[keyof typeof FundingOpportunityBestVenue];
+
+
+export const FundingOpportunityBestVenue = {
+  BINANCE: 'BINANCE',
+  HYPERLIQUID: 'HYPERLIQUID',
+} as const;
+
+export type FundingOpportunitySide = typeof FundingOpportunitySide[keyof typeof FundingOpportunitySide];
+
+
+export const FundingOpportunitySide = {
+  SHORT_PERP: 'SHORT_PERP',
+  LONG_PERP: 'LONG_PERP',
+} as const;
+
+export type FundingOpportunityViability = typeof FundingOpportunityViability[keyof typeof FundingOpportunityViability];
+
+
+export const FundingOpportunityViability = {
+  STRONG: 'STRONG',
+  MODERATE: 'MODERATE',
+  WEAK: 'WEAK',
+  AVOID: 'AVOID',
+} as const;
+
+export interface FundingOpportunity {
+  rank: number;
+  asset: string;
+  spotPrice: number;
+  binanceFundingPercent: number | null;
+  binanceAnnualizedPercent: number | null;
+  hyperliquidFundingPercent: number | null;
+  hyperliquidAnnualizedPercent: number | null;
+  bestVenue: FundingOpportunityBestVenue;
+  annualizedPercent: number;
+  side: FundingOpportunitySide;
+  viabilityScore: number;
+  viability: FundingOpportunityViability;
+  analysisHe: string;
+  analysisEn: string;
+  fetchedAt: string;
+}
+
+export type FundingAssetCheckBestVenue = typeof FundingAssetCheckBestVenue[keyof typeof FundingAssetCheckBestVenue];
+
+
+export const FundingAssetCheckBestVenue = {
+  BINANCE: 'BINANCE',
+  HYPERLIQUID: 'HYPERLIQUID',
+} as const;
+
+export type FundingAssetCheckSide = typeof FundingAssetCheckSide[keyof typeof FundingAssetCheckSide];
+
+
+export const FundingAssetCheckSide = {
+  SHORT_PERP: 'SHORT_PERP',
+  LONG_PERP: 'LONG_PERP',
+} as const;
+
+export type FundingAssetCheckViability = typeof FundingAssetCheckViability[keyof typeof FundingAssetCheckViability];
+
+
+export const FundingAssetCheckViability = {
+  STRONG: 'STRONG',
+  MODERATE: 'MODERATE',
+  WEAK: 'WEAK',
+  AVOID: 'AVOID',
+} as const;
+
+export interface FundingAssetCheck {
+  asset: string;
+  found: boolean;
+  spotPrice: number;
+  binanceFundingPercent: number | null;
+  binanceAnnualizedPercent: number | null;
+  hyperliquidFundingPercent: number | null;
+  hyperliquidAnnualizedPercent: number | null;
+  bestVenue: FundingAssetCheckBestVenue;
+  annualizedPercent: number;
+  side: FundingAssetCheckSide;
+  viabilityScore: number;
+  viability: FundingAssetCheckViability;
+  analysisHe: string;
+  analysisEn: string;
+  history: FundingRatePoint[];
+  fetchedAt: string;
+}
+
+export type FundingBacktestVenue = typeof FundingBacktestVenue[keyof typeof FundingBacktestVenue];
+
+
+export const FundingBacktestVenue = {
+  BINANCE: 'BINANCE',
+  HYPERLIQUID: 'HYPERLIQUID',
+} as const;
+
+export type FundingBacktestVerdict = typeof FundingBacktestVerdict[keyof typeof FundingBacktestVerdict];
+
+
+export const FundingBacktestVerdict = {
+  STRONG: 'STRONG',
+  MODERATE: 'MODERATE',
+  WEAK: 'WEAK',
+  AVOID: 'AVOID',
+} as const;
+
+export interface FundingBacktest {
+  asset: string;
+  venue: FundingBacktestVenue;
+  hours: number;
+  intervals: number;
+  notional: number;
+  accruedFundingUsd: number;
+  accruedFundingPercent: number;
+  annualizedPercent: number;
+  positiveIntervals: number;
+  negativeIntervals: number;
+  worstIntervalPercent: number;
+  maxAdversePercent: number;
+  verdict: FundingBacktestVerdict;
+  analysisHe: string;
+  analysisEn: string;
+  series: FundingRatePoint[];
+  fetchedAt: string;
+}
+
 export type GetBinanceDataParams = {
 /**
  * Trading symbol (e.g. BTCUSDT, ETHUSDT)
@@ -509,5 +654,25 @@ export type GetStockSearchParams = {
  * Search query — ticker or company name, e.g. "tesla" or "nvda"
  */
 q: string;
+};
+
+export type CheckFundingAssetParams = {
+/**
+ * Asset symbol (e.g. BTC, ETH, SOL)
+ */
+asset: string;
+};
+
+export type BacktestFundingAssetParams = {
+/**
+ * Asset symbol (e.g. BTC, ETH, SOL)
+ */
+asset: string;
+/**
+ * Lookback window in hours (default 168 = 7 days)
+ * @minimum 1
+ * @maximum 720
+ */
+hours?: number;
 };
 

@@ -458,3 +458,100 @@ export const GetShortTermMarketsResponseItem = zod.object({
 export const GetShortTermMarketsResponse = zod.array(GetShortTermMarketsResponseItem)
 
 
+/**
+ * Returns delta-neutral funding (cash-and-carry) opportunities across the major-coin universe, combining Binance (8h) and Hyperliquid (1h) funding, ranked by an educational viability score. Paper/educational only.
+ * @summary Ranked cash-and-carry funding opportunities
+ */
+export const GetFundingOpportunitiesResponseItem = zod.object({
+  "rank": zod.number(),
+  "asset": zod.string(),
+  "spotPrice": zod.number(),
+  "binanceFundingPercent": zod.number().nullable(),
+  "binanceAnnualizedPercent": zod.number().nullable(),
+  "hyperliquidFundingPercent": zod.number().nullable(),
+  "hyperliquidAnnualizedPercent": zod.number().nullable(),
+  "bestVenue": zod.enum(['BINANCE', 'HYPERLIQUID']),
+  "annualizedPercent": zod.number(),
+  "side": zod.enum(['SHORT_PERP', 'LONG_PERP']),
+  "viabilityScore": zod.number(),
+  "viability": zod.enum(['STRONG', 'MODERATE', 'WEAK', 'AVOID']),
+  "analysisHe": zod.string(),
+  "analysisEn": zod.string(),
+  "fetchedAt": zod.string()
+})
+export const GetFundingOpportunitiesResponse = zod.array(GetFundingOpportunitiesResponseItem)
+
+
+/**
+ * Returns the live funding snapshot, viability verdict, bilingual analysis, and recent funding history for one asset.
+ * @summary On-demand funding check for a single asset
+ */
+export const CheckFundingAssetQueryParams = zod.object({
+  "asset": zod.coerce.string().describe('Asset symbol (e.g. BTC, ETH, SOL)')
+})
+
+export const CheckFundingAssetResponse = zod.object({
+  "asset": zod.string(),
+  "found": zod.boolean(),
+  "spotPrice": zod.number(),
+  "binanceFundingPercent": zod.number().nullable(),
+  "binanceAnnualizedPercent": zod.number().nullable(),
+  "hyperliquidFundingPercent": zod.number().nullable(),
+  "hyperliquidAnnualizedPercent": zod.number().nullable(),
+  "bestVenue": zod.enum(['BINANCE', 'HYPERLIQUID']),
+  "annualizedPercent": zod.number(),
+  "side": zod.enum(['SHORT_PERP', 'LONG_PERP']),
+  "viabilityScore": zod.number(),
+  "viability": zod.enum(['STRONG', 'MODERATE', 'WEAK', 'AVOID']),
+  "analysisHe": zod.string(),
+  "analysisEn": zod.string(),
+  "history": zod.array(zod.object({
+  "time": zod.number().describe('Epoch seconds of the funding event'),
+  "fundingRatePercent": zod.number().describe('Per-interval funding rate as a percent'),
+  "annualizedPercent": zod.number().describe('Annualized funding rate as a percent'),
+  "venue": zod.enum(['HYPERLIQUID', 'BINANCE'])
+})),
+  "fetchedAt": zod.string()
+})
+
+
+/**
+ * Replays recent hourly funding history for one asset and reports the accrued carry, drawdown of the funding stream, and an educational verdict. Past funding never guarantees future carry.
+ * @summary Educational funding backtest over recent history
+ */
+export const backtestFundingAssetQueryHoursDefault = 168;
+export const backtestFundingAssetQueryHoursMax = 720;
+
+
+
+export const BacktestFundingAssetQueryParams = zod.object({
+  "asset": zod.coerce.string().describe('Asset symbol (e.g. BTC, ETH, SOL)'),
+  "hours": zod.coerce.number().min(1).max(backtestFundingAssetQueryHoursMax).default(backtestFundingAssetQueryHoursDefault).describe('Lookback window in hours (default 168 = 7 days)')
+})
+
+export const BacktestFundingAssetResponse = zod.object({
+  "asset": zod.string(),
+  "venue": zod.enum(['BINANCE', 'HYPERLIQUID']),
+  "hours": zod.number(),
+  "intervals": zod.number(),
+  "notional": zod.number(),
+  "accruedFundingUsd": zod.number(),
+  "accruedFundingPercent": zod.number(),
+  "annualizedPercent": zod.number(),
+  "positiveIntervals": zod.number(),
+  "negativeIntervals": zod.number(),
+  "worstIntervalPercent": zod.number(),
+  "maxAdversePercent": zod.number(),
+  "verdict": zod.enum(['STRONG', 'MODERATE', 'WEAK', 'AVOID']),
+  "analysisHe": zod.string(),
+  "analysisEn": zod.string(),
+  "series": zod.array(zod.object({
+  "time": zod.number().describe('Epoch seconds of the funding event'),
+  "fundingRatePercent": zod.number().describe('Per-interval funding rate as a percent'),
+  "annualizedPercent": zod.number().describe('Annualized funding rate as a percent'),
+  "venue": zod.enum(['HYPERLIQUID', 'BINANCE'])
+})),
+  "fetchedAt": zod.string()
+})
+
+

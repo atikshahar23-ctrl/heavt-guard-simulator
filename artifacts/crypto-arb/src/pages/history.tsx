@@ -75,6 +75,7 @@ const TYPE_LABEL: Record<ClosedTrade["type"], string> = {
   BINANCE: "פיוצ'רס",
   STOCK: "מניות",
   POLYMARKET: "הימור",
+  FUNDING: "מימון",
 };
 
 function StatCard({ label, value, sub, color, Icon }: {
