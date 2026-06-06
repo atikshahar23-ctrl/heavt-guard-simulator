@@ -4,9 +4,12 @@ import {
   useGetStockRecommendations, getGetStockRecommendationsQueryKey,
   useGetStocks, getGetStocksQueryKey,
   useGetInfluencerSignals, getGetInfluencerSignalsQueryKey,
+  useGetMomentumCoins, getGetMomentumCoinsQueryKey,
+  useGetScalpSignals, getGetScalpSignalsQueryKey,
   Recommendation, StockRecommendation,
 } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
+import { useAutoTrader } from "@/contexts/autotrader-context";
 import { useLocation } from "wouter";
 import { X, Send, Sparkles, ExternalLink, Mic, MicOff, Volume2, VolumeX, Zap } from "lucide-react";
 import logoUrl from "@/assets/logo-heavy-guard.png";
@@ -33,7 +36,7 @@ function loadLang(): Lang {
   return window.localStorage.getItem(LANG_STORAGE) === "he" ? "he" : "en";
 }
 
-type Intent = "help" | "smart" | "buy" | "sell" | "crypto" | "portfolio" | "mood";
+type Intent = "help" | "smart" | "buy" | "sell" | "crypto" | "portfolio" | "mood" | "boost";
 
 interface QuickAction {
   intent: Intent;
@@ -45,6 +48,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   { intent: "sell", en: "Stocks to avoid", he: "מניות להימנע" },
   { intent: "smart", en: "Smart money", he: "כסף חכם" },
   { intent: "crypto", en: "Crypto signal", he: "סיגנל קריפטו" },
+  { intent: "boost", en: "Boost now?", he: "להפעיל בוסט?" },
   { intent: "mood", en: "Market mood", he: "מצב השוק" },
   { intent: "portfolio", en: "My portfolio", he: "התיק שלי" },
 ];
@@ -126,7 +130,16 @@ export function Jarvis() {
   const { data: influencers } = useGetInfluencerSignals({
     query: { queryKey: getGetInfluencerSignalsQueryKey(), refetchInterval: open ? 60000 : 180000 },
   });
+  // Live crypto "heat" feeds powering the Boost advisor. Shared query keys so these
+  // dedupe with the momentum/scalp pages instead of multiplying upstream fan-out.
+  const { data: momentum } = useGetMomentumCoins({
+    query: { queryKey: getGetMomentumCoinsQueryKey(), refetchInterval: open ? 30000 : 60000 },
+  });
+  const { data: scalp } = useGetScalpSignals({
+    query: { queryKey: getGetScalpSignalsQueryKey(), refetchInterval: open ? 30000 : 60000 },
+  });
 
+  const { settings: atSettings, startBoost } = useAutoTrader();
   const { cash, totalDeposited, polyPositions, binancePositions, stockPositions, tradeHistory } = usePortfolio();
   const [, navigate] = useLocation();
 
@@ -316,11 +329,13 @@ export function Jarvis() {
   }, [tipIdsKey]);
 
   // Rotate proactive tips and keep a clock so the muted window re-opens on its own.
+  // The clock ticks whenever the panel is closed (even with no tips) so the Boost
+  // advisor stays responsive.
   useEffect(() => {
-    if (open || tips.length === 0) return;
+    if (open) return;
     const t = setInterval(() => {
       setNow(Date.now());
-      setTipIdx((i) => i + 1);
+      if (tips.length > 0) setTipIdx((i) => i + 1);
     }, 16000);
     return () => clearInterval(t);
   }, [open, tips.length]);
@@ -347,6 +362,79 @@ export function Jarvis() {
     setMutedUntil(Date.now() + 3 * 60 * 1000);
   }, []);
 
+  /* ── Boost advisor ───────────────────────────────────────────
+     Reads the live crypto "heat" (momentum surges + strong scalp signals) and
+     decides whether a max-cadence Boost run is worthwhile and for how long.
+     Educational/demo only — it suggests a trading-tempo window, never a return. */
+  const boostAdvice = useMemo(() => {
+    const he = lang === "he";
+    const coins = momentum ?? [];
+    const sigs = scalp ?? [];
+    const strong = coins.filter((c) => c.score >= 70 && (c.stage === "SURGING" || c.stage === "HOT"));
+    const building = coins.filter((c) => c.score >= 55 && c.stage === "BUILDING");
+    const hiScalps = sigs.filter((s) => s.confidence === "HIGH" && s.direction !== "NEUTRAL");
+    const medScalps = sigs.filter((s) => s.confidence === "MEDIUM" && s.direction !== "NEUTRAL");
+    const avgRvol = strong.length ? strong.reduce((a, c) => a + (c.rvol || 0), 0) / strong.length : 0;
+
+    const heat = Math.round(Math.min(100,
+      strong.length * 16 + building.length * 6 +
+      hiScalps.length * 12 + medScalps.length * 4 +
+      Math.min(18, Math.max(0, (avgRvol - 1) * 12)),
+    ));
+
+    const worth = heat >= 45 && (strong.length >= 2 || hiScalps.length >= 3);
+    const durationMin = heat >= 80 ? 60 : heat >= 62 ? 30 : 15;
+    const level: "warm" | "strong" | "extreme" = heat >= 80 ? "extreme" : heat >= 62 ? "strong" : "warm";
+    const names = strong.slice(0, 3).map((c) => c.asset).join(", ");
+
+    const label = he
+      ? (level === "extreme" ? `שוק רותח · בוסט ${durationMin}ד׳` : level === "strong" ? `שוק חם · בוסט ${durationMin}ד׳` : `חלון פעולה · בוסט ${durationMin}ד׳`)
+      : (level === "extreme" ? `Market on fire · Boost ${durationMin}m` : level === "strong" ? `Hot market · Boost ${durationMin}m` : `Active window · Boost ${durationMin}m`);
+    const coinsHe = strong.length === 1 ? "מטבע אחד בזינוק" : `${strong.length} מטבעות בזינוק`;
+    const coinsEn = strong.length === 1 ? "1 coin surging" : `${strong.length} coins surging`;
+    const scalpsHe = hiScalps.length === 1 ? "סיגנל סקאלפ חזק אחד" : `${hiScalps.length} סיגנלי סקאלפ חזקים`;
+    const scalpsEn = hiScalps.length === 1 ? "1 strong scalp signal" : `${hiScalps.length} strong scalp signals`;
+    const text = he
+      ? `התראת בוסט: השוק חם עכשיו — ${coinsHe}${names ? ` (${names})` : ""} ו-${scalpsHe}. זה החלון להפעיל מהירות האור ל-${durationMin} דקות. (לימוד/דמו בלבד — בלי הבטחת רווח.)`
+      : `Boost alert, sir: the market is hot — ${coinsEn}${names ? ` (${names})` : ""} and ${scalpsEn}. This is the window to engage light-speed for ${durationMin} minutes. (Demo/educational only — no profit promised.)`;
+    return { worth, heat, durationMin, level, strong: strong.length, hiScalps: hiScalps.length, label, text };
+  }, [momentum, scalp, lang]);
+
+  const [boostMutedUntil, setBoostMutedUntil] = useState(0);
+  const boostActive = atSettings.boostUntil > now;
+  const showBoostAlert = !open && boostAdvice.worth && atSettings.boostUntil <= now && now >= boostMutedUntil;
+
+  // Announce a fresh boost window once (per level/duration) so the alert is impossible to miss.
+  const boostSpokeRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!showBoostAlert) {
+      if (!boostAdvice.worth) boostSpokeRef.current = null;
+      return;
+    }
+    const sig = `${boostAdvice.level}-${boostAdvice.durationMin}`;
+    if (boostSpokeRef.current === sig) return;
+    boostSpokeRef.current = sig;
+    if (!muted) speak(boostAdvice.text);
+  }, [showBoostAlert, boostAdvice, muted, speak]);
+
+  const activateBoost = useCallback(() => {
+    const min = boostAdvice.durationMin;
+    startBoost(min * 60_000);
+    setBoostMutedUntil(Date.now() + 30 * 60 * 1000);
+    const l = langRef.current;
+    setMessages((prev) => [...prev, {
+      id: uid(), role: "jarvis", lang: l,
+      text: l === "he"
+        ? `מצוין. הפעלתי מהירות האור ל-${min} דקות — כל הבוטים בקצב מקסימלי. אעדכן כשהחלון נסגר. (דמו/לימוד בלבד.)`
+        : `Engaged, sir. Light-speed is on for ${min} minutes — the whole fleet is at maximum cadence. I'll advise when the window closes. (Demo/educational only.)`,
+    }]);
+  }, [boostAdvice.durationMin, startBoost]);
+
+  const dismissBoost = useCallback(() => {
+    setNow(Date.now());
+    setBoostMutedUntil(Date.now() + 8 * 60 * 1000);
+  }, []);
+
   const respond = useCallback(
     (raw: string, l: Lang, forced?: Intent): Msg => {
       const q = raw.toLowerCase().trim();
@@ -360,10 +448,31 @@ export function Jarvis() {
         if (/\b(crypto|btc|bitcoin|eth|ethereum|sol|coin|poly|polymarket|arb|futures)/.test(q) || /קריפטו|ביטקוי|את'ריום|פולימרקט/.test(raw)) return "crypto";
         if (/\b(sell|short|avoid|dump|drop|exit|weak)/.test(q) || /מכירה|מכור|שורט|להימנע|לצמצם/.test(raw)) return "sell";
         if (/\b(mood|market|sentiment|overall|outlook|today)/.test(q) || /מצב השוק|סנטימנט|מצב רוח/.test(raw)) return "mood";
+        if (/\b(boost|turbo|light.?speed|max speed|faster|fast mode)/.test(q) || /בוסט|מהירות האור|טורבו|להאיץ|מהיר/.test(raw)) return "boost";
         if (/\b(buy|long|enter|best stock|top stock|invest|gain)/.test(q) || /קנייה|קנה|לונג|להשקיע/.test(raw)) return "buy";
         return q.length > 0 ? "buy" : "mood";
       };
       const intent = forced ?? detect();
+
+      if (intent === "boost") {
+        const active = atSettings.boostUntil > Date.now();
+        if (active) {
+          const remain = Math.max(1, Math.round((atSettings.boostUntil - Date.now()) / 60000));
+          return {
+            id, role: "jarvis",
+            text: he
+              ? `מהירות האור כבר פעילה — נשארו כ-${remain} דקות. אתן לה לרוץ ואתריע כשתסתיים.`
+              : `Light-speed is already active, sir — about ${remain} minute${remain > 1 ? "s" : ""} remain. I'll let it run and advise when it ends.`,
+          };
+        }
+        if (boostAdvice.worth) return { id, role: "jarvis", text: boostAdvice.text };
+        return {
+          id, role: "jarvis",
+          text: he
+            ? `השוק רגוע כרגע (חום ${boostAdvice.heat}/100) — חבל לבזבז בוסט. אני סורק את הקריפטו כל הזמן ואתריע ברגע שייפתח חלון חם.`
+            : `The market is calm right now, sir (heat ${boostAdvice.heat}/100) — no need to spend a Boost. I'm scanning the crypto feeds continuously and will alert you the moment a hot window opens.`,
+        };
+      }
 
       if (intent === "help") {
         return {
@@ -492,7 +601,7 @@ export function Jarvis() {
       const gl = topGainers.length ? ` Today's leaders: ${leaders}.` : "";
       return { id, role: "jarvis", text: `Market mood is ${moodEn}, sir. Equity signals: ${buys} BUY versus ${sells} SELL.${gl}` };
     },
-    [cryptoRecs, topBuys, topSells, topGainers, influencers, cash, totalDeposited, polyPositions, binancePositions, stockPositions, tradeHistory, tradeLink],
+    [cryptoRecs, topBuys, topSells, topGainers, influencers, cash, totalDeposited, polyPositions, binancePositions, stockPositions, tradeHistory, tradeLink, atSettings.boostUntil, boostAdvice],
   );
 
   const send = useCallback(
@@ -671,7 +780,52 @@ export function Jarvis() {
           className="fixed z-50 select-none touch-none"
           style={{ left: pos.x, top: pos.y, width: AVATAR }}
         >
-          {showTip && currentTip && (
+          {showBoostAlert && (
+            <div
+              className="absolute bottom-full right-0 mb-3 w-[min(320px,calc(100vw-2.5rem))] rounded-2xl border-2 border-primary bg-card/97 backdrop-blur shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300 jarvis-boost-alert"
+              style={{ boxShadow: "0 0 40px hsl(32 84% 55% / 0.5)" }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, hsl(190 80% 52%), hsl(32 84% 55%), hsl(190 80% 52%))" }} />
+              <div className="flex items-start gap-2.5 p-3">
+                <div className="shrink-0 mt-0.5"><JarvisFace speaking={speaking} size={34} /></div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-widest text-primary mb-1 jarvis-boost-pulse">
+                    <Zap className="h-3 w-3" /> {lang === "he" ? "ג'רוויס · התראת בוסט" : "JARVIS · Boost alert"}
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-primary/20 text-primary border border-primary/50">
+                      {boostAdvice.label}
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-cyan-400">{lang === "he" ? `חום ${boostAdvice.heat}/100` : `Heat ${boostAdvice.heat}/100`}</span>
+                  </div>
+                  <p dir={lang === "he" ? "rtl" : "ltr"} className="text-[11px] leading-snug text-foreground/90 line-clamp-3">{boostAdvice.text}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={activateBoost}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-3 py-1.5 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity jarvis-boost-pulse"
+                    >
+                      <Zap className="h-3 w-3" /> {lang === "he" ? `הפעל בוסט · ${boostAdvice.durationMin}ד׳` : `Boost now · ${boostAdvice.durationMin}m`}
+                    </button>
+                    <button
+                      onClick={dismissBoost}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {lang === "he" ? "אחר כך" : "Later"}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={dismissBoost}
+                  aria-label="Dismiss boost alert"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!showBoostAlert && showTip && currentTip && (
             <div
               className="absolute bottom-full right-0 mb-3 w-[min(300px,calc(100vw-2.5rem))] rounded-2xl border border-primary/30 bg-card/95 backdrop-blur shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300"
               style={{ boxShadow: "0 0 32px hsl(32 84% 55% / 0.18)" }}
@@ -741,11 +895,15 @@ export function Jarvis() {
           >
             <JarvisFace speaking={speaking} size={AVATAR} />
             <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card animate-pulse" />
-            {tips.length > 0 && !showTip && (
+            {boostAdvice.worth && !boostActive ? (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 inline-flex items-center gap-0.5 text-[8px] font-mono font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full whitespace-nowrap jarvis-boost-pulse">
+                <Zap className="h-2.5 w-2.5" /> {lang === "he" ? "בוסט!" : "BOOST!"}
+              </span>
+            ) : tips.length > 0 && !showTip ? (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-mono font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full whitespace-nowrap">
                 {tips.length} tips
               </span>
-            )}
+            ) : null}
           </button>
         </div>
       )}
@@ -799,6 +957,34 @@ export function Jarvis() {
 
           {micError && (
             <div className="px-4 py-1.5 text-[10px] font-mono text-amber-400 bg-amber-500/10 border-b border-amber-500/20">{micError}</div>
+          )}
+
+          {boostAdvice.worth && !boostActive && (
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/30 bg-primary/10 jarvis-boost-alert">
+              <Zap className="h-4 w-4 text-primary shrink-0 jarvis-boost-pulse" />
+              <div className="min-w-0 flex-1" dir={lang === "he" ? "rtl" : "ltr"}>
+                <div className="text-[10px] font-mono font-bold text-primary truncate">{boostAdvice.label}</div>
+                <div className="text-[9px] text-muted-foreground truncate">
+                  {lang === "he"
+                    ? `${boostAdvice.strong} בזינוק · ${boostAdvice.hiScalps} סיגנלים · חום ${boostAdvice.heat}/100`
+                    : `${boostAdvice.strong} surging · ${boostAdvice.hiScalps} signals · heat ${boostAdvice.heat}/100`}
+                </div>
+              </div>
+              <button
+                onClick={activateBoost}
+                className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0 jarvis-boost-pulse"
+              >
+                <Zap className="h-3 w-3" /> {lang === "he" ? `${boostAdvice.durationMin}ד׳` : `${boostAdvice.durationMin}m`}
+              </button>
+            </div>
+          )}
+          {boostActive && (
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-cyan-500/30 bg-cyan-500/10">
+              <Zap className="h-3.5 w-3.5 text-cyan-400 shrink-0 jarvis-boost-pulse" />
+              <span className="text-[10px] font-mono font-bold text-cyan-400" dir={lang === "he" ? "rtl" : "ltr"}>
+                {lang === "he" ? "מהירות האור פעילה — הצי בקצב מקסימלי" : "Light-speed active — fleet at max cadence"}
+              </span>
+            </div>
           )}
 
           {/* Messages */}

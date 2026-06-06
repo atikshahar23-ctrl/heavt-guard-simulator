@@ -311,6 +311,21 @@ textarea:focus-visible,
   transform-origin: center;
   animation: jarvis-speaking-pulse 0.5s ease-in-out infinite;
 }
+@keyframes jarvis-boost-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.08); opacity: 0.82; }
+}
+.jarvis-boost-pulse {
+  transform-origin: center;
+  animation: jarvis-boost-pulse 0.9s ease-in-out infinite;
+}
+@keyframes jarvis-boost-glow {
+  0%, 100% { box-shadow: 0 0 28px hsl(32 84% 55% / 0.35); }
+  50%      { box-shadow: 0 0 46px hsl(32 84% 55% / 0.65); }
+}
+.jarvis-boost-alert {
+  animation: jarvis-boost-glow 1.6s ease-in-out infinite;
+}
 
 /* ── Global money-flow Earth backdrop ── */
 @keyframes earth-spin {
