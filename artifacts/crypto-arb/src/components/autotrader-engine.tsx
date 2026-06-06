@@ -744,7 +744,12 @@ export function AutoTraderEngine() {
     };
     const btcBias = changeFor("BTC");
 
-    if (settings.polyStakePerBet <= 0) return;
+    // Auto-Pilot / Account-Manager: size each bet dynamically from portfolio
+    // health; otherwise use the user's fixed stake.
+    const polyStake = settings.dynamicCapitalEnabled
+      ? computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct).margin
+      : settings.polyStakePerBet;
+    if (!(polyStake > 0)) return;
     // Account Manager cash reserve: never commit below the protected floor.
     const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
     let openBets = polyPositions.length;
@@ -763,7 +768,7 @@ export function AutoTraderEngine() {
 
     for (const m of candidates) {
       if (openBets >= polyMaxOpen) break;
-      if (availableCash - settings.polyStakePerBet < cashFloor) break;
+      if (availableCash - polyStake < cashFloor) break;
 
       const asset = assetForQuestion(m.question)!;
       const bias = changeFor(asset) ?? btcBias;
@@ -789,17 +794,17 @@ export function AutoTraderEngine() {
           auto: true,
           source: "Polymarket BTC",
         },
-        settings.polyStakePerBet,
+        polyStake,
         cashFloor,
       );
       if (err) continue;
 
       polyCooldownRef.current[m.conditionId] = nowMs;
-      availableCash -= settings.polyStakePerBet;
+      availableCash -= polyStake;
       openBets += 1;
       toast({
         title: `${asset} Bet · ${side} (${bullish ? "bullish" : "bearish"})`,
-        description: `$${settings.polyStakePerBet} @ ${entryPrice.toFixed(2)} · ${m.question.slice(0, 80)}`,
+        description: `$${polyStake} @ ${entryPrice.toFixed(2)} · ${m.question.slice(0, 80)}`,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

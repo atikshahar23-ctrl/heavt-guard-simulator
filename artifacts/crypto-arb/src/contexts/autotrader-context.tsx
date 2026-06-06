@@ -280,6 +280,10 @@ export interface AutoTraderSettings {
   /** When true the engine overrides all margin/leverage/stake settings with a
    *  rule-based formula derived from portfolio value, health, and recent win-rate. */
   dynamicCapitalEnabled: boolean;
+  /** Auto-Pilot: one master switch that hands every per-trade decision to the
+   *  system — position sizing, leverage, SL/TP and the full management stack —
+   *  so the whole fleet runs fully hands-off. Paper-trading/educational only. */
+  autoPilotEnabled: boolean;
   /** Cash committed as margin per auto trade (USD). */
   marginPerTrade: number;
   leverage: number;
@@ -474,6 +478,7 @@ export interface AutoTraderSettings {
 export const DEFAULT_SETTINGS: AutoTraderSettings = {
   enabled: false,
   dynamicCapitalEnabled: false,
+  autoPilotEnabled: false,
   marginPerTrade: 100,
   leverage: 3,
   minConfidence: "HIGH",

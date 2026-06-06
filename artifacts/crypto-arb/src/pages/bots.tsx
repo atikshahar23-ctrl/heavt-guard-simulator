@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
-  Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit,
+  Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit, Sparkles,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -308,6 +308,60 @@ export default function Bots() {
     });
   };
 
+  // ── Cancel "light speed" — end the boost flood but KEEP trading calmly ──
+  // Turning light-speed off must NOT stop the bots: they keep trading at the
+  // normal, considered cadence (one sensible trade per opportunity, no flooding
+  // many micro-trades onto the same position). Positions stay open; bots stay
+  // armed. The full kill remains available via the separate "עצירת חירום" button.
+  const cancelLightSpeed = () => {
+    if (!boostActive) {
+      toast({
+        title: "מהירות האור כבר כבויה",
+        description: "הבוטים סוחרים בקצב רגיל ושקול.",
+      });
+      return;
+    }
+    stopBoost();
+    toast({
+      title: "מהירות האור בוטלה",
+      description: "הבוטים ממשיכים לסחור בקצב רגיל — עסקה אחת הגיונית לכל הזדמנות, בלי הצפה.",
+    });
+  };
+
+  // ── Auto-Pilot ("אוטומטי") — one switch hands every trade decision to the system ──
+  // When on, the engines size every trade themselves (margin, leverage and stake
+  // from portfolio health/win-rate), set their own SL/TP, and run the full
+  // management stack (smart exits, trailing, adaptive selectivity, risk manager,
+  // daily loss guard). Paper-trading/educational only. Turning it on also arms
+  // every bot so it is genuinely hands-off.
+  const autoPilotOn = settings.autoPilotEnabled;
+  const toggleAutoPilot = () => {
+    if (autoPilotOn) {
+      update({ autoPilotEnabled: false });
+      toast({
+        title: "מצב אוטומטי כבוי",
+        description: "ההגדרות שנבחרו נשארות — אפשר לכוונן כל פרמטר ידנית.",
+      });
+      return;
+    }
+    update({
+      autoPilotEnabled: true,
+      dynamicCapitalEnabled: true,
+      smartExitEnabled: true,
+      trailingEnabled: true,
+      adaptiveEnabled: true,
+      riskManagerEnabled: true,
+      alphaCoordinatorEnabled: true,
+      catastrophicExitEnabled: true,
+      dailyStopEnabled: true,
+    });
+    armAll(true);
+    toast({
+      title: "מצב אוטומטי מופעל",
+      description: "המערכת מנהלת הכל לבד — מינוף, גודל עסקה, SL/TP וכל הפרמטרים נקבעים פר עסקה.",
+    });
+  };
+
   const totalOpenAuto = binancePositions.filter((p) => p.auto).length +
     stockPositions.filter((p) => p.auto).length + polyPositions.filter((p) => p.auto).length;
 
@@ -327,6 +381,17 @@ export default function Bots() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            onClick={toggleAutoPilot}
+            className="gap-2 font-mono font-bold"
+            variant={autoPilotOn ? "default" : "outline"}
+            aria-pressed={autoPilotOn}
+            title="מצב אוטומטי מלא: המערכת קובעת מינוף, גודל עסקה, SL/TP וכל הפרמטרים — פר עסקה"
+            style={autoPilotOn ? { boxShadow: "0 0 18px hsl(43 74% 52% / 0.5)" } : undefined}
+          >
+            <Sparkles className="h-4 w-4" />
+            {autoPilotOn ? "אוטומטי פעיל" : "אוטומטי"}
+          </Button>
           {boostActive ? (
             <div
               className="flex items-center gap-2 rounded-md border px-3 py-1.5 animate-pulse"
@@ -378,13 +443,23 @@ export default function Bots() {
             {anyOn ? "כבה הכול" : "הפעל הכול"}
           </Button>
           <Button
+            onClick={cancelLightSpeed}
+            variant="outline"
+            className="gap-2 font-mono border-primary/60 text-primary hover:bg-primary/10"
+            title="ביטול מהירות האור: הבוטים ממשיכים לסחור בקצב רגיל ושקול (לא עוצר את המסחר)"
+          >
+            <Gauge className="h-4 w-4" />
+            ביטול מהירות האור
+          </Button>
+          <Button
             onClick={emergencyStop}
-            variant="destructive"
-            className="gap-2 font-mono font-bold animate-none border border-red-400/60 shadow-[0_0_18px_hsl(0_72%_51%/0.45)]"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 font-mono text-red-400 hover:text-red-300 hover:bg-red-500/10"
             title="עצירת חירום: מכבה את כל הבוטים וסוגר מיד את כל פוזיציות הבוט"
           >
             <Siren className="h-4 w-4" />
-            ביטול במהירות האור
+            עצירת חירום
           </Button>
         </div>
       </header>
