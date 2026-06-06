@@ -262,16 +262,25 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [isFetching, scanInterval]);
 
-  const btcAsset = data?.binanceAssets?.find((b) => b.asset === "BTC");
-  const filteredMarkets = data?.markets?.filter((m) =>
-    m.market.question.toLowerCase().includes(search.toLowerCase())
+  const btcAsset = useMemo(
+    () => data?.binanceAssets?.find((b) => b.asset === "BTC"),
+    [data],
   );
-  const top3 = topRecs?.slice(0, 3) ?? [];
+  const filteredMarkets = useMemo(
+    () =>
+      data?.markets?.filter((m) =>
+        m.market.question.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [data, search],
+  );
+  const top3 = useMemo(() => topRecs?.slice(0, 3) ?? [], [topRecs]);
 
   const openPos = binancePositions.length + stockPositions.length + polyPositions.length;
-  const closedWins = tradeHistory.filter((t) => t.pnl > 0).length;
-  const winRate =
-    tradeHistory.length > 0 ? Math.round((closedWins / tradeHistory.length) * 100) : null;
+  const winRate = useMemo(() => {
+    if (tradeHistory.length === 0) return null;
+    const closedWins = tradeHistory.filter((t) => t.pnl > 0).length;
+    return Math.round((closedWins / tradeHistory.length) * 100);
+  }, [tradeHistory]);
 
   const portfolioValue = useMemo(() => {
     return cash;

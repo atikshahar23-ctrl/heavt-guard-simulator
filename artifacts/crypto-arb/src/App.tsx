@@ -1,28 +1,29 @@
+import { Suspense, lazy } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import Markets from "@/pages/markets";
-import Browse from "@/pages/browse";
-import Binance from "@/pages/binance";
-import Recommendations from "@/pages/recommendations";
-import Simulator from "@/pages/simulator";
-import Stocks from "@/pages/stocks";
-import StockDesk from "@/pages/stock-desk";
-import SmartMoney from "@/pages/smart-money";
-import Movers from "@/pages/movers";
-import Scalp from "@/pages/scalp";
-import Momentum from "@/pages/momentum";
-import QuickBets from "@/pages/quickbets";
-import History from "@/pages/history";
-import TradeDesk from "@/pages/trade-desk";
-import Bots from "@/pages/bots";
-import MasterAdvisor from "@/pages/master-advisor";
-import Research from "@/pages/research";
-import Briefing from "@/pages/briefing";
-import Tools from "@/pages/tools";
+const Markets = lazy(() => import("@/pages/markets"));
+const Browse = lazy(() => import("@/pages/browse"));
+const Binance = lazy(() => import("@/pages/binance"));
+const Recommendations = lazy(() => import("@/pages/recommendations"));
+const Simulator = lazy(() => import("@/pages/simulator"));
+const Stocks = lazy(() => import("@/pages/stocks"));
+const StockDesk = lazy(() => import("@/pages/stock-desk"));
+const SmartMoney = lazy(() => import("@/pages/smart-money"));
+const Movers = lazy(() => import("@/pages/movers"));
+const Scalp = lazy(() => import("@/pages/scalp"));
+const Momentum = lazy(() => import("@/pages/momentum"));
+const QuickBets = lazy(() => import("@/pages/quickbets"));
+const History = lazy(() => import("@/pages/history"));
+const TradeDesk = lazy(() => import("@/pages/trade-desk"));
+const Bots = lazy(() => import("@/pages/bots"));
+const MasterAdvisor = lazy(() => import("@/pages/master-advisor"));
+const Research = lazy(() => import("@/pages/research"));
+const Briefing = lazy(() => import("@/pages/briefing"));
+const Tools = lazy(() => import("@/pages/tools"));
 import Layout from "@/components/layout";
 import { PortfolioProvider } from "@/contexts/portfolio-context";
 import { FavoritesProvider } from "@/contexts/favorites-context";
@@ -34,9 +35,18 @@ import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 
 const queryClient = new QueryClient();
 
+function PageFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center py-20">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Layout>
+      <Suspense fallback={<PageFallback />}>
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/browse" component={Browse} />
@@ -60,6 +70,7 @@ function Router() {
         <Route path="/research" component={Research} />
         <Route component={NotFound} />
       </Switch>
+      </Suspense>
     </Layout>
   );
 }

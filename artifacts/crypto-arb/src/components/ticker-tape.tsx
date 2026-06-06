@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useGetMarketOverview,
   getGetMarketOverviewQueryKey,
@@ -34,30 +34,45 @@ export function TickerTape() {
   const { get: getLive } = useLivePrices();
   const [paused, setPaused] = useState(false);
 
-  const indices: Tick[] = (stocks ?? [])
-    .filter((s) => s.category === "INDEX" && Number.isFinite(s.price) && s.price > 0)
-    .map((s) => ({ key: `idx-${s.symbol}`, label: s.name, price: s.price, changePercent: s.changePercent, kind: "index" }));
+  // Heavy filter/find work only recomputes when the underlying data changes,
+  // not on every 250ms live-price tick.
+  const indices = useMemo<Tick[]>(
+    () =>
+      (stocks ?? [])
+        .filter((s) => s.category === "INDEX" && Number.isFinite(s.price) && s.price > 0)
+        .map((s) => ({ key: `idx-${s.symbol}`, label: s.name, price: s.price, changePercent: s.changePercent, kind: "index" })),
+    [stocks],
+  );
 
-  const centralStocks: Tick[] = CENTRAL_STOCKS
-    .map((sym) => (stocks ?? []).find((s) => s.symbol === sym))
-    .filter((s): s is NonNullable<typeof s> => !!s && Number.isFinite(s.price) && s.price > 0)
-    .map((s) => ({ key: `stk-${s.symbol}`, label: s.symbol, price: s.price, changePercent: s.changePercent, kind: "stock" }));
+  const centralStocks = useMemo<Tick[]>(
+    () =>
+      CENTRAL_STOCKS.map((sym) => (stocks ?? []).find((s) => s.symbol === sym))
+        .filter((s): s is NonNullable<typeof s> => !!s && Number.isFinite(s.price) && s.price > 0)
+        .map((s) => ({ key: `stk-${s.symbol}`, label: s.symbol, price: s.price, changePercent: s.changePercent, kind: "stock" })),
+    [stocks],
+  );
 
-  const coins: Tick[] = (overview ?? [])
-    .filter((c) => Number.isFinite(c.price) && c.price > 0)
-    .map((c) => ({
-      key: `crypto-${c.asset}`,
-      label: c.asset,
-      price: getLive(c.asset)?.price ?? c.price,
-      changePercent: c.changePercent,
-      kind: "crypto",
-    }));
+  const coinsBase = useMemo(
+    () =>
+      (overview ?? [])
+        .filter((c) => Number.isFinite(c.price) && c.price > 0)
+        .map((c) => ({ asset: c.asset, price: c.price, changePercent: c.changePercent })),
+    [overview],
+  );
 
-  const ticks = [...indices, ...centralStocks, ...coins];
-  if (ticks.length === 0) return null;
+  // Live price overlay is the only part that needs to update each tick.
+  const coins: Tick[] = coinsBase.map((c) => ({
+    key: `crypto-${c.asset}`,
+    label: c.asset,
+    price: getLive(c.asset)?.price ?? c.price,
+    changePercent: c.changePercent,
+    kind: "crypto",
+  }));
+
+  if (indices.length + centralStocks.length + coins.length === 0) return null;
 
   // Duplicate the row so the -50% scroll loops seamlessly.
-  const row = [...ticks, ...ticks];
+  const row = [...indices, ...centralStocks, ...coins, ...indices, ...centralStocks, ...coins];
 
   return (
     <div className="relative z-10 shrink-0 h-8 overflow-hidden border-b border-border/70 bg-[hsl(0_0%_3%)]">

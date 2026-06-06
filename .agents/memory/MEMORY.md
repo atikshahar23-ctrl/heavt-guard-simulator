@@ -21,6 +21,7 @@
 - [Per-asset caution learning](per-asset-caution.md) — bots raise caution (1→1.8) on coins they keep losing on; fold-dedupe MUST use persisted global recordedTradeIds, not wallet-scoped tradeHistory
 - [RTL bidi number/slash flip](rtl-bidi-numbers.md) — bare "A / B" number pairs visually reorder in RTL Hebrew; spell sides out in words or wrap in LTR/bdi
 - [Fleet trade modes](trade-modes.md) — NORMAL/CALCULATED/SHLOMI layer over the gear; SHLOMI leverage cap must be enforced in BOTH resolveSizing branches (dynamic returns early)
+- [Render perf boundaries](render-perf-boundaries.md) — autotrader priceMap must NOT be memoized (needs live prices each 250ms tick); data-derived values are safe to memoize; pages are React.lazy
 - [JARVIS bilingual (he/en)](jarvis-bilingual.md) — langRef.current in send/speak/listen avoids stale-closure; store per-message lang and render dir from m.lang (toggling must not flip past msgs); English = British-male butler voice.
 - [Trade-mode & emergency stop](trade-mode-and-emergency-stop.md) — fleet CALCULATED toggle layered via intensityProfile(level,mode) chokepoint; panic close needs per-class price maps (useLivePrices is crypto-only) + entry fallback or positions survive.
 - [Master mastery + briefing framing](master-mastery-and-briefing.md) — master "control level" eases selectivity ALIGNED-only & capped 10%; briefing frames all suggestions as educational "scenarios to watch", never advice (replit.md constraint).

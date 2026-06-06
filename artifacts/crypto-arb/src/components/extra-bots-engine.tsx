@@ -249,22 +249,31 @@ export function ExtraBotsEngine() {
     if (open >= dcaMaxOpen) return;
     if (!(dcaStake > 0) || cash - dcaStake < cashFloor) return;
 
-    const priceOf = (sym: string): number | undefined =>
-      ((stocks ?? []) as StockQuote[]).find((s) => s.symbol === sym)?.price;
+    const quoteOf = (sym: string): StockQuote | undefined =>
+      ((stocks ?? []) as StockQuote[]).find((s) => s.symbol === sym);
 
-    // Rotate through the universe until we find one with a live price.
-    for (let i = 0; i < BLUE_CHIPS.length; i++) {
-      const pick = BLUE_CHIPS[(dcaIdxRef.current + i) % BLUE_CHIPS.length];
-      const price = priceOf(pick.symbol);
-      if (!price || price <= 0) continue;
+    // Smarter DCA: bias accumulation toward weakness. Build the tradable
+    // candidates (those with a live price), then buy the biggest 24h dipper
+    // first. Falls back to the cheapest mover so the bot never stalls when the
+    // whole universe is green — it just accumulates the least-extended name.
+    const candidates = BLUE_CHIPS
+      .map((pick) => {
+        const q = quoteOf(pick.symbol);
+        const price = q?.price ?? 0;
+        return { pick, price, changePercent: q?.changePercent ?? 0 };
+      })
+      .filter((c) => c.price > 0)
+      .sort((a, b) => a.changePercent - b.changePercent);
+
+    for (const { pick, price, changePercent } of candidates) {
       const err = openStockPosition(
         { symbol: pick.symbol, name: pick.name, direction: "LONG", entryPrice: price, auto: true, source: SOURCE.dca },
         dcaStake, 1, cashFloor,
       );
       if (err) continue;
-      dcaIdxRef.current = (dcaIdxRef.current + i + 1) % BLUE_CHIPS.length;
       lastDcaRef.current = now;
-      toast({ title: `Blue-Chip DCA · ${pick.symbol}`, description: `Accumulated $${dcaStake} @ $${price}` });
+      const dipNote = changePercent < 0 ? ` · dip ${changePercent.toFixed(1)}%` : "";
+      toast({ title: `Blue-Chip DCA · ${pick.symbol}`, description: `Accumulated $${dcaStake} @ $${price}${dipNote}` });
       break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
