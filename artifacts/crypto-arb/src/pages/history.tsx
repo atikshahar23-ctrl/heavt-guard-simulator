@@ -219,7 +219,7 @@ function OpenPositions() {
               return (
                 <div
                   key={p.id}
-                  onClick={() => navigate(`/stocks?symbol=${encodeURIComponent(p.symbol)}`)}
+                  onClick={() => navigate(`/simulator?tab=stocks`)}
                   role="button"
                   tabIndex={0}
                   title="צפה בגרף"

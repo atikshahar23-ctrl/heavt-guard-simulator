@@ -182,7 +182,7 @@ function PosFilterToggle({ value, onChange, counts }: { value: PosFilter; onChan
   );
 }
 
-function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { binancePrices: Record<string, number>; posFilter: PosFilter; setPosFilter: (v: PosFilter) => void }) {
+function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelectAsset }: { binancePrices: Record<string, number>; posFilter: PosFilter; setPosFilter: (v: PosFilter) => void; onSelectAsset?: (asset: string) => void }) {
   const { binancePositions, closeBinancePosition, tradeHistory } = usePortfolio();
   const [histFilter, setHistFilter] = useState<PosFilter>("ALL");
   const binanceTrades = tradeHistory.filter(t => t.type === "BINANCE");
@@ -238,7 +238,12 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { bin
               const margin = pos.notional / pos.leverage;
 
               return (
-                <div key={pos.id} className="px-3 py-2.5 space-y-1.5 hover:bg-secondary/10 transition-colors">
+                <div
+                  key={pos.id}
+                  className="px-3 py-2.5 space-y-1.5 hover:bg-secondary/20 transition-colors cursor-pointer"
+                  onClick={() => onSelectAsset?.(pos.asset)}
+                  title={`צפה בגרף ${pos.asset}`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-[11px] font-black font-mono ${pos.direction === "LONG" ? "text-emerald-400" : "text-red-400"}`}>
@@ -248,7 +253,7 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter }: { bin
                       <span className="text-[10px] text-primary font-mono">{pos.leverage}x</span>
                     </div>
                     <button
-                      onClick={() => closeBinancePosition(pos.id, currentPrice)}
+                      onClick={(e) => { e.stopPropagation(); closeBinancePosition(pos.id, currentPrice); }}
                       className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
                       title="Close position"
                     >
@@ -546,13 +551,13 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
 
         {/* RIGHT: Positions + History — large screens only */}
         <div className="hidden lg:flex w-[270px] border-l border-border flex-col shrink-0 overflow-hidden">
-          <FuturesPositionsPanel binancePrices={binancePrices} posFilter={posFilter} setPosFilter={setPosFilter} />
+          <FuturesPositionsPanel binancePrices={binancePrices} posFilter={posFilter} setPosFilter={setPosFilter} onSelectAsset={setSelectedAsset} />
         </div>
       </div>
 
       {/* Mobile: positions below trade form */}
       <div className="lg:hidden border-t border-border overflow-y-auto" style={{ maxHeight: "280px" }}>
-        <FuturesPositionsPanel binancePrices={binancePrices} posFilter={posFilter} setPosFilter={setPosFilter} />
+        <FuturesPositionsPanel binancePrices={binancePrices} posFilter={posFilter} setPosFilter={setPosFilter} onSelectAsset={setSelectedAsset} />
       </div>
     </div>
   );
