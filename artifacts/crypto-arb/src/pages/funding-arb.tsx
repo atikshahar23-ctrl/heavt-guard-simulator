@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useGetFundingOpportunities,
   getGetFundingOpportunitiesQueryKey,
@@ -327,6 +327,7 @@ export default function FundingArbPage() {
 
   const [query, setQuery] = useState("");
   const [checkAsset, setCheckAsset] = useState<string | null>(null);
+  const [showSuggest, setShowSuggest] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") window.localStorage.setItem(LANG_STORAGE, lang);
@@ -352,9 +353,34 @@ export default function FundingArbPage() {
   const opportunities = data ?? [];
   const dir = lang === "he" ? "rtl" : "ltr";
 
+  const normalize = (s: string) => s.trim().toUpperCase().replace(/USDT?$/, "");
+
+  // Typeahead suggestions drawn from the live opportunities data pool.
+  const suggestions = useMemo(() => {
+    const q = normalize(query);
+    const seen = new Set<string>();
+    return opportunities
+      .filter((o) => {
+        if (seen.has(o.asset)) return false;
+        if (q && !o.asset.toUpperCase().includes(q)) return false;
+        seen.add(o.asset);
+        return true;
+      })
+      .slice(0, 8);
+  }, [query, opportunities]);
+
   function runCheck() {
-    const a = query.trim().toUpperCase().replace(/USDT?$/, "");
-    if (a) setCheckAsset(a);
+    const a = normalize(query);
+    if (a) {
+      setCheckAsset(a);
+      setShowSuggest(false);
+    }
+  }
+
+  function selectSuggestion(asset: string) {
+    setQuery(asset);
+    setCheckAsset(normalize(asset));
+    setShowSuggest(false);
   }
 
   return (
@@ -388,13 +414,38 @@ export default function FundingArbPage() {
           <h2 className="text-sm font-black tracking-tight">{T.checkTitle[lang]}</h2>
         </div>
         <div className="flex gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && runCheck()}
-            placeholder={T.checkPlaceholder[lang]}
-            className="h-9 font-mono text-sm"
-          />
+          <div className="relative flex-1">
+            <Input
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setShowSuggest(true); }}
+              onFocus={() => setShowSuggest(true)}
+              onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
+              onKeyDown={(e) => e.key === "Enter" && runCheck()}
+              placeholder={T.checkPlaceholder[lang]}
+              className="h-9 font-mono text-sm w-full"
+            />
+            {showSuggest && suggestions.length > 0 && (
+              <div
+                className="absolute z-30 mt-1 w-full overflow-hidden rounded-md border bg-card shadow-lg"
+                dir="ltr"
+              >
+                {suggestions.map((o) => (
+                  <button
+                    key={o.asset}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectSuggestion(o.asset)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-secondary/60 transition-colors"
+                  >
+                    <span className="font-mono font-bold">{o.asset}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {o.annualizedPercent >= 0 ? "+" : ""}{o.annualizedPercent.toFixed(1)}% APR
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Button onClick={runCheck} className="h-9 font-mono font-bold flex-shrink-0" style={{ background: "hsl(43 74% 52%)", color: "#0a0a0a" }}>
             {T.check[lang]}
           </Button>
