@@ -37,6 +37,7 @@ import { LivePriceProvider } from "@/contexts/live-price-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
 import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 import { FundingBotEngine } from "@/components/funding-bot-engine";
+import { OptionsBotEngine } from "@/components/options-bot-engine";
 
 const queryClient = new QueryClient();
 
@@ -243,6 +244,7 @@ function App() {
             <AutoTraderEngine />
             <ExtraBotsEngine />
             <FundingBotEngine />
+            <OptionsBotEngine />
             <WouterRouter base={basePath}>
               <Router />
             </WouterRouter>

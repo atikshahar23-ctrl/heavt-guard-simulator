@@ -514,6 +514,16 @@ export interface AutoTraderSettings {
   /** Minimum annualized funding (%) before the bot opens a pair. */
   fundingMinAnnualizedPct: number;
 
+  /** Options Agent — buys long paper CALL/PUT contracts (crypto + stocks); max loss = premium. */
+  optionsEnabled: boolean;
+  /** Premium budget committed per option (USD). */
+  optionStakePerTrade: number;
+  optionMaxOpen: number;
+  /** Minimum signal confidence (0–100) before the agent buys a contract. */
+  optionMinConfidence: number;
+  /** Days to expiry for newly opened options. */
+  optionExpiryDays: number;
+
   /** Per-bot rolling scorecards (keyed by NewBotId). */
   botStats: Record<string, BotStat>;
 
@@ -644,6 +654,12 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   fundingStake: 200,
   fundingMaxOpen: 4,
   fundingMinAnnualizedPct: 8,
+
+  optionsEnabled: false,
+  optionStakePerTrade: 150,
+  optionMaxOpen: 4,
+  optionMinConfidence: 60,
+  optionExpiryDays: 7,
 
   botStats: {},
 
@@ -957,6 +973,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         breakoutEnabled: false,
         dcaEnabled: false,
         fundingEnabled: false,
+        optionsEnabled: false,
         alphaCoordinatorEnabled: false,
         dynamicCapitalEnabled: false,
         maxPerfEnabled: false,
@@ -1023,6 +1040,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
       breakoutEnabled: true,
       dcaEnabled: true,
       fundingEnabled: true,
+      optionsEnabled: true,
       boostUntil: Date.now() + Math.min(BOOST_MAX_MS, Math.max(1000, durationMs)),
     }));
   }, []);
@@ -1189,6 +1207,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         breakoutMaxOpen: Math.max(eff.breakoutMaxOpen, 6),
         dcaMaxOpen: Math.max(eff.dcaMaxOpen, 10),
         fundingMaxOpen: Math.max(eff.fundingMaxOpen, 8),
+        optionMaxOpen: Math.max(eff.optionMaxOpen, 8),
         riskManagerEnabled: true,
       };
     }

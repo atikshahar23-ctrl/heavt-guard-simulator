@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { toast } from "@/hooks/use-toast";
 import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES } from "@/lib/fees";
+import { optionPositionValue } from "@/lib/options-model";
 
 export const STARTING_BALANCE = 10_000;
 
@@ -95,9 +96,40 @@ export interface FundingPosition {
   source?: string;
 }
 
+/**
+ * Long-only paper options position (CALL or PUT) on a crypto asset or stock.
+ * Capital deployed = `premiumPaid` (committed from cash at open), which is also
+ * the maximum possible loss — a long option can expire worthless but never owes.
+ * Marked to market with a simplified Black–Scholes model (see lib/options-model).
+ */
+export interface OptionPosition {
+  id: string;
+  /** Underlying ticker: crypto asset (BTC) or stock symbol (AAPL). */
+  underlying: string;
+  /** Which price feed marks this position. */
+  market: "CRYPTO" | "STOCK";
+  kind: "CALL" | "PUT";
+  strike: number;
+  /** Underlying price captured at open (for reference / display). */
+  entryUnderlying: number;
+  /** Expiry timestamp (epoch ms). */
+  expiryMs: number;
+  /** Number of contracts (units of underlying exposure); may be fractional for paper. */
+  contracts: number;
+  /** Total premium paid at open = capital committed = max loss. */
+  premiumPaid: number;
+  /** Annualized implied vol used at open; reused for consistent mark-to-market. */
+  entryVol: number;
+  openedAt: string;
+  /** Opened automatically by the options bot engine. */
+  auto?: boolean;
+  /** Free-form source label, e.g. "Options Agent". */
+  source?: string;
+}
+
 export interface ClosedTrade {
   id: string;
-  type: "POLYMARKET" | "BINANCE" | "STOCK" | "FUNDING";
+  type: "POLYMARKET" | "BINANCE" | "STOCK" | "FUNDING" | "OPTION";
   description: string;
   cost: number;
   proceeds: number;
@@ -109,7 +141,7 @@ export interface ClosedTrade {
   /** Closed by an automatic SL/TP trigger or auto-traded position. */
   auto?: boolean;
   /** How the close happened: manual / SL / TP / LIQ (emergency risk exit). */
-  exit?: "MANUAL" | "SL" | "TP" | "LIQ";
+  exit?: "MANUAL" | "SL" | "TP" | "LIQ" | "EXPIRY";
   /** Underlying symbol for deep-linking to the chart: BINANCE asset, STOCK ticker, or Polymarket slug. */
   symbol?: string;
   /** ── Structured trade detail (optional; `description` is the legacy fallback) ── */
@@ -140,6 +172,7 @@ interface PortfolioState {
   binancePositions: BinancePosition[];
   stockPositions: StockPosition[];
   fundingPositions: FundingPosition[];
+  optionPositions: OptionPosition[];
   tradeHistory: ClosedTrade[];
 }
 
@@ -201,6 +234,12 @@ interface PortfolioContextValue extends PortfolioState {
   ) => string | null;
   /** Close a funding position, returning capital + simulated accrued funding. */
   closeFundingPosition: (id: string, exit?: ClosedTrade["exit"]) => void;
+  openOptionPosition: (
+    pos: Omit<OptionPosition, "id" | "openedAt">,
+    minCashReserve?: number
+  ) => string | null;
+  /** Close a long option at its mark-to-market value given the current underlying price. */
+  closeOptionPosition: (id: string, underlyingPrice: number, exit?: ClosedTrade["exit"]) => void;
   /** Accrue simulated funding into every open funding position up to `now` (ms epoch). */
   accrueFunding: (now?: number) => void;
   checkSlTp: (prices: Record<string, number>) => void;
@@ -242,6 +281,7 @@ function freshState(): PortfolioState {
     binancePositions: [],
     stockPositions: [],
     fundingPositions: [],
+    optionPositions: [],
     tradeHistory: [],
   };
 }
@@ -254,6 +294,7 @@ function normalizeState(parsed: Partial<PortfolioState>): PortfolioState {
     binancePositions: parsed.binancePositions ?? [],
     stockPositions: (parsed.stockPositions ?? []).map((p) => ({ ...p, leverage: p.leverage ?? 1, direction: p.direction ?? "LONG" })),
     fundingPositions: (parsed.fundingPositions ?? []).map((p) => ({ ...p, accruedFundingUsd: p.accruedFundingUsd ?? 0, lastAccrualAt: p.lastAccrualAt ?? p.openedAt })),
+    optionPositions: parsed.optionPositions ?? [],
     tradeHistory: parsed.tradeHistory ?? [],
   };
 }
@@ -313,6 +354,7 @@ function portfolioOf(w: Wallet): PortfolioState {
     binancePositions: w.binancePositions,
     stockPositions: w.stockPositions,
     fundingPositions: w.fundingPositions,
+    optionPositions: w.optionPositions,
     tradeHistory: w.tradeHistory,
   };
 }
@@ -662,6 +704,88 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     stateRef.current = { ...stateRef.current, fundingPositions: apply(stateRef.current.fundingPositions) };
     setState((prev) => ({ ...prev, fundingPositions: apply(prev.fundingPositions) }));
   }, []);
+
+  /**
+   * Buy a long paper option. The full premium is committed from cash up front
+   * (that premium is also the maximum loss). Validated against the live
+   * stateRef so concurrent same-tick opens can't collectively breach the cash
+   * reserve floor.
+   */
+  const openOptionPosition = useCallback(
+    (pos: Omit<OptionPosition, "id" | "openedAt">, minCashReserve = 0): string | null => {
+      if (!(pos.premiumPaid > 0)) return "Premium must be positive";
+      if (!(pos.contracts > 0)) return "Invalid contract size";
+      if (!Number.isFinite(pos.strike) || pos.strike <= 0) return "Invalid strike";
+      if (stateRef.current.cash < pos.premiumPaid) return "Insufficient balance";
+      if (stateRef.current.cash - pos.premiumPaid < Math.max(0, minCashReserve)) return "Below cash reserve";
+      const position: OptionPosition = {
+        ...pos,
+        id: crypto.randomUUID(),
+        openedAt: new Date().toISOString(),
+      };
+      stateRef.current = {
+        ...stateRef.current,
+        cash: stateRef.current.cash - pos.premiumPaid,
+        optionPositions: [...stateRef.current.optionPositions, position],
+      };
+      setState((prev) => ({
+        ...prev,
+        cash: prev.cash - pos.premiumPaid,
+        optionPositions: [...prev.optionPositions, position],
+      }));
+      return null;
+    },
+    []
+  );
+
+  const closeOptionPosition = useCallback(
+    (id: string, underlyingPrice: number, exit: ClosedTrade["exit"] = "MANUAL") => {
+      setState((prev) => {
+        const pos = prev.optionPositions.find((p) => p.id === id);
+        if (!pos) return prev;
+        const mark = Number.isFinite(underlyingPrice) && underlyingPrice > 0 ? underlyingPrice : pos.entryUnderlying;
+        const value = optionPositionValue({
+          kind: pos.kind,
+          underlying: mark,
+          strike: pos.strike,
+          expiryMs: pos.expiryMs,
+          vol: pos.entryVol,
+          contracts: pos.contracts,
+        });
+        const proceeds = Math.max(0, Number.isFinite(value) ? value : 0);
+        const pnl = proceeds - pos.premiumPaid;
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "OPTION",
+          symbol: pos.underlying,
+          description: `${pos.kind} ${pos.underlying} @ $${pos.strike.toLocaleString(undefined, { maximumFractionDigits: 2 })} · ${pos.contracts.toFixed(4)} contr · premium $${pos.premiumPaid.toFixed(2)} → $${proceeds.toFixed(2)}`,
+          cost: pos.premiumPaid,
+          proceeds,
+          pnl,
+          fees: 0,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit,
+          direction: pos.kind === "CALL" ? "LONG" : "SHORT",
+          entryPrice: pos.entryUnderlying,
+          exitPrice: mark,
+          leverage: 1,
+          qty: pos.contracts,
+          source: pos.source,
+        };
+        const next = {
+          ...prev,
+          cash: prev.cash + proceeds,
+          optionPositions: prev.optionPositions.filter((p) => p.id !== id),
+          tradeHistory: [closed, ...prev.tradeHistory],
+        };
+        stateRef.current = next;
+        return next;
+      });
+    },
+    []
+  );
 
   const openStockPosition = useCallback(
     (stock: Omit<StockPosition, "id" | "shares" | "cost" | "openedAt" | "leverage">, amountUsd: number, leverage: number = 1, minCashReserve = 0) => {
@@ -1091,9 +1215,42 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       closedCount += 1;
     }
 
+    // Long options: mark to the supplied price (crypto map) or fall back to the
+    // entry underlying when unavailable (e.g. stock options), then cash them out.
+    const keptOptions: OptionPosition[] = [];
+    for (const pos of prev.optionPositions) {
+      const mark = prices[pos.underlying] && Number.isFinite(prices[pos.underlying]) ? prices[pos.underlying] : pos.entryUnderlying;
+      const value = optionPositionValue({ kind: pos.kind, underlying: mark, strike: pos.strike, expiryMs: pos.expiryMs, vol: pos.entryVol, contracts: pos.contracts });
+      const proceeds = Math.max(0, Number.isFinite(value) ? value : 0);
+      const pnl = proceeds - pos.premiumPaid;
+      const closed: ClosedTrade = {
+        id: crypto.randomUUID(),
+        type: "OPTION",
+        symbol: pos.underlying,
+        description: `KILL-SWITCH ${pos.kind} ${pos.underlying} @ $${pos.strike.toLocaleString(undefined, { maximumFractionDigits: 2 })} · premium $${pos.premiumPaid.toFixed(2)} → $${proceeds.toFixed(2)}`,
+        cost: pos.premiumPaid,
+        proceeds,
+        pnl,
+        fees: 0,
+        closedAt: new Date().toISOString(),
+        openedAt: pos.openedAt,
+        auto: pos.auto,
+        exit: "LIQ",
+        direction: pos.kind === "CALL" ? "LONG" : "SHORT",
+        entryPrice: pos.entryUnderlying,
+        exitPrice: mark,
+        leverage: 1,
+        qty: pos.contracts,
+        source: pos.source,
+      };
+      tradeHistory = [closed, ...tradeHistory];
+      cash += proceeds;
+      closedCount += 1;
+    }
+
     if (closedCount === 0) return 0;
 
-    const next = { ...prev, cash, binancePositions: keptBinance, stockPositions: keptStocks, fundingPositions: keptFunding, tradeHistory };
+    const next = { ...prev, cash, binancePositions: keptBinance, stockPositions: keptStocks, fundingPositions: keptFunding, optionPositions: keptOptions, tradeHistory };
     stateRef.current = next;
     setState(next);
     return closedCount;
@@ -1256,6 +1413,40 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         closedCount += 1;
       }
 
+      // Bot-placed long options — mark from the crypto or stock price map.
+      const keptOptions: OptionPosition[] = [];
+      for (const pos of prev.optionPositions) {
+        if (!pos.auto) { keptOptions.push(pos); continue; }
+        const map = pos.market === "STOCK" ? stockPrices : binancePrices;
+        const mark = map[pos.underlying] && Number.isFinite(map[pos.underlying]) ? map[pos.underlying] : pos.entryUnderlying;
+        const value = optionPositionValue({ kind: pos.kind, underlying: mark, strike: pos.strike, expiryMs: pos.expiryMs, vol: pos.entryVol, contracts: pos.contracts });
+        const proceeds = Math.max(0, Number.isFinite(value) ? value : 0);
+        const pnl = proceeds - pos.premiumPaid;
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "OPTION",
+          symbol: pos.underlying,
+          description: `${pos.kind} ${pos.underlying} @ $${pos.strike.toLocaleString(undefined, { maximumFractionDigits: 2 })} · premium $${pos.premiumPaid.toFixed(2)} → $${proceeds.toFixed(2)}`,
+          cost: pos.premiumPaid,
+          proceeds,
+          pnl,
+          fees: 0,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "MANUAL",
+          direction: pos.kind === "CALL" ? "LONG" : "SHORT",
+          entryPrice: pos.entryUnderlying,
+          exitPrice: mark,
+          leverage: 1,
+          qty: pos.contracts,
+          source: pos.source,
+        };
+        tradeHistory = [closed, ...tradeHistory];
+        cash += proceeds;
+        closedCount += 1;
+      }
+
       if (closedCount === 0) return 0;
 
       const next = {
@@ -1265,6 +1456,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         stockPositions: keptStocks,
         polyPositions: keptPoly,
         fundingPositions: keptFunding,
+        optionPositions: keptOptions,
         tradeHistory,
       };
       stateRef.current = next;
@@ -1282,6 +1474,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       binancePositions: [],
       stockPositions: [],
       fundingPositions: [],
+      optionPositions: [],
       tradeHistory: [],
     });
   }, []);
@@ -1292,7 +1485,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     cash: w.cash,
     totalDeposited: w.totalDeposited,
     openPositions:
-      w.polyPositions.length + w.binancePositions.length + w.stockPositions.length + w.fundingPositions.length,
+      w.polyPositions.length + w.binancePositions.length + w.stockPositions.length + w.fundingPositions.length + w.optionPositions.length,
   }));
 
   return (
@@ -1316,6 +1509,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         closeStockPosition,
         openFundingPosition,
         closeFundingPosition,
+        openOptionPosition,
+        closeOptionPosition,
         accrueFunding,
         checkSlTp,
         updateTrailingStops,

@@ -4,7 +4,7 @@ import { useGetMarketOverview, getGetMarketOverviewQueryKey } from "@workspace/a
 import {
   History as HistoryIcon, TrendingUp, TrendingDown, Trophy, Target,
   Bot, Hand, Wallet, Activity, Cpu, LineChart as ChartIcon,
-  Gauge, Rocket, Megaphone, Timer, Layers, Coins,
+  Gauge, Rocket, Megaphone, Timer, Layers, Coins, Sparkles,
 } from "lucide-react";
 import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition, STARTING_BALANCE } from "@/contexts/portfolio-context";
 import { BotStatsPopover } from "@/components/bot-stats-popover";
@@ -13,10 +13,10 @@ import { StockIcon } from "@/components/stock-icon";
 import { TradeAnalytics } from "@/components/trade-analytics";
 import { TradeDetailModal } from "@/components/trade-detail-modal";
 
-type TypeFilter = "ALL" | "BINANCE" | "STOCK" | "POLYMARKET";
+type TypeFilter = "ALL" | "BINANCE" | "STOCK" | "POLYMARKET" | "FUNDING" | "OPTION";
 type ResultFilter = "ALL" | "WINS" | "LOSSES";
 type SourceFilter = "ALL" | "AUTO" | "MANUAL";
-type BotFilter = "ALL" | "scalp" | "momentum" | "smart" | "poly" | "dipbuyer" | "breakout" | "dca" | "funding";
+type BotFilter = "ALL" | "scalp" | "momentum" | "smart" | "poly" | "dipbuyer" | "breakout" | "dca" | "funding" | "options";
 
 const BOT_SOURCE_LABEL: Record<string, string> = {
   "Dip Buyer": "Dip Buyer",
@@ -80,6 +80,7 @@ const TYPE_LABEL: Record<ClosedTrade["type"], string> = {
   STOCK: "מניות",
   POLYMARKET: "הימור",
   FUNDING: "מימון",
+  OPTION: "אופציות",
 };
 
 /* ─── Per-bot definitions (used by BotSummaryGrid) ──────────────────────── */
@@ -97,6 +98,7 @@ const BOT_DEFS: {
   { key: "breakout", title: "Breakout Hunter", icon: TrendingUp, match: (t) => t.source === "Breakout Hunter" },
   { key: "dca", title: "Blue-Chip DCA", icon: Layers, match: (t) => t.source === "Blue-Chip DCA" },
   { key: "funding", title: "Funding Arb", icon: Coins, match: (t) => t.type === "FUNDING" },
+  { key: "options", title: "Options Agent", icon: Sparkles, match: (t) => t.type === "OPTION" },
 ];
 
 /* ─── Interactive equity curve ───────────────────────────────────────────── */
@@ -731,7 +733,7 @@ export default function HistoryPage() {
       {/* Filters */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <FilterGroup label="סוג" value={typeF} setValue={(v) => setTypeF(v as TypeFilter)} options={["ALL", "BINANCE", "STOCK", "POLYMARKET"]} render={(o) => (o === "ALL" ? "הכל" : TYPE_LABEL[o as ClosedTrade["type"]])} />
+          <FilterGroup label="סוג" value={typeF} setValue={(v) => setTypeF(v as TypeFilter)} options={["ALL", "BINANCE", "STOCK", "POLYMARKET", "FUNDING", "OPTION"]} render={(o) => (o === "ALL" ? "הכל" : TYPE_LABEL[o as ClosedTrade["type"]])} />
           <FilterGroup label="תוצאה" value={resultF} setValue={(v) => setResultF(v as ResultFilter)} options={["ALL", "WINS", "LOSSES"]} render={(o) => ({ ALL: "הכל", WINS: "רווחים", LOSSES: "הפסדים" }[o] ?? o)} />
           <FilterGroup label="מקור" value={sourceF} setValue={(v) => handleSourceF(v as SourceFilter)} options={["ALL", "AUTO", "MANUAL"]} render={(o) => ({ ALL: "הכל", AUTO: "אוטומטי", MANUAL: "ידני" }[o] ?? o)} />
         </div>
@@ -1011,7 +1013,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                       )}
                     </div>
                     <div className="font-mono text-[11px] text-foreground/90 break-words line-clamp-2 mt-0.5" title={first.description}>{first.description}</div>
-                    {(first.source || first.type === "POLYMARKET" || first.type === "FUNDING") && !isGroup && (
+                    {(first.source || first.type === "POLYMARKET" || first.type === "FUNDING" || first.type === "OPTION") && !isGroup && (
                       <div className="mt-0.5">
                         {first.source ? (
                           <BotStatsPopover

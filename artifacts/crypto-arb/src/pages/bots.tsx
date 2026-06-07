@@ -176,7 +176,7 @@ function commsClock(at: number): string {
 
 export default function Bots() {
   const { settings, update, startBoost, stopBoost, getBotStat, resetBotStats, getAssetCaution, resetAssetStats, getRiskGuard, resetRiskGuard, alpha } = useAutoTrader();
-  const { binancePositions, stockPositions, polyPositions, fundingPositions, cash, totalDeposited, tradeHistory, closeAllBotPositions } = usePortfolio();
+  const { binancePositions, stockPositions, polyPositions, fundingPositions, optionPositions, cash, totalDeposited, tradeHistory, closeAllBotPositions } = usePortfolio();
   const { get: getLivePrice } = useLivePrices();
 
   // Cached market data shared with the trading engines (same query keys), used to
@@ -246,8 +246,9 @@ export default function Bots() {
       breakout: binancePositions.filter((p) => p.source === "Breakout Hunter").length,
       dca: stockPositions.filter((p) => p.source === "Blue-Chip DCA").length,
       funding: fundingPositions.filter((p) => p.source === "Funding Arb Agent").length,
+      options: optionPositions.filter((p) => p.source === "Options Agent").length,
     };
-  }, [binancePositions, stockPositions, polyPositions, fundingPositions]);
+  }, [binancePositions, stockPositions, polyPositions, fundingPositions, optionPositions]);
 
   // ── Scalp Squad ── per-member live open count + realized track record,
   // attributed by the member's exact `source` tag.
@@ -284,6 +285,7 @@ export default function Bots() {
       { key: "breakout", title: "Breakout Hunter", icon: TrendingUp, market: "קריפטו", armed: settings.breakoutEnabled, match: (t) => t.source === "Breakout Hunter" },
       { key: "dca", title: "Blue-Chip DCA", icon: Layers, market: "מניות", armed: settings.dcaEnabled, match: (t) => t.source === "Blue-Chip DCA" },
       { key: "funding", title: "Funding Arb Agent", icon: Coins, market: "קריפטו", armed: settings.fundingEnabled, match: (t) => t.type === "FUNDING" && t.source === "Funding Arb Agent" },
+      { key: "options", title: "Options Agent", icon: Sparkles, market: "אופציות", armed: settings.optionsEnabled, match: (t) => t.type === "OPTION" && t.source === "Options Agent" },
     ];
     const rows = defs.map((d) => {
       const ts = tradeHistory.filter((t) => d.match(t));
@@ -317,7 +319,8 @@ export default function Bots() {
   }, [tradeHistory, counts, scalpOn, momOn, settings, getRiskGuard, getBotStat]);
 
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
-    settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled;
+    settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled ||
+    settings.optionsEnabled;
 
   const armAll = (on: boolean) => {
     update({
@@ -325,6 +328,7 @@ export default function Bots() {
       strategy: on ? "BOTH" : settings.strategy,
       stocksEnabled: on, polyEnabled: on,
       dipEnabled: on, breakoutEnabled: on, dcaEnabled: on, fundingEnabled: on,
+      optionsEnabled: on,
     });
   };
 
@@ -452,7 +456,7 @@ export default function Bots() {
 
   const totalOpenAuto = binancePositions.filter((p) => p.auto).length +
     stockPositions.filter((p) => p.auto).length + polyPositions.filter((p) => p.auto).length +
-    fundingPositions.filter((p) => p.auto).length;
+    fundingPositions.filter((p) => p.auto).length + optionPositions.filter((p) => p.auto).length;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -724,7 +728,7 @@ export default function Bots() {
 
       {/* Live summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border bg-secondary/20 p-4">
-        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled].filter(Boolean).length} / 8`} />
+        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled].filter(Boolean).length} / 9`} />
         <StatChip label="Open Auto Pos." value={String(totalOpenAuto)} tone={totalOpenAuto > 0 ? "good" : undefined} />
         <StatChip label="Adaptive Mgr" value={settings.adaptiveEnabled ? "ON" : "OFF"} tone={settings.adaptiveEnabled ? "good" : undefined} />
         <StatChip label="Leverage (new)" value={`${settings.newBotLeverage}x`} />
@@ -1430,6 +1434,47 @@ export default function Bots() {
                 min={1}
                 step={1}
                 onChange={(v) => update({ fundingMinAnnualizedPct: v })}
+              />
+            </div>
+          </BotCard>
+          <BotCard
+            id="bot-options"
+            icon={Sparkles}
+            title="Options Agent"
+            subtitle="Long CALL / PUT convexity"
+            hint="קונה אופציות CALL/PUT לונג בלבד על קריפטו ומניות לפי האותות החזקים — ההפסד המרבי הוא הפרמיה ששולמה בלבד. מדומה ולימודי בלבד, ללא הבטחת תשואה"
+            active={settings.optionsEnabled}
+            onToggle={(v) => update({ optionsEnabled: v })}
+            open={counts.options}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <NumField
+                label="פרמיה $ / עסקה"
+                value={settings.optionStakePerTrade}
+                min={10}
+                step={10}
+                onChange={(v) => update({ optionStakePerTrade: v })}
+              />
+              <NumField
+                label="Max Open"
+                value={settings.optionMaxOpen}
+                min={1}
+                max={50}
+                onChange={(v) => update({ optionMaxOpen: v })}
+              />
+              <NumField
+                label="ביטחון מינ' %"
+                value={settings.optionMinConfidence}
+                min={1}
+                max={100}
+                onChange={(v) => update({ optionMinConfidence: v })}
+              />
+              <NumField
+                label="תפוגה (ימים)"
+                value={settings.optionExpiryDays}
+                min={1}
+                max={90}
+                onChange={(v) => update({ optionExpiryDays: v })}
               />
             </div>
           </BotCard>
