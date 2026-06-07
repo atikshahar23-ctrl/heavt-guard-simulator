@@ -76,8 +76,9 @@ function NumField({
 
 /** A bot tile with an arm switch, description, live open count and a body. */
 function BotCard({
-  icon: Icon, title, subtitle, hint, active, onToggle, open, children, accent,
+  id, icon: Icon, title, subtitle, hint, active, onToggle, open, children, accent,
 }: {
+  id?: string;
   icon: React.ComponentType<{ className?: string }>;
   title: string; subtitle: string; hint: string;
   active: boolean; onToggle: (v: boolean) => void;
@@ -85,7 +86,8 @@ function BotCard({
 }) {
   return (
     <div
-      className="relative rounded-lg border border-border bg-secondary/20 p-4 transition-all"
+      id={id}
+      className="relative rounded-lg border border-border bg-secondary/20 p-4 transition-all scroll-mt-24"
       style={active ? { borderColor: accent ?? "hsl(32 84% 55% / 0.5)", boxShadow: `0 0 0 1px ${accent ?? "hsl(32 84% 55% / 0.25)"}` } : {}}
     >
       <div className="flex items-start gap-3">
@@ -772,21 +774,37 @@ export default function Bots() {
           </div>
         )}
 
-        {/* Per-bot roll-up */}
+        {/* Per-bot roll-up — click any card to jump to that bot's settings */}
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {fleet.rows.map((r) => (
             <div
               key={r.key}
-              className={`rounded-md border p-3 ${r.paused ? "border-red-500/40 bg-red-500/5" : r.armed ? "border-primary/40 bg-primary/5" : "border-border/60 bg-background/40"}`}
+              role="button"
+              tabIndex={0}
+              title="לחץ להגדרות הבוט"
+              onClick={() => {
+                const el = document.getElementById(`bot-${r.key}`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  const el = document.getElementById(`bot-${r.key}`);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+              className={`rounded-md border p-3 cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 hover:shadow-[0_0_0_2px_hsl(43_74%_52%/0.15)] ${r.paused ? "border-red-500/40 bg-red-500/5" : r.armed ? "border-primary/40 bg-primary/5" : "border-border/60 bg-background/40"}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <r.icon className={`h-3.5 w-3.5 shrink-0 ${r.armed ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="text-xs font-semibold truncate">{r.title}</span>
                 </div>
-                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full shrink-0 ${r.paused ? "bg-red-500/20 text-red-400" : r.armed ? "bg-emerald-500/15 text-emerald-400" : "bg-muted/40 text-muted-foreground"}`}>
-                  {r.paused ? "הושהת" : r.armed ? "פעיל" : "כבוי"}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full ${r.paused ? "bg-red-500/20 text-red-400" : r.armed ? "bg-emerald-500/15 text-emerald-400" : "bg-muted/40 text-muted-foreground"}`}>
+                    {r.paused ? "הושהת" : r.armed ? "פעיל" : "כבוי"}
+                  </span>
+                  <span className="text-[8px] font-mono text-muted-foreground/40">↓ הגדרות</span>
+                </div>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-1.5">
                 <StatChip label="עסקאות" value={String(r.trades)} />
@@ -1195,6 +1213,7 @@ export default function Bots() {
             return (
               <BotCard
                 key={b.id}
+                id={`bot-${b.id}`}
                 icon={b.icon}
                 title={b.title}
                 subtitle={b.subtitle}
@@ -1240,6 +1259,7 @@ export default function Bots() {
             );
           })}
           <BotCard
+            id="bot-funding"
             icon={Coins}
             title="Funding Arb Agent"
             subtitle="Delta-neutral cash-and-carry"
@@ -1281,10 +1301,10 @@ export default function Bots() {
           <ShieldCheck className="h-3.5 w-3.5" /> בוטים קיימים
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <BotCard icon={Gauge} title="Scalp Bot" subtitle="RSI / EMA / ATR scalps" hint="עסקאות קצרות לפי איתותי סקאלפ" active={scalpOn} onToggle={(v) => applyCrypto(v, momOn)} open={counts.scalp} />
-          <BotCard icon={Rocket} title="Momentum Bot" subtitle="Volume-surge runners" hint="רוכב על מטבעות עם זינוק נפח ומומנטום" active={momOn} onToggle={(v) => applyCrypto(scalpOn, v)} open={counts.momentum} />
-          <BotCard icon={Megaphone} title="Smart-Money Stocks" subtitle="Technical + influencer fusion" hint="מניות לפי שילוב טכני וסנטימנט משפיענים" active={settings.stocksEnabled} onToggle={(v) => update({ stocksEnabled: v })} open={counts.smart} />
-          <BotCard icon={Timer} title="Polymarket BTC" subtitle="Same-day up/down bets" hint="הימורי כיוון יומיים על ביטקוין" active={settings.polyEnabled} onToggle={(v) => update({ polyEnabled: v })} open={counts.poly} />
+          <BotCard id="bot-scalp" icon={Gauge} title="Scalp Bot" subtitle="RSI / EMA / ATR scalps" hint="עסקאות קצרות לפי איתותי סקאלפ" active={scalpOn} onToggle={(v) => applyCrypto(v, momOn)} open={counts.scalp} />
+          <BotCard id="bot-momentum" icon={Rocket} title="Momentum Bot" subtitle="Volume-surge runners" hint="רוכב על מטבעות עם זינוק נפח ומומנטום" active={momOn} onToggle={(v) => applyCrypto(scalpOn, v)} open={counts.momentum} />
+          <BotCard id="bot-smart" icon={Megaphone} title="Smart-Money Stocks" subtitle="Technical + influencer fusion" hint="מניות לפי שילוב טכני וסנטימנט משפיענים" active={settings.stocksEnabled} onToggle={(v) => update({ stocksEnabled: v })} open={counts.smart} />
+          <BotCard id="bot-poly" icon={Timer} title="Polymarket BTC" subtitle="Same-day up/down bets" hint="הימורי כיוון יומיים על ביטקוין" active={settings.polyEnabled} onToggle={(v) => update({ polyEnabled: v })} open={counts.poly} />
         </div>
       </section>
 

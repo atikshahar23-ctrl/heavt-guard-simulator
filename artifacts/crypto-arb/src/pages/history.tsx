@@ -4,8 +4,9 @@ import { useGetMarketOverview, getGetMarketOverviewQueryKey } from "@workspace/a
 import {
   History as HistoryIcon, TrendingUp, TrendingDown, Trophy, Target,
   Bot, Hand, Wallet, Activity, Cpu, LineChart as ChartIcon,
+  Gauge, Rocket, Megaphone, Timer, Layers, Coins,
 } from "lucide-react";
-import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition } from "@/contexts/portfolio-context";
+import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition, STARTING_BALANCE } from "@/contexts/portfolio-context";
 import { CryptoIcon } from "@/components/crypto-icon";
 import { StockIcon } from "@/components/stock-icon";
 import { TradeAnalytics } from "@/components/trade-analytics";
@@ -77,6 +78,311 @@ const TYPE_LABEL: Record<ClosedTrade["type"], string> = {
   POLYMARKET: "הימור",
   FUNDING: "מימון",
 };
+
+/* ─── Per-bot definitions (used by BotSummaryGrid) ──────────────────────── */
+const BOT_DEFS: {
+  key: string;
+  title: string;
+  icon: React.ElementType;
+  match: (t: ClosedTrade) => boolean;
+}[] = [
+  { key: "scalp", title: "Scalp Bot", icon: Gauge, match: (t) => (t.source ?? "").includes("Scalp") },
+  { key: "momentum", title: "Momentum", icon: Rocket, match: (t) => (t.source ?? "").includes("Momentum") },
+  { key: "smart", title: "Smart-Money", icon: Megaphone, match: (t) => (t.source ?? "").includes("Smart-Money") },
+  { key: "poly", title: "Polymarket", icon: Timer, match: (t) => t.type === "POLYMARKET" },
+  { key: "dipbuyer", title: "Dip Buyer", icon: TrendingDown, match: (t) => t.source === "Dip Buyer" },
+  { key: "breakout", title: "Breakout Hunter", icon: TrendingUp, match: (t) => t.source === "Breakout Hunter" },
+  { key: "dca", title: "Blue-Chip DCA", icon: Layers, match: (t) => t.source === "Blue-Chip DCA" },
+  { key: "funding", title: "Funding Arb", icon: Coins, match: (t) => t.type === "FUNDING" },
+];
+
+/* ─── Interactive equity curve ───────────────────────────────────────────── */
+function EquityCurveChart() {
+  const { tradeHistory, totalDeposited } = usePortfolio();
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const baseline = totalDeposited || STARTING_BALANCE;
+
+  const { balances, tradeMeta } = useMemo(() => {
+    const chrono = [...tradeHistory].reverse();
+    let cum = baseline;
+    const balances: number[] = [cum];
+    const tradeMeta: { pnl: number; closedAt: string; source?: string }[] = [
+      { pnl: 0, closedAt: "", source: undefined },
+    ];
+    for (const t of chrono) {
+      cum += t.pnl;
+      balances.push(cum);
+      tradeMeta.push({ pnl: t.pnl, closedAt: t.closedAt, source: t.source });
+    }
+    return { balances, tradeMeta };
+  }, [tradeHistory, baseline]);
+
+  const peak = Math.max(...balances);
+  const last = balances[balances.length - 1];
+  const maxDD = useMemo(() => {
+    let pk = 0, dd = 0;
+    for (const v of balances) {
+      if (v > pk) pk = v;
+      if (pk > 0) dd = Math.max(dd, ((pk - v) / pk) * 100);
+    }
+    return dd;
+  }, [balances]);
+  const totalReturn = baseline > 0 ? ((last - baseline) / baseline) * 100 : 0;
+
+  const W = 1000, H = 200, PAD_X = 4, PAD_Y = 12;
+  const n = balances.length;
+  const minB = Math.min(...balances);
+  const maxB = Math.max(...balances);
+  const rawSpan = maxB - minB;
+  const span = rawSpan < baseline * 0.005 ? baseline * 0.01 : rawSpan;
+  const minBPad = minB - span * 0.08;
+  const maxBPad = maxB + span * 0.08;
+  const spanPad = maxBPad - minBPad;
+
+  const toX = (i: number) => PAD_X + (i / Math.max(1, n - 1)) * (W - PAD_X * 2);
+  const toY = (v: number) => PAD_Y + (1 - (v - minBPad) / spanPad) * (H - PAD_Y * 2);
+
+  const pathD = balances
+    .map((v, i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(1)} ${toY(v).toFixed(1)}`)
+    .join(" ");
+  const lastX = toX(n - 1).toFixed(1);
+  const areaD = `${pathD} L ${lastX} ${H} L ${toX(0).toFixed(1)} ${H} Z`;
+  const baseY = toY(baseline);
+  const stroke = last >= baseline ? "#22c55e" : "#ef4444";
+
+  const activeIdx = hoverIdx ?? n - 1;
+  const hoverBal = balances[activeIdx];
+  const hoverMeta = tradeMeta[activeIdx];
+  const hoverX = toX(activeIdx);
+  const hoverY = toY(hoverBal);
+  const hoverAbove = hoverBal >= baseline;
+
+  const onMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * W;
+    const idx = Math.round(((x - PAD_X) / (W - PAD_X * 2)) * (n - 1));
+    setHoverIdx(Math.max(0, Math.min(n - 1, idx)));
+  }, [n]);
+
+  if (tradeHistory.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <ChartIcon className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-black tracking-tight">עקומת ההון</h2>
+          <span className="text-[9px] font-mono text-muted-foreground/70">({tradeHistory.length} עסקאות)</span>
+        </div>
+        <div className="flex items-center gap-4" dir="rtl">
+          <div className="text-right">
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">תשואה</div>
+            <div className="font-mono font-bold text-sm" style={{ color: totalReturn >= 0 ? "#22c55e" : "#ef4444" }}>
+              {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(1)}%
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">שיא</div>
+            <div className="font-mono font-bold text-sm text-primary">${fmtUsd(peak, 0)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">DD מקס׳</div>
+            <div className="font-mono font-bold text-sm text-amber-400">{maxDD.toFixed(1)}%</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">כעת</div>
+            <div className="font-mono font-bold text-sm" style={{ color: last >= baseline ? "#22c55e" : "#ef4444" }}>
+              ${fmtUsd(last, 0)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="w-full h-36 cursor-crosshair select-none"
+          onMouseMove={onMouseMove}
+          onMouseLeave={() => setHoverIdx(null)}
+        >
+          <defs>
+            <linearGradient id="ec-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={stroke} stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <line
+            x1={PAD_X} y1={baseY} x2={W - PAD_X} y2={baseY}
+            stroke="hsl(0 0% 100% / 0.13)" strokeWidth="1" strokeDasharray="5 4"
+          />
+          <path d={areaD} fill="url(#ec-fill)" />
+          <path d={pathD} fill="none" stroke={stroke} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
+          <line
+            x1={hoverX} y1={PAD_Y} x2={hoverX} y2={H - PAD_Y}
+            stroke="hsl(0 0% 100% / 0.22)" strokeWidth="1" strokeDasharray="3 3"
+          />
+          <circle
+            cx={hoverX} cy={hoverY} r={hoverIdx !== null ? 5 : 4}
+            fill={stroke} stroke="hsl(0 0% 6%)" strokeWidth="2"
+          />
+        </svg>
+
+        {hoverIdx !== null && hoverMeta.closedAt && (
+          <div
+            className="absolute pointer-events-none rounded-md border border-border/80 bg-[hsl(0_0%_8%)] px-2.5 py-2 text-[10px] font-mono shadow-2xl whitespace-nowrap z-10"
+            style={{
+              left: `${Math.min(Math.max((hoverX / W) * 100, 4), 78)}%`,
+              top: hoverY / H < 0.5 ? "40%" : "4px",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div>
+                <div className="text-muted-foreground">{timeAgo(hoverMeta.closedAt)}</div>
+                {hoverMeta.source && <div className="text-primary font-semibold">{hoverMeta.source}</div>}
+                <div className="text-[9px] text-muted-foreground/70">עסקה #{activeIdx}</div>
+              </div>
+              <div className="text-right">
+                <div className="font-black text-sm">${fmtUsd(hoverBal, 0)}</div>
+                <div style={{ color: hoverMeta.pnl >= 0 ? "#22c55e" : "#ef4444" }}>
+                  {hoverMeta.pnl >= 0 ? "+" : ""}${fmtUsd(hoverMeta.pnl)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {hoverIdx === null && (
+          <div
+            className="absolute pointer-events-none rounded-md border border-border/80 bg-[hsl(0_0%_8%)] px-2.5 py-2 text-[10px] font-mono shadow-xl whitespace-nowrap z-10"
+            style={{
+              left: `${Math.min((hoverX / W) * 100, 78)}%`,
+              top: hoverY / H < 0.5 ? "40%" : "4px",
+            }}
+          >
+            <div className="text-right">
+              <div className="font-black text-sm">${fmtUsd(last, 0)}</div>
+              <div style={{ color: hoverAbove ? "#22c55e" : "#ef4444" }}>
+                {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(1)}%
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between px-0.5 text-[9px] font-mono text-muted-foreground/55">
+        <span>התחלה · ${fmtUsd(baseline, 0)}</span>
+        <span>← רחף לפרטי עסקה →</span>
+        <span>כעת · ${fmtUsd(last, 0)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Per-bot performance summary grid ──────────────────────────────────── */
+function BotSummaryGrid() {
+  const { tradeHistory } = usePortfolio();
+
+  const bots = useMemo(() => {
+    return BOT_DEFS.map((b) => {
+      const ts = tradeHistory.filter(b.match);
+      const wins = ts.filter((t) => t.pnl > 0).length;
+      const net = ts.reduce((a, t) => a + t.pnl, 0);
+      const avg = ts.length > 0 ? net / ts.length : 0;
+      const chrono = [...ts].reverse();
+      let c = 0;
+      const pts: number[] = [0];
+      for (const t of chrono) { c += t.pnl; pts.push(c); }
+      return { ...b, trades: ts.length, wins, net, avg, wr: ts.length > 0 ? (wins / ts.length) * 100 : 0, pts };
+    }).filter((b) => b.trades > 0);
+  }, [tradeHistory]);
+
+  if (bots.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Bot className="h-4 w-4 text-primary" />
+        <h2 className="text-sm font-black tracking-tight">ביצועי בוטים</h2>
+        <span className="text-[9px] font-mono text-muted-foreground/70">({bots.length} פעילים)</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {bots.map((b) => {
+          const color = b.net >= 0 ? "#22c55e" : "#ef4444";
+          const SVG_W = 200, SVG_H = 40;
+          const min = Math.min(...b.pts, 0), max = Math.max(...b.pts, 0);
+          const span = Math.max(max - min, 0.01);
+          const sparkD = b.pts
+            .map((v, i) => {
+              const x = (i / Math.max(1, b.pts.length - 1)) * SVG_W;
+              const y = SVG_H - ((v - min) / span) * SVG_H * 0.82 - SVG_H * 0.09;
+              return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+            })
+            .join(" ");
+          return (
+            <div key={b.key} className="rounded-lg border bg-card p-3 space-y-2 overflow-hidden">
+              <div className="flex items-center justify-between gap-1 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <b.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="text-xs font-semibold truncate">{b.title}</span>
+                </div>
+                <span
+                  className="font-mono text-xs font-black tabular-nums shrink-0"
+                  style={{ color }}
+                >
+                  {b.net >= 0 ? "+" : ""}${fmtUsd(b.net, 0)}
+                </span>
+              </div>
+              {b.pts.length > 1 && (
+                <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="none" className="w-full h-8 -mx-px">
+                  <defs>
+                    <linearGradient id={`bfill-${b.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+                      <stop offset="100%" stopColor={color} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d={`${sparkD} L ${SVG_W} ${SVG_H} L 0 ${SVG_H} Z`}
+                    fill={`url(#bfill-${b.key})`}
+                  />
+                  <path d={sparkD} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                </svg>
+              )}
+              <div className="grid grid-cols-3 gap-x-1 text-center border-t border-border/40 pt-1.5">
+                <div>
+                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">עסקאות</div>
+                  <div className="text-[11px] font-mono font-bold tabular-nums">{b.trades}</div>
+                </div>
+                <div>
+                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">הצלחה</div>
+                  <div
+                    className="text-[11px] font-mono font-bold tabular-nums"
+                    style={{ color: b.wr >= 50 ? "#22c55e" : "#ef4444" }}
+                  >
+                    {b.wr.toFixed(0)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">ממוצע</div>
+                  <div
+                    className="text-[11px] font-mono font-bold tabular-nums"
+                    style={{ color: b.avg >= 0 ? "#22c55e" : "#ef4444" }}
+                  >
+                    {b.avg >= 0 ? "+" : ""}${fmtUsd(b.avg, 0)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ label, value, sub, color, Icon }: {
   label: string; value: string; sub?: string; color?: string; Icon: React.ElementType;
@@ -371,6 +677,10 @@ export default function HistoryPage() {
         <StatCard label="העסקה הטובה ביותר" value={`+$${fmtUsd(stats.best)}`} color="#22c55e" Icon={TrendingUp} />
         <StatCard label="העסקה הגרועה ביותר" value={`-$${fmtUsd(Math.abs(stats.worst))}`} color="#ef4444" Icon={TrendingDown} />
       </div>
+
+      <EquityCurveChart />
+
+      <BotSummaryGrid />
 
       <OpenPositions />
 
