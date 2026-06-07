@@ -15,6 +15,7 @@ import { TradeDetailModal } from "@/components/trade-detail-modal";
 type TypeFilter = "ALL" | "BINANCE" | "STOCK" | "POLYMARKET";
 type ResultFilter = "ALL" | "WINS" | "LOSSES";
 type SourceFilter = "ALL" | "AUTO" | "MANUAL";
+type BotFilter = "ALL" | "scalp" | "momentum" | "smart" | "poly" | "dipbuyer" | "breakout" | "dca" | "funding";
 
 const BOT_SOURCE_LABEL: Record<string, string> = {
   "Dip Buyer": "Dip Buyer",
@@ -630,7 +631,13 @@ export default function HistoryPage() {
   const [typeF, setTypeF] = useState<TypeFilter>("ALL");
   const [resultF, setResultF] = useState<ResultFilter>("ALL");
   const [sourceF, setSourceF] = useState<SourceFilter>("ALL");
+  const [botF, setBotF] = useState<BotFilter>("ALL");
   const [selected, setSelected] = useState<ClosedTrade | null>(null);
+
+  function handleSourceF(v: SourceFilter) {
+    setSourceF(v);
+    if (v === "MANUAL") setBotF("ALL");
+  }
 
   const stats = useMemo(() => {
     const n = tradeHistory.length;
@@ -649,15 +656,17 @@ export default function HistoryPage() {
   }, [tradeHistory]);
 
   const filtered = useMemo(() => {
+    const botDef = botF !== "ALL" ? BOT_DEFS.find((b) => b.key === botF) : null;
     return tradeHistory.filter((t) => {
       if (typeF !== "ALL" && t.type !== typeF) return false;
       if (resultF === "WINS" && t.pnl <= 0) return false;
       if (resultF === "LOSSES" && t.pnl >= 0) return false;
       if (sourceF === "AUTO" && !t.auto) return false;
       if (sourceF === "MANUAL" && t.auto) return false;
+      if (botDef && !botDef.match(t)) return false;
       return true;
     });
-  }, [tradeHistory, typeF, resultF, sourceF]);
+  }, [tradeHistory, typeF, resultF, sourceF, botF]);
 
   const pnlColor = stats.totalPnl > 0 ? "#22c55e" : stats.totalPnl < 0 ? "#ef4444" : undefined;
 
@@ -706,10 +715,41 @@ export default function HistoryPage() {
       <TradeAnalytics />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterGroup label="סוג" value={typeF} setValue={(v) => setTypeF(v as TypeFilter)} options={["ALL", "BINANCE", "STOCK", "POLYMARKET"]} render={(o) => (o === "ALL" ? "הכל" : TYPE_LABEL[o as ClosedTrade["type"]])} />
-        <FilterGroup label="תוצאה" value={resultF} setValue={(v) => setResultF(v as ResultFilter)} options={["ALL", "WINS", "LOSSES"]} render={(o) => ({ ALL: "הכל", WINS: "רווחים", LOSSES: "הפסדים" }[o] ?? o)} />
-        <FilterGroup label="מקור" value={sourceF} setValue={(v) => setSourceF(v as SourceFilter)} options={["ALL", "AUTO", "MANUAL"]} render={(o) => ({ ALL: "הכל", AUTO: "אוטומטי", MANUAL: "ידני" }[o] ?? o)} />
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterGroup label="סוג" value={typeF} setValue={(v) => setTypeF(v as TypeFilter)} options={["ALL", "BINANCE", "STOCK", "POLYMARKET"]} render={(o) => (o === "ALL" ? "הכל" : TYPE_LABEL[o as ClosedTrade["type"]])} />
+          <FilterGroup label="תוצאה" value={resultF} setValue={(v) => setResultF(v as ResultFilter)} options={["ALL", "WINS", "LOSSES"]} render={(o) => ({ ALL: "הכל", WINS: "רווחים", LOSSES: "הפסדים" }[o] ?? o)} />
+          <FilterGroup label="מקור" value={sourceF} setValue={(v) => handleSourceF(v as SourceFilter)} options={["ALL", "AUTO", "MANUAL"]} render={(o) => ({ ALL: "הכל", AUTO: "אוטומטי", MANUAL: "ידני" }[o] ?? o)} />
+        </div>
+        {sourceF !== "MANUAL" && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">בוט</span>
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                onClick={() => setBotF("ALL")}
+                className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${botF === "ALL" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"}`}
+                style={botF === "ALL" ? { boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+              >
+                הכל
+              </button>
+              {BOT_DEFS.map((bd) => {
+                const Icon = bd.icon;
+                const active = botF === bd.key;
+                return (
+                  <button
+                    key={bd.key}
+                    onClick={() => setBotF(bd.key as BotFilter)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"}`}
+                    style={active ? { boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+                  >
+                    <Icon className="h-2.5 w-2.5" />
+                    {bd.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table */}
