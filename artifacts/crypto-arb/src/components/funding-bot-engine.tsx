@@ -59,6 +59,7 @@ export function FundingBotEngine() {
   // ── Auto-open delta-neutral pairs on the best funding opportunities ──
   useEffect(() => {
     if (!armed) return;
+    if (settings.fleetPaused) return;
     const stake = settings.fundingStake;
     if (!(stake > 0)) return;
     const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);

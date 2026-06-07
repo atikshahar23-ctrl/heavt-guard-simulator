@@ -331,6 +331,13 @@ export function intensityProfile(level: number, mode: TradeMode = "NORMAL"): Int
 
 export interface AutoTraderSettings {
   enabled: boolean;
+  /**
+   * Fleet-wide pause switch: all bots stop opening NEW positions but existing
+   * ones stay alive and SL/TP continues to manage them normally. Unpausing
+   * immediately resumes auto-opens. Unlike disarming, this does NOT close
+   * positions or change any per-bot arm state.
+   */
+  fleetPaused: boolean;
   /** When true the engine overrides all margin/leverage/stake settings with a
    *  rule-based formula derived from portfolio value, health, and recent win-rate. */
   dynamicCapitalEnabled: boolean;
@@ -549,6 +556,7 @@ export interface AutoTraderSettings {
 
 export const DEFAULT_SETTINGS: AutoTraderSettings = {
   enabled: false,
+  fleetPaused: false,
   dynamicCapitalEnabled: false,
   autoPilotEnabled: false,
   marginPerTrade: 100,

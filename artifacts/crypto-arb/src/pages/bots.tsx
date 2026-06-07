@@ -3,6 +3,7 @@ import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
   Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit, Sparkles, Coins,
+  PauseCircle, PlayCircle,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -415,6 +416,26 @@ export default function Bots() {
             {autoPilotOn ? "אוטומטי פעיל" : "אוטומטי"}
           </Button>
           <Button
+            onClick={() => {
+              const next = !settings.fleetPaused;
+              update({ fleetPaused: next });
+              toast({
+                title: next ? "הצי מושהה" : "הצי חזר לפעולה",
+                description: next
+                  ? "הבוטים לא יפתחו עסקאות חדשות. פוזיציות פתוחות וניהול SL/TP ממשיכים לפעול."
+                  : "הבוטים חוזרים לפתוח עסקאות חדשות בהתאם לאיתותים.",
+              });
+            }}
+            className="gap-2 font-mono font-bold"
+            variant={settings.fleetPaused ? "default" : "outline"}
+            aria-pressed={settings.fleetPaused}
+            title={settings.fleetPaused ? "בטל השהיה — הבוטים יחזרו לפתוח עסקאות" : "השהה את כל הבוטים — לא תיפתחנה עסקאות חדשות; פוזיציות קיימות ממשיכות"}
+            style={settings.fleetPaused ? { boxShadow: "0 0 14px hsl(38 95% 60% / 0.45)" } : undefined}
+          >
+            {settings.fleetPaused ? <PlayCircle className="h-4 w-4" /> : <PauseCircle className="h-4 w-4" />}
+            {settings.fleetPaused ? "בטל השהיה" : "השהה בוטים"}
+          </Button>
+          <Button
             onClick={() => boostActive ? stopBoost() : startBoost(settings.boostDurationMin * 60_000)}
             className="gap-2 font-mono font-bold"
             variant={boostActive ? "default" : "outline"}
@@ -461,6 +482,33 @@ export default function Bots() {
           </Button>
         </div>
       </header>
+
+      {settings.fleetPaused && (
+        <div
+          className="rounded-lg border px-4 py-2.5 flex items-center justify-between gap-3"
+          style={{ borderColor: "hsl(38 95% 60% / 0.45)", background: "hsl(38 95% 60% / 0.06)" }}
+          dir="rtl"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <PauseCircle className="h-4 w-4 text-amber-400 shrink-0" />
+            <p className="text-[11px] text-muted-foreground">
+              <span className="text-amber-400 font-semibold">הצי מושהה</span> — הבוטים לא יפתחו עסקאות חדשות. פוזיציות פתוחות ממשיכות להיות מנוהלות (SL/TP פעיל). לחץ &quot;בטל השהיה&quot; כדי לחדש את המסחר.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 gap-1.5 text-amber-400 border-amber-400/40 hover:bg-amber-400/10 font-mono text-xs"
+            onClick={() => {
+              update({ fleetPaused: false });
+              toast({ title: "הצי חזר לפעולה", description: "הבוטים חוזרים לפתוח עסקאות חדשות בהתאם לאיתותים." });
+            }}
+          >
+            <PlayCircle className="h-3.5 w-3.5" />
+            בטל השהיה
+          </Button>
+        </div>
+      )}
 
       {boostActive && (
         <div

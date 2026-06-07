@@ -439,6 +439,9 @@ export function AutoTraderEngine() {
   // Auto-trade evaluation.
   useEffect(() => {
     if (!settings.enabled) return;
+    // Fleet-wide pause: keep existing positions alive (SL/TP above still fires)
+    // but skip all new auto-opens until the user unpauses.
+    if (settings.fleetPaused) return;
     const sizing = resolveSizing(settings, cash, totalDeposited, tradeHistory, "scalp");
     const margin = sizing.margin;
     const effectiveLeverage = sizing.leverage;
@@ -577,6 +580,7 @@ export function AutoTraderEngine() {
   // SHORT paper positions for the strongest agreeing setups (risk-gated).
   useEffect(() => {
     if (!settings.stocksEnabled) return;
+    if (settings.fleetPaused) return;
     const sizing = resolveSizing(settings, cash, totalDeposited, tradeHistory, "stocks");
     const stake = sizing.margin;
     if (!(stake > 0)) return;
@@ -711,6 +715,7 @@ export function AutoTraderEngine() {
   // (falling back to BTC); bets are sized per settings and exited on TP/SL.
   useEffect(() => {
     if (!settings.polyEnabled) return;
+    if (settings.fleetPaused) return;
 
     const horizonMs = settings.polyHorizonHours * 3600_000;
     const nowMs = Date.now();

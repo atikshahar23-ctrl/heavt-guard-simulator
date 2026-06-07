@@ -140,6 +140,7 @@ export function ExtraBotsEngine() {
   // ── Dip Buyer — buys the biggest crypto 24h losers (contrarian LONG) ──
   useEffect(() => {
     if (!settings.dipEnabled) return;
+    if (settings.fleetPaused) return;
     if (pausedBots.has("dipbuyer")) return;
     const sizing = resolveSizing(settings, cash, totalDeposited, tradeHistory, "dipbuyer");
     const lev = Math.max(1, sizing.leverage);
@@ -186,6 +187,7 @@ export function ExtraBotsEngine() {
   // ── Breakout Hunter — buys the strongest crypto 24h gainers (LONG) ──
   useEffect(() => {
     if (!settings.breakoutEnabled) return;
+    if (settings.fleetPaused) return;
     if (pausedBots.has("breakout")) return;
     const sizing = resolveSizing(settings, cash, totalDeposited, tradeHistory, "breakout");
     const lev = Math.max(1, sizing.leverage);
@@ -232,6 +234,7 @@ export function ExtraBotsEngine() {
   // ── Blue-Chip DCA — periodic small large-cap accumulation buys ──
   useEffect(() => {
     if (!settings.dcaEnabled) return;
+    if (settings.fleetPaused) return;
     if (pausedBots.has("dca")) return;
     const now = Date.now();
     // Boost mode buys on a tight 10s cadence; otherwise the intensity gear scales
