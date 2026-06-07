@@ -827,22 +827,28 @@ export function squadMemberBySource(source: string | undefined | null): ScalpSqu
  *
  * Asset-level de-duping (one position per coin) is handled upstream by the
  * engine, so two members never hold the same coin unless the engine's own
- * confluence rules open an extra slot.
+ * confluence rules open an extra slot. When the engine does allow a stack, it
+ * passes `heldByAsset` (asset → member ids already on that coin) so the extra
+ * slot is given to a DIFFERENT member — a real second bot backing the move,
+ * never the same bot doubling its own position.
  */
 export function assignScalpSquad(
   candidates: ScalpCandidate[],
-  opts: { perMemberMax: number },
+  opts: { perMemberMax: number; heldByAsset?: Map<string, Set<string>> },
 ): Map<string, ScalpSquadMember> {
   const out = new Map<string, ScalpSquadMember>();
   const load: Record<string, number> = {};
   for (const m of SCALP_SQUAD) load[m.id] = 0;
   const perMemberMax = Math.max(1, opts.perMemberMax);
+  const held = opts.heldByAsset;
   const sorted = [...candidates].sort((a, b) => b.score - a.score);
   for (const c of sorted) {
+    const exclude = held?.get(c.asset);
     let best: ScalpSquadMember | null = null;
     let bestScore = -Infinity;
     for (const m of SCALP_SQUAD) {
       if (load[m.id] >= perMemberMax) continue;
+      if (exclude?.has(m.id)) continue; // don't re-stack the same bot on a coin
       // Blend fit with a load penalty so work spreads across the squad.
       const s = m.fit(c) - load[m.id] * 0.15;
       if (s > bestScore) {
@@ -850,8 +856,11 @@ export function assignScalpSquad(
         best = m;
       }
     }
-    // Every member is full → fall back to the sweeper (the safety net).
-    if (!best) best = SCALP_SQUAD[SCALP_SQUAD.length - 1];
+    // Every eligible member is full → fall back to a member not already on the
+    // coin (sweeper first), so a stacked slot is still a distinct backer.
+    if (!best) {
+      best = [...SCALP_SQUAD].reverse().find((m) => !exclude?.has(m.id)) ?? SCALP_SQUAD[SCALP_SQUAD.length - 1];
+    }
     out.set(c.asset, best);
     load[best.id] += 1;
   }

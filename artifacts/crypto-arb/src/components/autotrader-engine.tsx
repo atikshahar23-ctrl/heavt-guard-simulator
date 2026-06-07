@@ -580,10 +580,37 @@ export function AutoTraderEngine() {
     // with two extra open slots so aligned bots can pile into the dominant move.
     const alphaSlots = settings.alphaCoordinatorEnabled && alphaState.direction !== "NEUTRAL" && alphaState.confluence >= ALPHA_STRONG_PCT ? 2 : 0;
     const maxOpen = Math.max(1, Math.round(settings.maxOpenPositions * prof.maxOpenMult) + alphaSlots);
+
+    // ── High-confluence stacking ──
+    // Normally one position per coin. But when the fleet's conviction is strong
+    // AND aligned, allow ONE extra scalp slot on a coin already held — a second
+    // squad member backing the dominant move (capped at MAX_SQUAD_PER_ASSET,
+    // aligned direction only). This is what lets the squad coordinate a pile-in
+    // on high consensus instead of every member sitting out an owned coin.
+    const MAX_SQUAD_PER_ASSET = 2;
+    const squadHeldByAsset = new Map<string, Set<string>>();
+    for (const p of binancePositions) {
+      const m = squadMemberBySource(p.source);
+      if (!m) continue;
+      const set = squadHeldByAsset.get(p.asset) ?? new Set<string>();
+      set.add(m.id);
+      squadHeldByAsset.set(p.asset, set);
+    }
+    const strongAligned = settings.alphaCoordinatorEnabled
+      && alphaState.direction !== "NEUTRAL"
+      && alphaState.confluence >= ALPHA_STRONG_PCT;
+    const canStack = (c: Candidate): boolean => {
+      if (c.source !== "Scalp signal") return false;
+      if (!strongAligned || c.direction !== alphaState.direction) return false;
+      const held = squadHeldByAsset.get(c.asset);
+      if (!held || held.size === 0) return false; // not held → normal path
+      return held.size < MAX_SQUAD_PER_ASSET;
+    };
+
     const ranked = [...byAsset.values()]
       .filter((c) => !settings.favoritesOnly || isFavorite(`coin:${c.asset}`))
-      .filter((c) => !openAssets.has(c.asset))
-      .filter((c) => now - (cooldownRef.current[c.asset] ?? 0) > cooldown)
+      .filter((c) => !openAssets.has(c.asset) || canStack(c))
+      .filter((c) => now - (cooldownRef.current[c.asset] ?? 0) > cooldown || canStack(c))
       .sort((a, b) => b.score - a.score);
 
     const trail: TrailConfig | undefined = settings.trailingEnabled
@@ -604,7 +631,7 @@ export function AutoTraderEngine() {
         score: c.score,
         confidence: c.confidence ?? "MEDIUM",
       })),
-      { perMemberMax },
+      { perMemberMax, heldByAsset: squadHeldByAsset },
     );
 
     // Strong-confluence backup call (throttled) — the coordinator rallies the
@@ -667,11 +694,14 @@ export function AutoTraderEngine() {
       autoOpen += 1;
       if (member) {
         const dirHe = c.direction === "LONG" ? "לונג" : "שורט";
+        const isBackup = (squadHeldByAsset.get(c.asset)?.size ?? 0) > 0;
         pushSquadMessage({
           memberId: member.id,
           memberName: member.name,
-          kind: "entry",
-          text: `${member.name} פתח ${squadIso(dirHe)} על ${squadIso(c.asset)}`,
+          kind: isBackup ? "backup" : "entry",
+          text: isBackup
+            ? `${member.name} מצטרף לגיבוי ${squadIso(dirHe)} על ${squadIso(c.asset)} — קונצנזוס גבוה`
+            : `${member.name} פתח ${squadIso(dirHe)} על ${squadIso(c.asset)}`,
         });
       }
       toast({

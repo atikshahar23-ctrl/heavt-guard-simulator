@@ -29,6 +29,18 @@ exit as a comms flood.
 PERSISTED `settings.recordedTradeIds` ledger (survives reload AND wallet switch), because caution
 must never double-count; comms only needs "don't replay", so a per-wallet in-memory reseed is enough.
 
+## High-confluence stacking (the coordination requirement)
+Default rule: one position per coin (engine de-dupes by asset + blocks already-open assets +
+per-asset cooldown). The squad's "coordination" promise is that this rule RELAXES only when the
+Alpha Coordinator's confluence is strong AND the candidate is aligned with the dominant direction:
+a second scalp slot may stack on an already-held coin, capped at 2 per asset, and the extra slot
+must go to a DIFFERENT member (assignScalpSquad takes a held-by-asset exclusion map).
+**Why:** the UI advertises "two members don't crowd the same coin unless consensus is high"; the
+engine must actually deliver that or it's a false claim. Reviewers block on this gap.
+**How to apply:** any future change to candidate de-dup / open-asset / cooldown filters must keep
+the high-confluence stacking exception intact, and stacked entries must stay attributed to a
+distinct member so per-member stats, comms, and risk accounting stay consistent.
+
 ## Max Performance ("מצב מקסימום")
 One `settings.maxPerfEnabled` flag. All overrides live in `effectiveSettings` (computed, not
 persisted) so toggling off restores the user's values: intensity 5, NORMAL mode, leverage≥10,
