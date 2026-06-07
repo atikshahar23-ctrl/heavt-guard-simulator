@@ -32,6 +32,25 @@ function botName(source: string | undefined): string | null {
   return BOT_SOURCE_LABEL[source] ?? null;
 }
 
+function sourceToBotId(source: string | undefined, type?: string): string | null {
+  if (type === "POLYMARKET") return "bot-poly";
+  if (type === "FUNDING") return "bot-funding";
+  if (!source) return null;
+  if (source.includes("Scalp")) return "bot-scalp";
+  if (source.includes("Momentum")) return "bot-momentum";
+  if (source.includes("Smart-Money")) return "bot-smart";
+  if (source === "Dip Buyer") return "bot-dipbuyer";
+  if (source === "Breakout Hunter") return "bot-breakout";
+  if (source === "Blue-Chip DCA") return "bot-dca";
+  return null;
+}
+
+function navigateToBotPanel(source: string | undefined, type: string | undefined, navigate: (to: string) => void) {
+  const botId = sourceToBotId(source, type);
+  if (botId) sessionStorage.setItem("scrollToBotId", botId);
+  navigate("/bots");
+}
+
 function fmtUsd(n: number, dp = 2): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
 }
@@ -842,6 +861,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
   const [hovered, setHovered] = useState<ClosedTrade | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const moveRef = useRef<number | null>(null);
+  const [, navigate] = useLocation();
 
   const onMove = useCallback((e: React.MouseEvent) => {
     if (moveRef.current !== null) cancelAnimationFrame(moveRef.current);
@@ -914,6 +934,27 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                       )}
                     </div>
                     <div className="font-mono text-[11px] text-foreground/90 break-words line-clamp-2 mt-0.5" title={first.description}>{first.description}</div>
+                    {(first.source || first.type === "POLYMARKET" || first.type === "FUNDING") && !isGroup && (
+                      <div className="mt-0.5">
+                        {first.source ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigateToBotPanel(first.source, first.type, navigate); }}
+                            className="font-mono text-[8px] font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 hover:bg-amber-400/30 transition-colors cursor-pointer"
+                            title={`עבור לבוט: ${first.source}`}
+                          >
+                            {botName(first.source) ?? first.source}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigateToBotPanel(undefined, first.type, navigate); }}
+                            className="font-mono text-[8px] font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 hover:bg-amber-400/30 transition-colors cursor-pointer"
+                            title="עבור לבוט"
+                          >
+                            {first.type === "POLYMARKET" ? "Polymarket Bot" : "Funding Arb"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {isGroup && (
                       <div className="font-mono text-[9px] text-muted-foreground/60 mt-0.5">
                         {rows.length} חזיוניות באותו הסווג

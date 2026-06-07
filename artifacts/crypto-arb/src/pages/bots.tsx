@@ -160,6 +160,22 @@ export default function Bots() {
   const { data: stocks } = useGetStocks({ query: { queryKey: getGetStocksQueryKey() } });
   const { data: shortTerm } = useGetShortTermMarkets({ query: { queryKey: getGetShortTermMarketsQueryKey() } });
 
+  // Scroll to and briefly highlight a specific bot card when navigated from a trade badge.
+  useEffect(() => {
+    const botId = sessionStorage.getItem("scrollToBotId");
+    if (!botId) return;
+    sessionStorage.removeItem("scrollToBotId");
+    const timer = setTimeout(() => {
+      const el = document.getElementById(botId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ring-2", "ring-primary/70", "ring-offset-2", "ring-offset-background");
+        setTimeout(() => el.classList.remove("ring-2", "ring-primary/70", "ring-offset-2", "ring-offset-background"), 2000);
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Live boost countdown — tick once a second only while a boost is running.
   const [now, setNow] = useState(() => Date.now());
   const boostActive = settings.boostUntil > now;

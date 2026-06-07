@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import {
   useGetBinanceMulti, getGetBinanceMultiQueryKey,
   useGetAllMarkets, getGetAllMarketsQueryKey,
@@ -43,6 +44,25 @@ function pnlColor(n: number) {
 }
 function pnlBg(n: number) {
   return n > 0 ? "bg-emerald-500/10 border-emerald-500/20" : n < 0 ? "bg-red-500/10 border-red-500/20" : "bg-secondary/30 border-border";
+}
+
+function sourceToBotId(source: string | undefined, type?: string): string | null {
+  if (type === "POLYMARKET") return "bot-poly";
+  if (type === "FUNDING") return "bot-funding";
+  if (!source) return null;
+  if (source.includes("Scalp")) return "bot-scalp";
+  if (source.includes("Momentum")) return "bot-momentum";
+  if (source.includes("Smart-Money")) return "bot-smart";
+  if (source === "Dip Buyer") return "bot-dipbuyer";
+  if (source === "Breakout Hunter") return "bot-breakout";
+  if (source === "Blue-Chip DCA") return "bot-dca";
+  return null;
+}
+
+function navigateToBotPanel(source: string | undefined, type: string | undefined, navigate: (to: string) => void) {
+  const botId = sourceToBotId(source, type);
+  if (botId) sessionStorage.setItem("scrollToBotId", botId);
+  navigate("/bots");
 }
 
 /* ─── Deposit Dialog ─── */
@@ -186,6 +206,7 @@ function PosFilterToggle({ value, onChange, counts }: { value: PosFilter; onChan
 function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelectAsset }: { binancePrices: Record<string, number>; posFilter: PosFilter; setPosFilter: (v: PosFilter) => void; onSelectAsset?: (asset: string) => void }) {
   const { binancePositions, closeBinancePosition, tradeHistory } = usePortfolio();
   const [histFilter, setHistFilter] = useState<PosFilter>("ALL");
+  const [, navigate] = useLocation();
   const binanceTrades = tradeHistory.filter(t => t.type === "BINANCE");
   const autoBinancePositions = binancePositions.filter(p => p.auto);
 
@@ -330,9 +351,13 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelec
                 <div key={t.id} className="px-3 py-1.5 flex items-center gap-2">
                   <span className="text-[10px] font-mono text-muted-foreground truncate flex-1">{t.description}</span>
                   {t.source ? (
-                    <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 shrink-0 max-w-[72px] truncate" title={t.source}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigateToBotPanel(t.source, t.type, navigate); }}
+                      className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 shrink-0 max-w-[72px] truncate hover:bg-amber-400/30 transition-colors cursor-pointer"
+                      title={`עבור לבוט: ${t.source}`}
+                    >
                       {t.source}
-                    </span>
+                    </button>
                   ) : t.auto ? null : (
                     <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-secondary/40 text-muted-foreground border border-border/40 shrink-0">
                       Manual
@@ -1029,6 +1054,7 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
 function TradeHistoryPanel() {
   const { tradeHistory } = usePortfolio();
   const [histFilter, setHistFilter] = useState<PosFilter>("ALL");
+  const [, navigate] = useLocation();
   const nonBinance = tradeHistory.filter(t => t.type !== "BINANCE");
   if (nonBinance.length === 0) return null;
   const botPnl = nonBinance.filter(t => t.auto).reduce((s, t) => s + t.pnl, 0);
@@ -1070,9 +1096,13 @@ function TradeHistoryPanel() {
               <span className="text-muted-foreground truncate font-mono">{t.description}</span>
             </div>
             {t.source ? (
-              <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 flex-shrink-0 max-w-[72px] truncate" title={t.source}>
+              <button
+                onClick={(e) => { e.stopPropagation(); navigateToBotPanel(t.source, t.type, navigate); }}
+                className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 flex-shrink-0 max-w-[72px] truncate hover:bg-amber-400/30 transition-colors cursor-pointer"
+                title={`עבור לבוט: ${t.source}`}
+              >
                 {t.source}
-              </span>
+              </button>
             ) : !t.auto ? (
               <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-secondary/40 text-muted-foreground border border-border/40 flex-shrink-0">
                 Manual
