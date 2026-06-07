@@ -464,7 +464,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         id: crypto.randomUUID(),
         type: "POLYMARKET",
         symbol: pos.slug ?? undefined,
-        description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${currentPrice.toFixed(3)} | ${pos.question.slice(0, 200)}`,
+        description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${currentPrice.toFixed(3)} | ${pos.question}`,
         cost: pos.cost,
         proceeds,
         pnl,
@@ -484,7 +484,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         ...prev,
         cash: prev.cash + proceeds,
         polyPositions: prev.polyPositions.filter((p) => p.id !== id),
-        tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
+        tradeHistory: [closed, ...prev.tradeHistory],
       };
     });
   }, []);
@@ -559,7 +559,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           ...prev,
           cash: prev.cash + proceeds,
           binancePositions: prev.binancePositions.filter((p) => p.id !== id),
-          tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
+          tradeHistory: [closed, ...prev.tradeHistory],
         };
       });
     },
@@ -632,7 +632,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           ...prev,
           cash: prev.cash + proceeds,
           fundingPositions: prev.fundingPositions.filter((p) => p.id !== id),
-          tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
+          tradeHistory: [closed, ...prev.tradeHistory],
         };
       });
     },
@@ -732,7 +732,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         ...prev,
         cash: prev.cash + proceeds,
         stockPositions: prev.stockPositions.filter((p) => p.id !== id),
-        tradeHistory: [closed, ...prev.tradeHistory].slice(0, 200),
+        tradeHistory: [closed, ...prev.tradeHistory],
       };
     });
   }, []);
@@ -794,7 +794,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
         binancePositions = binancePositions.filter((p) => p.id !== pos.id);
         cash = cash + proceeds;
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         changed = true;
       }
 
@@ -838,7 +838,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
         stockPositions = stockPositions.filter((p) => p.id !== pos.id);
         cash = cash + proceeds;
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         changed = true;
       }
 
@@ -962,7 +962,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
         binancePositions = binancePositions.filter((p) => p.id !== pos.id);
         cash = cash + proceeds;
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         changed = true;
       }
 
@@ -1021,7 +1021,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         qty: pos.notional,
         source: pos.source,
       };
-      tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+      tradeHistory = [closed, ...tradeHistory];
       cash += proceeds;
       closedCount += 1;
     }
@@ -1055,7 +1055,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         qty: pos.shares,
         source: pos.source,
       };
-      tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+      tradeHistory = [closed, ...tradeHistory];
       cash += proceeds;
       closedCount += 1;
     }
@@ -1086,7 +1086,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         qty: pos.notionalPerLeg,
         source: pos.source,
       };
-      tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+      tradeHistory = [closed, ...tradeHistory];
       cash += proceeds;
       closedCount += 1;
     }
@@ -1152,7 +1152,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           qty: pos.notional,
           source: pos.source,
         };
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         cash += proceeds;
         closedCount += 1;
       }
@@ -1188,7 +1188,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           qty: pos.shares,
           source: pos.source,
         };
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         cash += proceeds;
         closedCount += 1;
       }
@@ -1204,7 +1204,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           id: crypto.randomUUID(),
           type: "POLYMARKET",
           symbol: pos.slug ?? undefined,
-          description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${price.toFixed(3)} | ${pos.question.slice(0, 200)}`,
+          description: `${pos.side} @ ${pos.entryPrice.toFixed(3)} → ${price.toFixed(3)} | ${pos.question}`,
           cost: pos.cost,
           proceeds,
           pnl,
@@ -1220,7 +1220,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           auto: pos.auto,
           source: pos.source,
         };
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         cash += proceeds;
         closedCount += 1;
       }
@@ -1251,7 +1251,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           qty: pos.notionalPerLeg,
           source: pos.source,
         };
-        tradeHistory = [closed, ...tradeHistory].slice(0, 200);
+        tradeHistory = [closed, ...tradeHistory];
         cash += proceeds;
         closedCount += 1;
       }
