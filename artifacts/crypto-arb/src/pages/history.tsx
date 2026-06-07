@@ -5,6 +5,7 @@ import {
   History as HistoryIcon, TrendingUp, TrendingDown, Trophy, Target,
   Bot, Hand, Wallet, Activity, Cpu, LineChart as ChartIcon,
   Gauge, Rocket, Megaphone, Timer, Layers, Coins, Sparkles,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition, STARTING_BALANCE } from "@/contexts/portfolio-context";
 import { BotStatsPopover } from "@/components/bot-stats-popover";
@@ -936,11 +937,42 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
   );
 }
 
+const CATEGORY_ORDER = ["BINANCE", "STOCK", "POLYMARKET", "FUNDING", "OPTION"] as const;
+
+function CategoryHeaderRow({ type, count, totalCost, totalPnl, collapsed, onToggle }: {
+  type: string; count: number; totalCost: number; totalPnl: number; collapsed: boolean; onToggle: () => void;
+}) {
+  const up = totalPnl >= 0;
+  const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left border-b border-border/60 hover:bg-secondary/20 transition-colors"
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/50 text-foreground/80">{TYPE_LABEL[type as ClosedTrade["type"]]}</span>
+        <span className="text-[10px] text-muted-foreground font-mono">{count} עסקאות</span>
+      </div>
+      <div className="flex items-center gap-2 text-right shrink-0">
+        <span className="text-[10px] text-muted-foreground font-mono">מרג'ין ${fmtUsd(totalCost)}</span>
+        <div className="font-mono text-[11px] font-black" style={{ color: up ? "#22c55e" : "#ef4444" }}>
+          {up ? "+" : ""}${fmtUsd(totalPnl)}
+        </div>
+        <span className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>
+          {up ? "+" : ""}{pct.toFixed(1)}%
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelect: (t: ClosedTrade) => void }) {
   const [hovered, setHovered] = useState<ClosedTrade | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const moveRef = useRef<number | null>(null);
   const [, navigate] = useLocation();
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const onMove = useCallback((e: React.MouseEvent) => {
     if (moveRef.current !== null) cancelAnimationFrame(moveRef.current);
@@ -960,6 +992,26 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
     return map;
   }, [trades]);
 
+  const groupsByType = useMemo(() => {
+    const buckets: Record<string, [string, ClosedTrade[]][]> = {};
+    for (const cat of CATEGORY_ORDER) buckets[cat] = [];
+    for (const [key, rows] of grouped.entries()) {
+      const type = rows[0].type;
+      if (!buckets[type]) buckets[type] = [];
+      buckets[type].push([key, rows]);
+    }
+    return buckets;
+  }, [grouped]);
+
+  const toggleType = useCallback((type: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }, []);
+
   return (
     <>
       {hovered && <TradeTooltip trade={hovered} x={mousePos.x} y={mousePos.y} />}
@@ -968,120 +1020,141 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
           <span>עסקה</span><span className="text-right">יציאה</span><span className="text-right">מרג'ין</span><span className="text-right">רווח/הפסד</span><span className="text-right">מתי</span>
         </div>
         <div className="divide-y divide-border/60">
-          {Array.from(grouped.entries()).map(([key, rows]) => {
-            const first = rows[0];
-            const isGroup = rows.length > 1;
-            const totalPnl = rows.reduce((s, t) => s + t.pnl, 0);
-            const totalCost = rows.reduce((s, t) => s + t.cost, 0);
-            const up = totalPnl >= 0;
-            const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
-            const ex = isGroup
-              ? { label: `${rows.length} טרידים`, color: up ? "#22c55e" : "#ef4444" }
-              : exit(first);
+          {CATEGORY_ORDER.map((type) => {
+            const entries = groupsByType[type] ?? [];
+            if (entries.length === 0) return null;
+            const isCollapsed = collapsed.has(type);
+            const catCount = entries.reduce((s, [, rows]) => s + rows.length, 0);
+            const catCost = entries.reduce((s, [, rows]) => s + rows.reduce((ss, t) => ss + t.cost, 0), 0);
+            const catPnl = entries.reduce((s, [, rows]) => s + rows.reduce((ss, t) => ss + t.pnl, 0), 0);
 
             return (
-              <div
-                key={key}
-                className="group"
-                dir="rtl"
-              >
-                {/* Summary row */}
-                <div
-                  onClick={() => onSelect(first)}
-                  onMouseEnter={() => setHovered(first)}
-                  onMouseLeave={() => setHovered(null)}
-                  onMouseMove={onMove}
-                  role="button"
-                  tabIndex={0}
-                  title="צפה בפרטי העסקה"
-                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs cursor-pointer transition-colors hover:bg-secondary/30"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[first.type]}</span>
-                      <ChartIcon className="h-3 w-3 text-muted-foreground/50" />
-                      {first.symbol && <span className="font-mono text-[9px] font-bold text-primary">{first.symbol}</span>}
-                      {first.direction && (
-                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: first.direction === "LONG" || first.direction === "YES" ? "#22c55e1a" : "#ef44441a", color: first.direction === "LONG" || first.direction === "YES" ? "#22c55e" : "#ef4444" }}>
-                          {first.direction}
-                        </span>
-                      )}
-                      {isGroup && (
-                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
-                          {rows.length}x
-                        </span>
-                      )}
-                    </div>
-                    <div className="font-mono text-[11px] text-foreground/90 break-words line-clamp-2 mt-0.5" title={first.description}>{first.description}</div>
-                    {(first.source || first.type === "POLYMARKET" || first.type === "FUNDING" || first.type === "OPTION") && !isGroup && (
-                      <div className="mt-0.5">
-                        {first.source ? (
-                          <BotStatsPopover
-                            source={first.source}
-                            type={first.type}
-                            label={botName(first.source) ?? first.source}
-                            className="font-mono text-[8px] font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 hover:bg-amber-400/30 transition-colors cursor-pointer"
-                          />
-                        ) : (
-                          <BotStatsPopover
-                            type={first.type}
-                            label={first.type === "POLYMARKET" ? "Polymarket Bot" : "Funding Arb"}
-                            className="font-mono text-[8px] font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 hover:bg-amber-400/30 transition-colors cursor-pointer"
-                          />
-                        )}
-                      </div>
-                    )}
-                    {isGroup && (
-                      <div className="font-mono text-[9px] text-muted-foreground/60 mt-0.5">
-                        {rows.length} חזיוניות באותו הסווג
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
-                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
-                  </div>
-                  <div className="hidden sm:block text-right font-mono text-[11px] text-muted-foreground">${fmtUsd(totalCost)}</div>
-                  <div className="text-right">
-                    <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}${fmtUsd(totalPnl)}</div>
-                    <div className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}{pct.toFixed(1)}%</div>
-                  </div>
-                  <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">
-                    <div>{timeAgo(first.closedAt)}</div>
-                    {duration(first) && <div className="text-muted-foreground/50">{duration(first)}</div>}
-                  </div>
-                </div>
+              <div key={type}>
+                <CategoryHeaderRow
+                  type={type}
+                  count={catCount}
+                  totalCost={catCost}
+                  totalPnl={catPnl}
+                  collapsed={isCollapsed}
+                  onToggle={() => toggleType(type)}
+                />
+                {!isCollapsed && (
+                  <div>
+                    {entries.map(([key, rows]) => {
+                      const first = rows[0];
+                      const isGroup = rows.length > 1;
+                      const totalPnl = rows.reduce((s, t) => s + t.pnl, 0);
+                      const totalCost = rows.reduce((s, t) => s + t.cost, 0);
+                      const up = totalPnl >= 0;
+                      const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+                      const ex = isGroup
+                        ? { label: `${rows.length} טרידים`, color: up ? "#22c55e" : "#ef4444" }
+                        : exit(first);
 
-                {/* Expandable detail rows for groups */}
-                {isGroup && (
-                  <div className="bg-background/30 border-t border-border/30">
-                    {rows.map((t) => {
-                      const u = t.pnl >= 0;
-                      const p = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
-                      const ex = exit(t);
                       return (
-                        <div
-                          key={t.id}
-                          onClick={() => onSelect(t)}
-                          onMouseEnter={() => setHovered(t)}
-                          onMouseLeave={() => setHovered(null)}
-                          onMouseMove={onMove}
-                          className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-1.5 items-center text-xs cursor-pointer hover:bg-secondary/20 transition-colors opacity-70"
-                          dir="rtl"
-                        >
-                          <div className="min-w-0">
-                            <span className="font-mono text-[10px] text-muted-foreground">{t.description}</span>
+                        <div key={key} className="group" dir="rtl">
+                          {/* Summary row */}
+                          <div
+                            onClick={() => onSelect(first)}
+                            onMouseEnter={() => setHovered(first)}
+                            onMouseLeave={() => setHovered(null)}
+                            onMouseMove={onMove}
+                            role="button"
+                            tabIndex={0}
+                            title="צפה בפרטי העסקה"
+                            className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs cursor-pointer transition-colors hover:bg-secondary/30"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[first.type]}</span>
+                                <ChartIcon className="h-3 w-3 text-muted-foreground/50" />
+                                {first.symbol && <span className="font-mono text-[9px] font-bold text-primary">{first.symbol}</span>}
+                                {first.direction && (
+                                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: first.direction === "LONG" || first.direction === "YES" ? "#22c55e1a" : "#ef44441a", color: first.direction === "LONG" || first.direction === "YES" ? "#22c55e" : "#ef4444" }}>
+                                    {first.direction}
+                                  </span>
+                                )}
+                                {isGroup && (
+                                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                                    {rows.length}x
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-mono text-[11px] text-foreground/90 break-words line-clamp-2 mt-0.5" title={first.description}>{first.description}</div>
+                              {(first.source || first.type === "POLYMARKET" || first.type === "FUNDING" || first.type === "OPTION") && !isGroup && (
+                                <div className="mt-0.5">
+                                  {first.source ? (
+                                    <BotStatsPopover
+                                      source={first.source}
+                                      type={first.type}
+                                      label={botName(first.source) ?? first.source}
+                                      className="font-mono text-[8px] font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 hover:bg-amber-400/30 transition-colors cursor-pointer"
+                                    />
+                                  ) : (
+                                    <BotStatsPopover
+                                      type={first.type}
+                                      label={first.type === "POLYMARKET" ? "Polymarket Bot" : "Funding Arb"}
+                                      className="font-mono text-[8px] font-bold px-1 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/25 hover:bg-amber-400/30 transition-colors cursor-pointer"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                              {isGroup && (
+                                <div className="font-mono text-[9px] text-muted-foreground/60 mt-0.5">
+                                  {rows.length} חזיוניות באותו הסווג
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
+                              <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
+                            </div>
+                            <div className="hidden sm:block text-right font-mono text-[11px] text-muted-foreground">${fmtUsd(totalCost)}</div>
+                            <div className="text-right">
+                              <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}${fmtUsd(totalPnl)}</div>
+                              <div className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}{pct.toFixed(1)}%</div>
+                            </div>
+                            <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">
+                              <div>{timeAgo(first.closedAt)}</div>
+                              {duration(first) && <div className="text-muted-foreground/50">{duration(first)}</div>}
+                            </div>
                           </div>
-                          <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
-                            <span className="font-mono text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
-                          </div>
-                          <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">${fmtUsd(t.cost)}</div>
-                          <div className="text-right">
-                            <div className="font-mono text-[10px] font-bold" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}${fmtUsd(t.pnl)}</div>
-                            <div className="font-mono text-[9px]" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}{p.toFixed(1)}%</div>
-                          </div>
-                          <div className="hidden sm:block text-right font-mono text-[9px] text-muted-foreground">
-                            {timeAgo(t.closedAt)}
-                          </div>
+
+                          {/* Expandable detail rows for groups */}
+                          {isGroup && (
+                            <div className="bg-background/30 border-t border-border/30">
+                              {rows.map((t) => {
+                                const u = t.pnl >= 0;
+                                const p = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
+                                const ex = exit(t);
+                                return (
+                                  <div
+                                    key={t.id}
+                                    onClick={() => onSelect(t)}
+                                    onMouseEnter={() => setHovered(t)}
+                                    onMouseLeave={() => setHovered(null)}
+                                    onMouseMove={onMove}
+                                    className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-1.5 items-center text-xs cursor-pointer hover:bg-secondary/20 transition-colors opacity-70"
+                                    dir="rtl"
+                                  >
+                                    <div className="min-w-0">
+                                      <span className="font-mono text-[10px] text-muted-foreground">{t.description}</span>
+                                    </div>
+                                    <div className="text-right sm:order-none order-last col-span-2 sm:col-span-1">
+                                      <span className="font-mono text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
+                                    </div>
+                                    <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">${fmtUsd(t.cost)}</div>
+                                    <div className="text-right">
+                                      <div className="font-mono text-[10px] font-bold" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}${fmtUsd(t.pnl)}</div>
+                                      <div className="font-mono text-[9px]" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}{p.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="hidden sm:block text-right font-mono text-[9px] text-muted-foreground">
+                                      {timeAgo(t.closedAt)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
