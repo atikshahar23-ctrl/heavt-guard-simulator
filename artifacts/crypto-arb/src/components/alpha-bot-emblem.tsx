@@ -26,12 +26,12 @@ export function AlphaBotEmblem({
     >
       <defs>
         <linearGradient id="alpha-emblem-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="hsl(43 90% 62%)" />
-          <stop offset="100%" stopColor="hsl(38 74% 44%)" />
+          <stop offset="0%" stopColor="hsl(207 35% 80%)" />
+          <stop offset="100%" stopColor="hsl(207 30% 50%)" />
         </linearGradient>
         <radialGradient id="alpha-core-grad" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="hsl(48 100% 75%)" />
-          <stop offset="100%" stopColor="hsl(43 90% 50%)" />
+          <stop offset="100%" stopColor="hsl(207 30% 60%)" />
         </radialGradient>
       </defs>
 

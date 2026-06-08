@@ -82,7 +82,7 @@ function QuickBetCard({ m, now }: { m: PolymarketMarket; now: number }) {
           >
             <Star
               className="h-3.5 w-3.5 transition-colors"
-              style={{ color: fav ? "hsl(32 84% 55%)" : "#52525b", fill: fav ? "hsl(32 84% 55%)" : "transparent" }}
+              style={{ color: fav ? "hsl(207 30% 70%)" : "#52525b", fill: fav ? "hsl(207 30% 70%)" : "transparent" }}
             />
           </button>
           <p className="text-sm font-medium text-foreground/90 leading-snug line-clamp-3">{m.question}</p>
@@ -118,7 +118,7 @@ function QuickBetCard({ m, now }: { m: PolymarketMarket; now: number }) {
       <div className="flex items-center justify-between border-t border-border/50 pt-2">
         <div
           className="flex items-center gap-1.5 text-xs font-mono font-bold"
-          style={{ color: cd.urgent ? "#ef4444" : "hsl(32 84% 55%)" }}
+          style={{ color: cd.urgent ? "#ef4444" : "hsl(207 30% 70%)" }}
         >
           <Timer className="h-3.5 w-3.5" />
           {cd.text}
@@ -189,7 +189,7 @@ export default function QuickBetsPage() {
               showFavOnly ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Star className="h-3 w-3" style={{ fill: showFavOnly ? "hsl(32 84% 55%)" : "transparent" }} />
+            <Star className="h-3 w-3" style={{ fill: showFavOnly ? "hsl(207 30% 70%)" : "transparent" }} />
             {showFavOnly ? "מועדפים" : "הכל"}
           </button>
           <span className="text-[10px] font-mono text-muted-foreground hidden sm:block">{filtered.length} markets</span>

@@ -71,40 +71,40 @@
 }
 
 :root, .dark {
-  --button-outline: rgba(197, 128, 42, 0.16);
-  --badge-outline: rgba(197, 128, 42, 0.08);
+  --button-outline: rgba(159, 180, 199, 0.16);
+  --badge-outline: rgba(159, 180, 199, 0.08);
 
   --opaque-button-border-intensity: 9;
 
-  --elevate-1: rgba(197, 128, 42, 0.05);
-  --elevate-2: rgba(197, 128, 42, 0.10);
+  --elevate-1: rgba(159, 180, 199, 0.05);
+  --elevate-2: rgba(159, 180, 199, 0.10);
 
-  /* Logo-derived: cool steel-charcoal base — softer & more comfortable than pure black */
-  --background: 220 16% 8%;
-  --foreground: 210 22% 92%;
+  /* Carbon Noir / Obsidian — onyx near-black with a cool platinum cast */
+  --background: 216 14% 5%;
+  --foreground: 213 25% 92%;
 
-  --border: 215 15% 19%;
+  --border: 216 11% 15%;
 
-  --card: 220 15% 11%;
-  --card-foreground: 210 22% 92%;
-  --card-border: 215 15% 19%;
+  --card: 220 12% 8%;
+  --card-foreground: 213 25% 92%;
+  --card-border: 216 11% 15%;
 
-  --sidebar: 220 17% 9%;
-  --sidebar-foreground: 210 22% 92%;
-  --sidebar-border: 215 15% 19%;
+  --sidebar: 220 13% 6%;
+  --sidebar-foreground: 213 25% 92%;
+  --sidebar-border: 216 11% 15%;
   /* Copper primary (logo horns / "HEAVY") */
-  --sidebar-primary: 32 84% 55%;
+  --sidebar-primary: 207 30% 70%;
   --sidebar-primary-foreground: 220 25% 8%;
   --sidebar-accent: 215 14% 16%;
   --sidebar-accent-foreground: 210 22% 92%;
-  --sidebar-ring: 32 84% 55%;
+  --sidebar-ring: 207 30% 70%;
 
   --popover: 220 15% 11%;
   --popover-foreground: 210 22% 92%;
   --popover-border: 215 15% 19%;
 
   /* Copper — the signature brand color (logo horns + "HEAVY") */
-  --primary: 32 84% 55%;
+  --primary: 207 30% 70%;
   --primary-foreground: 220 25% 8%;
 
   /* Steel secondary panels */
@@ -115,19 +115,19 @@
   --muted-foreground: 213 14% 62%;
 
   /* Cyan accent (logo lock + glowing eyes) */
-  --accent: 190 80% 52%;
+  --accent: 39 28% 72%;
   --accent-foreground: 220 25% 8%;
 
   --destructive: 0 62% 42%;
   --destructive-foreground: 210 22% 94%;
 
   --input: 215 15% 15%;
-  --ring: 32 84% 55%;
+  --ring: 207 30% 70%;
 
-  --chart-1: 32 84% 55%;
+  --chart-1: 207 30% 70%;
   --chart-2: 152 58% 46%;
   --chart-3: 0 70% 56%;
-  --chart-4: 190 80% 52%;
+  --chart-4: 39 28% 72%;
   --chart-5: 210 28% 62%;
 
   --app-font-sans: 'Inter', sans-serif;
@@ -153,20 +153,20 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 
-  /* Gold scrollbar */
+  /* Platinum scrollbar */
   ::-webkit-scrollbar {
     width: 5px;
     height: 5px;
   }
   ::-webkit-scrollbar-track {
-    background: hsl(0 0% 6%);
+    background: hsl(216 14% 4%);
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(32 45% 32%);
+    background: hsl(216 12% 22%);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(32 84% 48%);
+    background: hsl(207 25% 52%);
   }
 }
 
@@ -178,13 +178,13 @@ aside::before {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, hsl(32 84% 55%), transparent);
+  background: linear-gradient(90deg, transparent, hsl(207 30% 70%), transparent);
   opacity: 0.6;
 }
 
 /* Subtle gold glow on primary elements */
 .text-primary {
-  text-shadow: 0 0 20px hsl(32 84% 55% / 0.3);
+  text-shadow: 0 0 20px hsl(207 30% 70% / 0.3);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -242,7 +242,7 @@ html {
   background: linear-gradient(
     90deg,
     transparent,
-    hsl(32 84% 55% / 0.10),
+    hsl(207 30% 70% / 0.10),
     transparent
   );
   animation: shimmer 1.6s var(--ease-out-quart) infinite;
@@ -261,7 +261,7 @@ textarea:focus-visible,
   outline-offset: 2px;
   box-shadow:
     0 0 0 2px hsl(0 0% 4%),
-    0 0 0 4px hsl(32 84% 55% / 0.55);
+    0 0 0 4px hsl(207 30% 70% / 0.55);
   border-radius: 5px;
 }
 
@@ -295,7 +295,7 @@ textarea:focus-visible,
   stroke-dasharray: 8 6;
 }
 .jarvis-glow {
-  filter: drop-shadow(0 0 3px hsl(32 84% 55% / 0.8));
+  filter: drop-shadow(0 0 3px hsl(207 30% 70% / 0.8));
 }
 @keyframes jarvis-mouth-speak {
   0%, 100% { transform: scaleY(0.35); }
@@ -322,8 +322,8 @@ textarea:focus-visible,
   animation: jarvis-boost-pulse 0.9s ease-in-out infinite;
 }
 @keyframes jarvis-boost-glow {
-  0%, 100% { box-shadow: 0 0 28px hsl(32 84% 55% / 0.35); }
-  50%      { box-shadow: 0 0 46px hsl(32 84% 55% / 0.65); }
+  0%, 100% { box-shadow: 0 0 28px hsl(207 30% 70% / 0.35); }
+  50%      { box-shadow: 0 0 46px hsl(207 30% 70% / 0.65); }
 }
 .jarvis-boost-alert {
   animation: jarvis-boost-glow 1.6s ease-in-out infinite;
@@ -364,8 +364,8 @@ textarea:focus-visible,
 /* ── Sidebar alien grid sheen ── */
 .alien-grid {
   background-image:
-    linear-gradient(hsl(190 80% 52% / 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(190 80% 52% / 0.04) 1px, transparent 1px);
+    linear-gradient(hsl(39 28% 72% / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(39 28% 72% / 0.04) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
@@ -435,7 +435,7 @@ textarea:focus-visible,
 }
 .auth-star {
   animation: auth-twinkle ease-in-out infinite;
-  box-shadow: 0 0 4px rgba(246, 232, 194, 0.7);
+  box-shadow: 0 0 4px rgba(220, 232, 244, 0.7);
 }
 @keyframes auth-rise {
   from { opacity: 0; transform: translateY(16px); }
@@ -449,11 +449,11 @@ textarea:focus-visible,
 .auth-shine {
   background-image: linear-gradient(
     100deg,
-    #9c7c40 0%,
-    #d9bd82 30%,
-    #fff7e0 50%,
-    #d9bd82 70%,
-    #9c7c40 100%
+    #6b7886 0%,
+    #aeb9c6 30%,
+    #ffffff 50%,
+    #aeb9c6 70%,
+    #6b7886 100%
   );
   background-size: 220% auto;
   -webkit-background-clip: text;
@@ -475,11 +475,11 @@ textarea:focus-visible,
   50%      { transform: translateY(-7px); }
 }
 .auth-logo {
-  box-shadow: 0 0 0 1px rgba(205, 171, 104, 0.35),
+  box-shadow: 0 0 0 1px rgba(190, 205, 220, 0.35),
     0 18px 50px -12px rgba(0, 0, 0, 0.9);
 }
 .auth-medallion-glow {
-  background: radial-gradient(circle, rgba(205, 171, 104, 0.45) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(190, 205, 220, 0.45) 0%, transparent 70%);
   filter: blur(6px);
   animation: auth-glow 4.5s ease-in-out infinite;
 }
@@ -492,9 +492,9 @@ textarea:focus-visible,
   background: conic-gradient(
     from 0deg,
     transparent 0%,
-    rgba(205, 171, 104, 0) 30%,
-    rgba(246, 232, 194, 0.95) 50%,
-    rgba(205, 171, 104, 0) 70%,
+    rgba(190, 205, 220, 0) 30%,
+    rgba(220, 232, 244, 0.95) 50%,
+    rgba(190, 205, 220, 0) 70%,
     transparent 100%
   );
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
@@ -520,9 +520,9 @@ textarea:focus-visible,
   background: linear-gradient(
     115deg,
     transparent 38%,
-    rgba(246, 232, 194, 0.05) 47%,
-    rgba(246, 232, 194, 0.13) 50%,
-    rgba(246, 232, 194, 0.05) 53%,
+    rgba(220, 232, 244, 0.05) 47%,
+    rgba(220, 232, 244, 0.13) 50%,
+    rgba(220, 232, 244, 0.05) 53%,
     transparent 62%
   );
   transform: translateX(-120%);
@@ -531,4 +531,100 @@ textarea:focus-visible,
 @keyframes auth-sweep {
   0%       { transform: translateX(-120%); }
   55%, 100% { transform: translateX(120%); }
+}
+
+/* ── Carbon Noir / Obsidian surface system ──────────────────────────────
+   Onyx weave backdrop + couture panel/gleam/jewel utilities (platinum,
+   champagne hairline). Numbers stay Space Mono via .uhnw-mono. */
+:root {
+  --champagne-hairline: rgba(205, 191, 164, 0.25);
+  --champagne-glow: rgba(205, 191, 164, 0.08);
+  --steel-accent: 207 30% 70%;
+}
+
+/* Fine carbon-fiber weave over the onyx base — fixed so it reads as material */
+body {
+  background-color: hsl(var(--background));
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 5px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 5px);
+  background-attachment: fixed;
+}
+
+/* Polished-onyx panel with platinum inner light + champagne top hairline */
+.uhnw-panel {
+  background: linear-gradient(145deg, rgba(20,22,26,0.85), rgba(6,7,9,0.96));
+  border: 1px solid rgba(255,255,255,0.04);
+  border-top: 1px solid var(--champagne-hairline);
+  box-shadow: inset 0 1px 0 var(--champagne-glow), 0 12px 44px rgba(0,0,0,0.8);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Space Mono numerics with tight tracking */
+.uhnw-mono {
+  font-family: 'Space Mono', monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Couture serif headline */
+.uhnw-heading {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Slow platinum gleam sweeping across text (wordmarks/headlines) */
+.gleam-text {
+  background: linear-gradient(120deg, #8e959d 0%, #ffffff 50%, #8e959d 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: gleam 6s ease-in-out infinite;
+}
+@keyframes gleam {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* Jewel-like status dot with a soft expanding ring */
+.jewel-dot {
+  box-shadow: 0 0 12px currentColor;
+  position: relative;
+}
+.jewel-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.3;
+  animation: jewel-pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+@keyframes jewel-pulse-ring {
+  0%   { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Champagne hairline divider */
+.uhnw-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--champagne-hairline), transparent);
+  opacity: 0.6;
+}
+
+/* Onyx marble entrance backdrop + cinematic vignette/spotlight */
+.entrance-marble-bg {
+  background-color: #030303;
+  background-image:
+    radial-gradient(ellipse at center, transparent 0%, #000 100%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+}
+.entrance-vignette {
+  background: radial-gradient(circle at 50% 40%, rgba(10,10,12,0) 0%, rgba(2,2,2,0.85) 80%, #000 100%);
+  pointer-events: none;
+}
+.entrance-spotlight {
+  background: radial-gradient(ellipse at 50% -10%, rgba(159,180,199,0.08) 0%, rgba(159,180,199,0) 60%);
+  pointer-events: none;
 }

@@ -404,7 +404,7 @@ export default function TradeDesk() {
               Active Positions — Live
             </span>
           </div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ textShadow: "0 0 24px hsl(43 74% 52% / 0.35)" }}>
+          <h1 className="text-2xl font-black tracking-tight" style={{ textShadow: "0 0 24px hsl(207 30% 70% / 0.35)" }}>
             Trade Desk
           </h1>
           <p className="text-xs text-muted-foreground font-mono mt-0.5" dir="rtl">

@@ -37,7 +37,7 @@ function OverviewRow({ c }: { c: CoinTicker }) {
       >
         <Star
           className="h-3.5 w-3.5 transition-colors"
-          style={{ color: fav ? "hsl(32 84% 55%)" : "#52525b", fill: fav ? "hsl(32 84% 55%)" : "transparent" }}
+          style={{ color: fav ? "hsl(207 30% 70%)" : "#52525b", fill: fav ? "hsl(207 30% 70%)" : "transparent" }}
         />
       </button>
       <div className="flex items-center gap-2 min-w-0">
@@ -87,7 +87,7 @@ function MarketOverview() {
                 favOnly ? "bg-primary/15 text-primary" : "bg-secondary/40 text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Star className="h-3 w-3" style={favOnly ? { fill: "hsl(32 84% 55%)" } : {}} /> Favorites
+              <Star className="h-3 w-3" style={favOnly ? { fill: "hsl(207 30% 70%)" } : {}} /> Favorites
             </button>
             <div className="relative w-40">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

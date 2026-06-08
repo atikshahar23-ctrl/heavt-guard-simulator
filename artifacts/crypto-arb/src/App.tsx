@@ -65,8 +65,8 @@ if (!clerkPubKey) {
   throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in .env file");
 }
 
-// Champagne-gold VIP appearance — obsidian glass card, hairline gold borders,
-// serif headings and a brushed-gold primary action.
+// Carbon Noir / Obsidian appearance — obsidian glass card, platinum hairline
+// borders, serif headings and a brushed-platinum primary action.
 const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
@@ -74,45 +74,45 @@ const clerkAppearance = {
     logoPlacement: "none" as const,
   },
   variables: {
-    colorPrimary: "hsl(40 52% 60%)",
-    colorForeground: "hsl(40 30% 92%)",
-    colorMutedForeground: "hsl(40 12% 64%)",
+    colorPrimary: "hsl(207 30% 70%)",
+    colorForeground: "hsl(213 25% 92%)",
+    colorMutedForeground: "hsl(213 8% 62%)",
     colorDanger: "hsl(0 62% 52%)",
     colorBackground: "transparent",
     colorInput: "hsl(0 0% 100% / 0.04)",
-    colorInputForeground: "hsl(40 30% 92%)",
-    colorNeutral: "hsl(40 30% 80%)",
+    colorInputForeground: "hsl(213 25% 92%)",
+    colorNeutral: "hsl(210 18% 80%)",
     fontFamily: "'Inter', sans-serif",
     borderRadius: "0.25rem",
   },
   elements: {
     rootBox: "w-full flex justify-center",
     cardBox:
-      "bg-white/[0.025] backdrop-blur-xl border border-[#cdab68]/25 rounded-[3px] w-full max-w-full overflow-hidden shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]",
+      "bg-white/[0.025] backdrop-blur-xl border border-[#9fb4c7]/22 rounded-[3px] w-full max-w-full overflow-hidden shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none px-7 py-8",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
     header: "gap-1",
     headerTitle:
-      "text-[#f0e3c8] text-2xl tracking-[0.06em] [font-family:'Playfair_Display',serif]",
-    headerSubtitle: "text-[#c9b894]/70 text-xs tracking-[0.18em] uppercase font-mono",
-    socialButtonsBlockButtonText: "text-[#f0e3c8] tracking-wide",
-    formFieldLabel: "text-[#d9c9a6] text-[0.7rem] font-medium tracking-[0.12em] uppercase",
-    footerActionLink: "text-[#d9b977] hover:text-[#f0d79a] font-medium",
-    footerActionText: "text-[#c9b894]/60",
-    dividerText: "text-[#c9b894]/50 text-[0.65rem] tracking-[0.3em] uppercase",
-    identityPreviewEditButton: "text-[#d9b977]",
+      "text-[#e6edf4] text-2xl tracking-[0.06em] [font-family:'Playfair_Display',serif]",
+    headerSubtitle: "text-[#9fb4c7]/70 text-xs tracking-[0.18em] uppercase font-mono",
+    socialButtonsBlockButtonText: "text-[#e6edf4] tracking-wide",
+    formFieldLabel: "text-[#b9c6d4] text-[0.7rem] font-medium tracking-[0.12em] uppercase",
+    footerActionLink: "text-[#9fb4c7] hover:text-[#cfe0ee] font-medium",
+    footerActionText: "text-[#9fb4c7]/60",
+    dividerText: "text-[#9fb4c7]/50 text-[0.65rem] tracking-[0.3em] uppercase",
+    identityPreviewEditButton: "text-[#9fb4c7]",
     formFieldSuccessText: "text-[hsl(152,58%,52%)]",
-    alertText: "text-[#f0e3c8]",
+    alertText: "text-[#e6edf4]",
     socialButtonsBlockButton:
-      "border-[#cdab68]/25 bg-white/[0.02] hover:bg-[#cdab68]/10 hover:border-[#cdab68]/45 transition-colors h-11",
+      "border-[#9fb4c7]/22 bg-white/[0.02] hover:bg-[#9fb4c7]/10 hover:border-[#9fb4c7]/45 transition-colors h-11",
     formButtonPrimary:
-      "h-11 bg-gradient-to-r from-[#e6cd8d] via-[#cdab68] to-[#b08e48] text-[#1a1303] font-semibold tracking-[0.12em] uppercase text-xs hover:brightness-110 transition-[filter] shadow-[0_8px_24px_-8px_rgba(205,171,104,0.5)]",
+      "h-11 bg-gradient-to-r from-[#c9d6e2] via-[#9fb4c7] to-[#6f8294] text-[#0b0f14] font-semibold tracking-[0.12em] uppercase text-xs hover:brightness-110 transition-[filter] shadow-[0_8px_24px_-8px_rgba(159,180,199,0.5)]",
     formFieldInput:
-      "bg-white/[0.03] text-[#f0e3c8] border-[#cdab68]/20 focus:border-[#cdab68]/60 h-11",
-    footerAction: "border-t border-[#cdab68]/15",
-    dividerLine: "bg-[#cdab68]/20",
+      "bg-white/[0.03] text-[#e6edf4] border-[#9fb4c7]/20 focus:border-[#9fb4c7]/60 h-11",
+    footerAction: "border-t border-[#9fb4c7]/15",
+    dividerLine: "bg-[#9fb4c7]/20",
     alert: "bg-[hsl(0,62%,42%)]/10 border-[hsl(0,62%,42%)]/25",
-    otpCodeFieldInput: "bg-white/[0.03] text-[#f0e3c8] border-[#cdab68]/25",
+    otpCodeFieldInput: "bg-white/[0.03] text-[#e6edf4] border-[#9fb4c7]/25",
     formFieldRow: "gap-3",
     main: "gap-5",
   },

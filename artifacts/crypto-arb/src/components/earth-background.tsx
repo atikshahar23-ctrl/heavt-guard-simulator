@@ -4,8 +4,8 @@
  * fixed, low-opacity, and pointer-events-none so it never interferes with the UI.
  */
 
-const GOLD = "hsl(43 74% 52%)";
-const CYAN = "hsl(190 80% 52%)";
+const GOLD = "hsl(207 30% 70%)";
+const CYAN = "hsl(39 28% 72%)";
 
 // Curved capital-flow arcs across the globe (money moving place to place).
 // Each path is a quadratic curve; a coin animates along it with a stagger.
@@ -32,7 +32,7 @@ export function EarthBackground() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse at 65% 55%, hsl(43 74% 52% / 0.05) 0%, transparent 55%), radial-gradient(ellipse at 30% 80%, hsl(190 80% 52% / 0.04) 0%, transparent 50%)",
+            "radial-gradient(ellipse at 65% 55%, hsl(207 30% 70% / 0.05) 0%, transparent 55%), radial-gradient(ellipse at 30% 80%, hsl(39 28% 72% / 0.04) 0%, transparent 50%)",
         }}
       />
 
@@ -41,14 +41,14 @@ export function EarthBackground() {
         <svg viewBox="0 0 500 500" className="h-full w-full">
           <defs>
             <radialGradient id="earth-core" cx="42%" cy="38%" r="68%">
-              <stop offset="0%" stopColor="hsl(43 74% 52% / 0.16)" />
+              <stop offset="0%" stopColor="hsl(207 30% 70% / 0.16)" />
               <stop offset="55%" stopColor="hsl(200 60% 30% / 0.10)" />
               <stop offset="100%" stopColor="hsl(0 0% 4% / 0)" />
             </radialGradient>
             <radialGradient id="earth-rim" cx="50%" cy="50%" r="50%">
-              <stop offset="80%" stopColor="hsl(190 80% 52% / 0)" />
-              <stop offset="97%" stopColor="hsl(190 80% 52% / 0.35)" />
-              <stop offset="100%" stopColor="hsl(190 80% 52% / 0)" />
+              <stop offset="80%" stopColor="hsl(39 28% 72% / 0)" />
+              <stop offset="97%" stopColor="hsl(39 28% 72% / 0.35)" />
+              <stop offset="100%" stopColor="hsl(39 28% 72% / 0)" />
             </radialGradient>
           </defs>
 
@@ -60,7 +60,7 @@ export function EarthBackground() {
             cy="250"
             r="200"
             fill="none"
-            stroke="hsl(190 80% 52% / 0.30)"
+            stroke="hsl(39 28% 72% / 0.30)"
             strokeWidth="1"
           />
 
@@ -75,7 +75,7 @@ export function EarthBackground() {
                 rx={rx}
                 ry="200"
                 fill="none"
-                stroke="hsl(43 74% 52% / 0.22)"
+                stroke="hsl(207 30% 70% / 0.22)"
                 strokeWidth="0.8"
               />
             ))}
@@ -91,7 +91,7 @@ export function EarthBackground() {
                   rx={200 * Math.cos((lat * Math.PI) / 180)}
                   ry={Math.max(2, ry * 0.16)}
                   fill="none"
-                  stroke="hsl(190 80% 52% / 0.16)"
+                  stroke="hsl(39 28% 72% / 0.16)"
                   strokeWidth="0.8"
                 />
               );

@@ -164,8 +164,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <>
       {/* Alien grid sheen + scanning top edge */}
       <div className="alien-grid pointer-events-none absolute inset-0 opacity-60" />
-      <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 0%, hsl(190 80% 52% / 0.07), transparent 60%)' }} />
-      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(190 80% 52%), hsl(32 84% 55%), transparent)' }} />
+      <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 0%, hsl(39 28% 72% / 0.07), transparent 60%)' }} />
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(39 28% 72%), hsl(207 30% 70%), transparent)' }} />
 
       <div className="relative px-5 py-5 short:py-2.5 border-b border-border/70 flex flex-col items-center gap-2 short:gap-1">
         <img
@@ -173,7 +173,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           alt="HEAVY GUARD SYSTEM"
           draggable={false}
           className="w-32 short:w-20 h-auto select-none transition-all"
-          style={{ filter: 'drop-shadow(0 0 14px hsl(32 84% 55% / 0.22))' }}
+          style={{ filter: 'drop-shadow(0 0 14px hsl(207 30% 70% / 0.22))' }}
         />
         <p className="text-[9px] short:text-[8px] text-muted-foreground tracking-[0.32em] uppercase font-mono">Sentinel Terminal</p>
         <MarketClock />
@@ -183,8 +183,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {groups.map((group) => (
           <div key={group.title}>
             <div className="flex items-center gap-2 px-2 mb-1">
-              <span className="text-[8.5px] font-mono uppercase tracking-[0.28em] text-cyan-400/70" dir="rtl">{group.title}</span>
-              <span className="h-px flex-1" style={{ background: 'linear-gradient(90deg, hsl(190 80% 52% / 0.3), transparent)' }} />
+              <span className="text-[8.5px] font-mono uppercase tracking-[0.28em] text-[#9fb4c7]/70" dir="rtl">{group.title}</span>
+              <span className="h-px flex-1" style={{ background: 'linear-gradient(90deg, hsl(39 28% 72% / 0.3), transparent)' }} />
             </div>
             <div className="space-y-0.5">
               {group.links.map((link) => {
@@ -200,8 +200,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
                     }`}
                     style={isActive ? {
-                      background: 'linear-gradient(90deg, hsl(32 84% 55% / 0.12), hsl(190 80% 52% / 0.04))',
-                      boxShadow: 'inset 2px 0 0 hsl(32 84% 55%), 0 0 16px hsl(32 84% 55% / 0.10)',
+                      background: 'linear-gradient(90deg, hsl(207 30% 70% / 0.12), hsl(39 28% 72% / 0.04))',
+                      boxShadow: 'inset 2px 0 0 hsl(207 30% 70%), 0 0 16px hsl(207 30% 70% / 0.10)',
                     } : {}}
                   >
                     <div className="flex items-center gap-3">
@@ -239,7 +239,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Desktop sidebar ── */}
       <aside
         className="relative z-10 hidden md:flex w-52 border-r border-border flex-col shrink-0"
-        style={{ background: 'hsl(0 0% 5%)' }}
+        style={{ background: 'hsl(216 14% 5%)' }}
       >
         <SidebarContent />
       </aside>
@@ -255,7 +255,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         className={`fixed inset-y-0 left-0 z-50 flex flex-col w-60 border-r border-border transform transition-transform duration-200 md:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        style={{ background: 'hsl(0 0% 5%)' }}
+        style={{ background: 'hsl(216 14% 5%)' }}
       >
         <button
           onClick={() => setSidebarOpen(false)}

@@ -90,12 +90,12 @@ function BotCard({
     <div
       id={id}
       className="relative rounded-lg border border-border bg-secondary/20 p-4 transition-all scroll-mt-24"
-      style={active ? { borderColor: accent ?? "hsl(32 84% 55% / 0.5)", boxShadow: `0 0 0 1px ${accent ?? "hsl(32 84% 55% / 0.25)"}` } : {}}
+      style={active ? { borderColor: accent ?? "hsl(207 30% 70% / 0.5)", boxShadow: `0 0 0 1px ${accent ?? "hsl(207 30% 70% / 0.25)"}` } : {}}
     >
       <div className="flex items-start gap-3">
         <div
           className="mt-0.5 h-9 w-9 shrink-0 rounded-md flex items-center justify-center"
-          style={{ background: active ? (accent ?? "hsl(32 84% 55% / 0.15)") + "" : "hsl(0 0% 12%)" }}
+          style={{ background: active ? (accent ?? "hsl(207 30% 70% / 0.15)") + "" : "hsl(0 0% 12%)" }}
         >
           <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
         </div>
@@ -480,7 +480,7 @@ export default function Bots() {
             variant={autoPilotOn ? "default" : "outline"}
             aria-pressed={autoPilotOn}
             title="מצב אוטומטי מלא: המערכת קובעת מינוף, גודל עסקה, SL/TP וכל הפרמטרים — פר עסקה"
-            style={autoPilotOn ? { boxShadow: "0 0 18px hsl(43 74% 52% / 0.5)" } : undefined}
+            style={autoPilotOn ? { boxShadow: "0 0 18px hsl(207 30% 70% / 0.5)" } : undefined}
           >
             <Sparkles className="h-4 w-4" />
             {autoPilotOn ? "אוטומטי פעיל" : "אוטומטי"}
@@ -491,7 +491,7 @@ export default function Bots() {
             variant={maxPerfOn ? "default" : "outline"}
             aria-pressed={maxPerfOn}
             title="מצב מקסימום: עוצמה, מינוף, קצב ותקרות פוזיציות במקסימום — מכבד בחירת סכום קבוע/דינמי ושומר על רצפת ה-$3,000 ומגני ההפסד"
-            style={maxPerfOn ? { boxShadow: "0 0 18px hsl(43 74% 52% / 0.5)" } : undefined}
+            style={maxPerfOn ? { boxShadow: "0 0 18px hsl(207 30% 70% / 0.5)" } : undefined}
           >
             <Rocket className="h-4 w-4" />
             {maxPerfOn ? "מקסימום פעיל" : "מצב מקסימום"}
@@ -522,7 +522,7 @@ export default function Bots() {
             variant={boostActive ? "default" : "outline"}
             aria-pressed={boostActive}
             title={boostActive ? "מכבה את מהירות האור" : "מפעיל את כל הבוטים במצב מסחר מהיר"}
-            style={boostActive ? { boxShadow: "0 0 18px hsl(43 74% 52% / 0.5)" } : undefined}
+            style={boostActive ? { boxShadow: "0 0 18px hsl(207 30% 70% / 0.5)" } : undefined}
           >
             <Zap className="h-4 w-4" />
             {boostActive ? "מהירות האור פעילה" : "מהירות האור"}
@@ -594,7 +594,7 @@ export default function Bots() {
       {boostActive && (
         <div
           className="rounded-lg border px-4 py-2.5 flex items-center gap-3"
-          style={{ borderColor: "hsl(43 74% 52% / 0.4)", background: "hsl(43 74% 52% / 0.06)" }}
+          style={{ borderColor: "hsl(207 30% 70% / 0.4)", background: "hsl(207 30% 70% / 0.06)" }}
           dir="rtl"
         >
           <Zap className="h-4 w-4 text-primary shrink-0" />
@@ -614,7 +614,7 @@ export default function Bots() {
         const strong = committed && alpha.confluence >= ALPHA_STRONG_PCT;
         const totVotes = Math.max(1, alpha.longVotes + alpha.shortVotes);
         const longPct = Math.round((alpha.longVotes / totVotes) * 100);
-        const accent = isLong ? "152 60% 45%" : isShort ? "0 72% 51%" : "43 74% 52%";
+        const accent = isLong ? "152 60% 45%" : isShort ? "0 72% 51%" : "207 30% 70%";
         const dirLabel = isLong ? "עלייה (LONG)" : isShort ? "ירידה (SHORT)" : on ? "ממתין לקונצנזוס" : "כבוי";
         const DirIcon = isLong ? ArrowUpRight : isShort ? ArrowDownRight : Minus;
         return (
@@ -701,7 +701,7 @@ export default function Bots() {
                 <span className="text-sm font-black tabular-nums text-primary">{alpha.masteryScore}%</span>
               </div>
               <div className="mt-2 h-2 rounded-full bg-secondary/40 overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${alpha.masteryScore}%`, background: "hsl(43 74% 52%)" }} />
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${alpha.masteryScore}%`, background: "hsl(207 30% 70%)" }} />
               </div>
               <p className="mt-1.5 text-[10px] text-muted-foreground leading-relaxed">
                 {alpha.recentSample > 0
@@ -738,7 +738,7 @@ export default function Bots() {
       {(() => {
         const prof = intensityProfile(settings.intensity ?? 3);
         return (
-          <section className="rounded-lg border p-4" style={{ borderColor: "hsl(43 74% 52% / 0.4)", background: "hsl(43 74% 52% / 0.05)" }} dir="rtl">
+          <section className="rounded-lg border p-4" style={{ borderColor: "hsl(207 30% 70% / 0.4)", background: "hsl(207 30% 70% / 0.05)" }} dir="rtl">
             <div className="flex items-start gap-3">
               <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
                 <Gauge className="h-4 w-4 text-primary" />
@@ -774,7 +774,7 @@ export default function Bots() {
             </div>
 
             {/* economy → sport gradient cue */}
-            <div className="mt-3 h-1.5 rounded-full" style={{ background: "linear-gradient(to left, hsl(152 60% 45% / 0.5), hsl(43 74% 52% / 0.6), hsl(0 72% 51% / 0.7))" }} />
+            <div className="mt-3 h-1.5 rounded-full" style={{ background: "linear-gradient(to left, hsl(152 60% 45% / 0.5), hsl(207 30% 70% / 0.6), hsl(0 72% 51% / 0.7))" }} />
 
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatChip label="הילוך נוכחי" value={`${prof.level} · ${prof.label}`} tone="good" />
@@ -797,7 +797,7 @@ export default function Bots() {
         const calc = mode === "CALCULATED";
         const shlomi = mode === "SHLOMI";
         const longTerm = calc || shlomi;
-        const accent = shlomi ? "152 60% 50%" : calc ? "199 89% 55%" : "43 74% 52%";
+        const accent = shlomi ? "152 60% 50%" : calc ? "199 89% 55%" : "207 30% 70%";
         const setMode = (m: TradeMode) => update({ tradeMode: m });
         const HeaderIcon = shlomi ? Sparkles : Crosshair;
         const modeBtn = (
@@ -1061,7 +1061,7 @@ export default function Bots() {
       })()}
 
       {/* ── Global fleet overrides ── */}
-      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(43 74% 52% / 0.35)", background: "hsl(43 74% 52% / 0.04)" }}>
+      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(207 30% 70% / 0.35)", background: "hsl(207 30% 70% / 0.04)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
@@ -1145,7 +1145,7 @@ export default function Bots() {
       </section>
 
       {/* Adaptive Manager */}
-      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(32 84% 55% / 0.35)", background: "hsl(32 84% 55% / 0.04)" }}>
+      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(207 30% 70% / 0.35)", background: "hsl(207 30% 70% / 0.04)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
@@ -1191,7 +1191,7 @@ export default function Bots() {
       </section>
 
       {/* Per-coin caution — זהירות לפי מטבע */}
-      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(43 74% 52% / 0.35)", background: "hsl(43 74% 52% / 0.04)" }}>
+      <section className="rounded-lg border p-4" style={{ borderColor: "hsl(207 30% 70% / 0.35)", background: "hsl(207 30% 70% / 0.04)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
@@ -1485,13 +1485,13 @@ export default function Bots() {
       <section id="bot-scalp" className="space-y-3 scroll-mt-24">
         <div
           className="rounded-lg border border-border bg-secondary/20 p-4 transition-all"
-          style={scalpOn ? { borderColor: "hsl(32 84% 55% / 0.5)", boxShadow: "0 0 0 1px hsl(32 84% 55% / 0.25)" } : {}}
+          style={scalpOn ? { borderColor: "hsl(207 30% 70% / 0.5)", boxShadow: "0 0 0 1px hsl(207 30% 70% / 0.25)" } : {}}
         >
           {/* Squad header + master arm/disarm */}
           <div className="flex items-start gap-3">
             <div
               className="mt-0.5 h-9 w-9 shrink-0 rounded-md flex items-center justify-center"
-              style={{ background: scalpOn ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 12%)" }}
+              style={{ background: scalpOn ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 12%)" }}
             >
               <Network className={`h-4 w-4 ${scalpOn ? "text-primary" : "text-muted-foreground"}`} />
             </div>
@@ -1527,10 +1527,10 @@ export default function Bots() {
                 <div
                   key={member.id}
                   className="rounded-md border border-border/60 bg-background/40 p-3"
-                  style={scalpOn && open > 0 ? { borderColor: "hsl(32 84% 55% / 0.4)" } : {}}
+                  style={scalpOn && open > 0 ? { borderColor: "hsl(207 30% 70% / 0.4)" } : {}}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 shrink-0 rounded-md flex items-center justify-center" style={{ background: scalpOn ? "hsl(32 84% 55% / 0.12)" : "hsl(0 0% 12%)" }}>
+                    <div className="h-7 w-7 shrink-0 rounded-md flex items-center justify-center" style={{ background: scalpOn ? "hsl(207 30% 70% / 0.12)" : "hsl(0 0% 12%)" }}>
                       <Icon className={`h-3.5 w-3.5 ${scalpOn ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
                     <div className="min-w-0 flex-1">

@@ -19,7 +19,7 @@ import { Link } from "wouter";
 type Scenario = { icon: typeof TrendingUp; tone: "up" | "down" | "flat"; title: string; body: string };
 
 function toneColor(t: "up" | "down" | "flat"): string {
-  return t === "up" ? "152 60% 45%" : t === "down" ? "0 72% 51%" : "43 74% 52%";
+  return t === "up" ? "152 60% 45%" : t === "down" ? "0 72% 51%" : "207 30% 70%";
 }
 
 export default function BriefingPage() {
@@ -121,7 +121,7 @@ export default function BriefingPage() {
 
       {/* Opportunity alert */}
       {hasOpportunity && (
-        <div className="rounded-xl border border-primary/50 bg-primary/[0.08] p-4 anim-rise-in" style={{ boxShadow: "0 0 24px hsl(43 74% 52% / 0.15)" }}>
+        <div className="rounded-xl border border-primary/50 bg-primary/[0.08] p-4 anim-rise-in" style={{ boxShadow: "0 0 24px hsl(207 30% 70% / 0.15)" }}>
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <h2 className="text-base font-bold">זוהתה הזדמנות חזקה למעקב</h2>

@@ -312,7 +312,7 @@ export default function Dashboard() {
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[10px] font-mono text-emerald-400">ONLINE</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight" style={{ textShadow: "0 0 30px hsl(43 74% 52% / 0.4)" }}>
+          <h1 className="text-3xl font-black tracking-tight" style={{ textShadow: "0 0 30px hsl(207 30% 70% / 0.4)" }}>
             Market Scanner
           </h1>
           <p className="text-xs text-muted-foreground mt-1 font-mono" dir="rtl">
@@ -405,7 +405,7 @@ export default function Dashboard() {
             ) : (
               <div
                 className="text-2xl font-black font-mono tracking-tight text-primary"
-                style={{ textShadow: "0 0 20px hsl(43 74% 52% / 0.5)" }}
+                style={{ textShadow: "0 0 20px hsl(207 30% 70% / 0.5)" }}
               >
                 {btcAsset
                   ? `$${btcAsset.markPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`

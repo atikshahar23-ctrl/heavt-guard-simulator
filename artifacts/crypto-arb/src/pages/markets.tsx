@@ -334,16 +334,16 @@ function BtcBetBot() {
   return (
     <Card
       className="border-border transition-colors"
-      style={{ borderColor: armed ? "hsl(32 84% 55% / 0.5)" : undefined }}
+      style={{ borderColor: armed ? "hsl(207 30% 70% / 0.5)" : undefined }}
     >
       <CardHeader className="py-3 px-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className="h-8 w-8 rounded-md flex items-center justify-center shrink-0"
-              style={{ background: armed ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
+              style={{ background: armed ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
             >
-              <Bot className="h-4 w-4" style={{ color: armed ? "hsl(32 84% 55%)" : "#71717a" }} />
+              <Bot className="h-4 w-4" style={{ color: armed ? "hsl(207 30% 70%)" : "#71717a" }} />
             </div>
             <div className="min-w-0">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -351,8 +351,8 @@ function BtcBetBot() {
                 <span
                   className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: armed ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 100% / 0.06)",
-                    color: armed ? "hsl(32 84% 55%)" : "#71717a",
+                    background: armed ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 100% / 0.06)",
+                    color: armed ? "hsl(207 30% 70%)" : "#71717a",
                   }}
                 >
                   {armed ? "ARMED" : "OFF"}

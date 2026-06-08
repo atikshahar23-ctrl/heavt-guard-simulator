@@ -98,7 +98,7 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
       {open && (
         <div
           className="absolute z-50 mt-2 w-72 right-0 rounded-xl border border-primary/25 bg-card p-2 space-y-1"
-          style={{ boxShadow: "0 0 40px hsl(32 84% 55% / 0.15)" }}
+          style={{ boxShadow: "0 0 40px hsl(207 30% 70% / 0.15)" }}
         >
           <div className="px-2 py-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
             הארנקים שלי ({wallets.length})

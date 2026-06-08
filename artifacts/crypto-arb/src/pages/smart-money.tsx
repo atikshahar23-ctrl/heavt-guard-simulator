@@ -115,15 +115,15 @@ function SmartMoneyBot() {
   return (
     <div
       className="rounded-lg border bg-card p-4 space-y-3 transition-colors mb-5"
-      style={{ borderColor: armed ? "hsl(32 84% 55% / 0.5)" : undefined }}
+      style={{ borderColor: armed ? "hsl(207 30% 70% / 0.5)" : undefined }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: armed ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
+            style={{ background: armed ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
           >
-            <Bot className="h-5 w-5" style={{ color: armed ? "hsl(32 84% 55%)" : "#71717a" }} />
+            <Bot className="h-5 w-5" style={{ color: armed ? "hsl(207 30% 70%)" : "#71717a" }} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -131,8 +131,8 @@ function SmartMoneyBot() {
               <span
                 className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full"
                 style={{
-                  background: armed ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 100% / 0.06)",
-                  color: armed ? "hsl(32 84% 55%)" : "#71717a",
+                  background: armed ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 100% / 0.06)",
+                  color: armed ? "hsl(207 30% 70%)" : "#71717a",
                 }}
               >
                 {armed ? "ARMED" : "OFF"}

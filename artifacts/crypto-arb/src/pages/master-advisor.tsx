@@ -48,11 +48,11 @@ const TONE_STYLE: Record<MoveTone, { border: string; bg: string; chip: string; l
     chip: "bg-red-500/15 text-red-400", label: { he: "הגנה", en: "Protect" },
   },
   opportunity: {
-    border: "hsl(43 74% 52% / 0.45)", bg: "hsl(43 74% 52% / 0.05)",
+    border: "hsl(207 30% 70% / 0.45)", bg: "hsl(207 30% 70% / 0.05)",
     chip: "bg-primary/15 text-primary", label: { he: "הזדמנות", en: "Opportunity" },
   },
   tune: {
-    border: "hsl(190 80% 52% / 0.35)", bg: "hsl(190 80% 52% / 0.04)",
+    border: "hsl(39 28% 72% / 0.35)", bg: "hsl(39 28% 72% / 0.04)",
     chip: "bg-cyan-500/15 text-cyan-400", label: { he: "כוונון", en: "Tune-up" },
   },
 };
@@ -378,7 +378,7 @@ export default function MasterAdvisor() {
         <div className="flex items-center gap-3">
           <div
             className="h-11 w-11 shrink-0 rounded-xl flex items-center justify-center"
-            style={{ background: "hsl(43 74% 52% / 0.12)", boxShadow: "0 0 18px hsl(43 74% 52% / 0.25)" }}
+            style={{ background: "hsl(207 30% 70% / 0.12)", boxShadow: "0 0 18px hsl(207 30% 70% / 0.25)" }}
           >
             <Compass className="h-6 w-6 text-primary" />
           </div>
@@ -408,7 +408,7 @@ export default function MasterAdvisor() {
       {/* Educational disclaimer */}
       <div
         className="rounded-lg border px-4 py-2.5 flex items-start gap-2.5"
-        style={{ borderColor: "hsl(43 74% 52% / 0.4)", background: "hsl(43 74% 52% / 0.06)" }}
+        style={{ borderColor: "hsl(207 30% 70% / 0.4)", background: "hsl(207 30% 70% / 0.06)" }}
       >
         <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] text-muted-foreground leading-relaxed">

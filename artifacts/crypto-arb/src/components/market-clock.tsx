@@ -11,7 +11,7 @@ import {
 
 const KIND_COLOR: Record<MarketNoteKind, string> = {
   holiday: "0 72% 60%",
-  macro: "32 84% 55%",
+  macro: "207 30% 70%",
   expiry: "276 60% 65%",
   weekend: "190 70% 55%",
   info: "152 50% 50%",
@@ -96,7 +96,7 @@ export function MarketClock() {
         <CalendarClock className="h-3 w-3 text-primary/80" />
         <span
           className="font-mono text-lg short:text-base font-black tabular-nums tracking-[0.12em] text-primary"
-          style={{ textShadow: "0 0 12px hsl(43 74% 52% / 0.45)" }}
+          style={{ textShadow: "0 0 12px hsl(207 30% 70% / 0.45)" }}
         >
           {formatClock(now)}
         </span>
@@ -223,7 +223,7 @@ export function MarketClock() {
                       <span
                         className={`text-[11px] leading-none font-bold tabular-nums px-0.5
                           ${day.isToday ? "text-primary" : day.isCurrentMonth ? "text-foreground/90" : "text-muted-foreground/60"}
-                          ${day.isWeekend && day.isCurrentMonth ? "text-cyan-400/80" : ""}`}
+                          ${day.isWeekend && day.isCurrentMonth ? "text-[#9fb4c7]/80" : ""}`}
                       >
                         {day.day}
                       </span>

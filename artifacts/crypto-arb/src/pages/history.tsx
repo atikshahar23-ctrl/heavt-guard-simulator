@@ -745,7 +745,7 @@ export default function HistoryPage() {
               <button
                 onClick={() => setBotF("ALL")}
                 className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${botF === "ALL" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"}`}
-                style={botF === "ALL" ? { boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+                style={botF === "ALL" ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
               >
                 הכל
               </button>
@@ -779,7 +779,7 @@ export default function HistoryPage() {
                     onPointerCancel={clearLongPress}
                     title={active ? `${bd.title} — לחיצה ארוכה לפתיחת לוח הבוט` : bd.title}
                     className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"} ${empty && !active ? "opacity-40" : ""}`}
-                    style={active ? { boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+                    style={active ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
                   >
                     <Icon className="h-2.5 w-2.5" />
                     {bd.title}
@@ -1183,7 +1183,7 @@ function FilterGroup({ label, value, setValue, options, render }: {
             className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${
               value === o ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
             }`}
-            style={value === o ? { boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+            style={value === o ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
           >
             {render(o)}
           </button>

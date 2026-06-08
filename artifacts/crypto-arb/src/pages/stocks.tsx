@@ -107,7 +107,7 @@ function StockRow({ s, onOpen }: { s: StockQuote; onOpen: (s: StockQuote) => voi
             >
               <Star
                 className="h-3.5 w-3.5 transition-colors"
-                style={{ color: fav ? "hsl(32 84% 55%)" : "#52525b", fill: fav ? "hsl(32 84% 55%)" : "transparent" }}
+                style={{ color: fav ? "hsl(207 30% 70%)" : "#52525b", fill: fav ? "hsl(207 30% 70%)" : "transparent" }}
               />
             </button>
             <StockIcon symbol={s.symbol} size={24} />

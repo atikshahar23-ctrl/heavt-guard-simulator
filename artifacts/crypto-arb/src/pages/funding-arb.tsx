@@ -119,7 +119,7 @@ const T = {
 function viabilityColor(v: string): string {
   if (v === "STRONG") return "#22c55e";
   if (v === "MODERATE") return "#84cc16";
-  if (v === "WEAK") return "hsl(43 74% 52%)";
+  if (v === "WEAK") return "hsl(207 30% 70%)";
   return "#ef4444";
 }
 
@@ -176,7 +176,7 @@ function PaperEntry({ asset, spotPrice, side, annualizedPercent, lang }: {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className="w-full mt-1 flex items-center justify-center gap-1.5 rounded py-1.5 text-xs font-mono font-bold tracking-wide transition-colors"
-          style={{ background: "hsl(43 74% 52% / 0.12)", color: "hsl(43 74% 52%)", boxShadow: "inset 0 0 0 1px hsl(43 74% 52% / 0.3)" }}>
+          style={{ background: "hsl(207 30% 70% / 0.12)", color: "hsl(207 30% 70%)", boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" }}>
           <Wallet className="h-3 w-3" /> {T.paperTrade[lang]}
         </button>
       </PopoverTrigger>
@@ -199,7 +199,7 @@ function PaperEntry({ asset, spotPrice, side, annualizedPercent, lang }: {
           <div className="flex justify-between"><span className="text-muted-foreground">{T.spot[lang]}</span><span className="inline-flex items-center gap-1.5 text-foreground">{lp && <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" title={T.live[lang]} />}${fmtPrice(effSpot)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">{T.annualized[lang]}</span><span className="text-emerald-400 font-bold">{fmtPct(annualizedPercent)}</span></div>
         </div>
-        <Button onClick={submit} className="w-full h-8 font-mono font-bold" style={{ background: "hsl(43 74% 52%)", color: "#0a0a0a" }}>
+        <Button onClick={submit} className="w-full h-8 font-mono font-bold" style={{ background: "hsl(207 30% 70%)", color: "#0a0a0a" }}>
           {T.open[lang]} · ${notional}
         </Button>
       </PopoverContent>
@@ -349,7 +349,7 @@ function FundingHistorySection({ asset, fallback, lang }: { asset: string; fallb
               className="rounded px-2 py-0.5 text-[10px] font-mono font-bold transition-colors"
               style={
                 days === r.days
-                  ? { background: "hsl(43 74% 52%)", color: "#0a0a0a" }
+                  ? { background: "hsl(207 30% 70%)", color: "#0a0a0a" }
                   : { background: "hsl(0 0% 12%)", color: "hsl(0 0% 60%)" }
               }
             >
@@ -364,7 +364,7 @@ function FundingHistorySection({ asset, fallback, lang }: { asset: string; fallb
           <HistStat label={T.statAvg[lang]} value={fmtPct(stats.avgAnnualizedPercent)} color={stats.avgAnnualizedPercent >= 0 ? "#22c55e" : "#ef4444"} />
           <HistStat label={T.statMin[lang]} value={fmtPct(stats.minAnnualizedPercent)} color="#ef4444" />
           <HistStat label={T.statMax[lang]} value={fmtPct(stats.maxAnnualizedPercent)} color="#22c55e" />
-          <HistStat label={T.statPositive[lang]} value={`${Math.round(stats.positiveRatio * 100)}%`} color="hsl(43 74% 60%)" />
+          <HistStat label={T.statPositive[lang]} value={`${Math.round(stats.positiveRatio * 100)}%`} color="hsl(207 30% 78%)" />
         </div>
       )}
 
@@ -452,7 +452,7 @@ function CheckResult({ chk, lang }: { chk: FundingAssetCheck; lang: Lang }) {
 /** Stocks have no funding rate, so they only stand in as the base/price leg. */
 function StockLegPanel({ stock, lang }: { stock: StockQuote; lang: Lang }) {
   const up = stock.changePercent >= 0;
-  const gold = "hsl(43 74% 52%)";
+  const gold = "hsl(207 30% 70%)";
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3" style={{ borderColor: `${gold.replace(")", " / 0.2)")}` }}>
       <div className="flex items-center justify-between">
@@ -463,7 +463,7 @@ function StockLegPanel({ stock, lang }: { stock: StockQuote; lang: Lang }) {
             <div className="text-[10px] text-muted-foreground truncate">{stock.name}</div>
           </div>
         </div>
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded font-mono font-bold text-[10px] flex-shrink-0" style={{ background: "hsl(43 74% 52% / 0.12)", color: gold }}>
+        <span className="flex items-center gap-1 px-2 py-0.5 rounded font-mono font-bold text-[10px] flex-shrink-0" style={{ background: "hsl(207 30% 70% / 0.12)", color: gold }}>
           <Building2 className="h-3 w-3" /> {T.kindStock[lang]}
         </span>
       </div>
@@ -652,7 +652,7 @@ export default function FundingArbPage() {
                         className="flex-shrink-0 rounded px-1 py-px text-[9px] font-mono font-bold uppercase"
                         style={
                           s.kind === "crypto"
-                            ? { background: "hsl(43 74% 52% / 0.15)", color: "hsl(43 74% 52%)" }
+                            ? { background: "hsl(207 30% 70% / 0.15)", color: "hsl(207 30% 70%)" }
                             : { background: "hsl(217 91% 60% / 0.15)", color: "hsl(217 91% 70%)" }
                         }
                       >
@@ -666,7 +666,7 @@ export default function FundingArbPage() {
               </div>
             )}
           </div>
-          <Button onClick={runCheck} className="h-9 font-mono font-bold flex-shrink-0" style={{ background: "hsl(43 74% 52%)", color: "#0a0a0a" }}>
+          <Button onClick={runCheck} className="h-9 font-mono font-bold flex-shrink-0" style={{ background: "hsl(207 30% 70%)", color: "#0a0a0a" }}>
             {T.check[lang]}
           </Button>
         </div>

@@ -68,7 +68,7 @@ function DepositDialog({ cash, onClose, onDeposit }: { cash: number; onClose: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <div
         className="w-[340px] max-w-full rounded-2xl border border-primary/30 bg-card p-5 space-y-4"
-        style={{ boxShadow: "0 0 40px hsl(32 84% 55% / 0.18)" }}
+        style={{ boxShadow: "0 0 40px hsl(207 30% 70% / 0.18)" }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

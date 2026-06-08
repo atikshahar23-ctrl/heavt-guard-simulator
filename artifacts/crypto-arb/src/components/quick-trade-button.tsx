@@ -79,7 +79,7 @@ export function QuickTradeButton({ compact = false }: { compact?: boolean }) {
         onClick={execute}
         disabled={disabled}
         className="w-full flex items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/15 px-4 py-2.5 text-sm font-mono font-black text-primary hover:bg-primary/25 disabled:opacity-40 transition-all active:scale-[0.99]"
-        style={{ boxShadow: top ? "0 0 24px hsl(32 84% 55% / 0.12)" : undefined }}
+        style={{ boxShadow: top ? "0 0 24px hsl(207 30% 70% / 0.12)" : undefined }}
       >
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
         מסחר מהיר — בצע את ההמלצה המובילה

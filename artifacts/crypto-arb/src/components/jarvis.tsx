@@ -79,8 +79,8 @@ function newsLink(symbol: string, name: string): MsgLink {
    pulses while JARVIS is speaking.
    ───────────────────────────────────────────────────────────── */
 function JarvisFace({ speaking, size = 48 }: { speaking: boolean; size?: number }) {
-  const gold = "hsl(32 84% 55%)";
-  const cyan = "hsl(190 80% 52%)";
+  const gold = "hsl(207 30% 70%)";
+  const cyan = "hsl(39 28% 72%)";
   return (
     <div className="relative grid place-items-center rounded-full" style={{ width: size, height: size }}>
       {/* scanning aura ring echoing the brand bull */}
@@ -96,8 +96,8 @@ function JarvisFace({ speaking, size = 48 }: { speaking: boolean; size?: number 
         style={{
           boxShadow: `inset 0 0 0 1.5px ${gold}`,
           filter: speaking
-            ? "drop-shadow(0 0 7px hsl(32 84% 55% / 0.85))"
-            : "drop-shadow(0 0 3px hsl(32 84% 55% / 0.5))",
+            ? "drop-shadow(0 0 7px hsl(207 30% 70% / 0.85))"
+            : "drop-shadow(0 0 3px hsl(207 30% 70% / 0.5))",
         }}
       />
     </div>
@@ -783,9 +783,9 @@ export function Jarvis() {
           {showBoostAlert && (
             <div
               className="absolute bottom-full right-0 mb-3 w-[min(320px,calc(100vw-2.5rem))] rounded-2xl border-2 border-primary bg-card/97 backdrop-blur shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300 jarvis-boost-alert"
-              style={{ boxShadow: "0 0 40px hsl(32 84% 55% / 0.5)" }}
+              style={{ boxShadow: "0 0 40px hsl(207 30% 70% / 0.5)" }}
             >
-              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, hsl(190 80% 52%), hsl(32 84% 55%), hsl(190 80% 52%))" }} />
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, hsl(39 28% 72%), hsl(207 30% 70%), hsl(39 28% 72%))" }} />
               <div className="flex items-start gap-2.5 p-3">
                 <div className="shrink-0 mt-0.5"><JarvisFace speaking={speaking} size={34} /></div>
                 <div className="min-w-0 flex-1">
@@ -796,7 +796,7 @@ export function Jarvis() {
                     <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-primary/20 text-primary border border-primary/50">
                       {boostAdvice.label}
                     </span>
-                    <span className="text-[9px] font-mono font-bold text-cyan-400">{lang === "he" ? `חום ${boostAdvice.heat}/100` : `Heat ${boostAdvice.heat}/100`}</span>
+                    <span className="text-[9px] font-mono font-bold text-[#9fb4c7]">{lang === "he" ? `חום ${boostAdvice.heat}/100` : `Heat ${boostAdvice.heat}/100`}</span>
                   </div>
                   <p dir={lang === "he" ? "rtl" : "ltr"} className="text-[11px] leading-snug text-foreground/90 line-clamp-3">{boostAdvice.text}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -828,9 +828,9 @@ export function Jarvis() {
           {!showBoostAlert && showTip && currentTip && (
             <div
               className="absolute bottom-full right-0 mb-3 w-[min(300px,calc(100vw-2.5rem))] rounded-2xl border border-primary/30 bg-card/95 backdrop-blur shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300"
-              style={{ boxShadow: "0 0 32px hsl(32 84% 55% / 0.18)" }}
+              style={{ boxShadow: "0 0 32px hsl(207 30% 70% / 0.18)" }}
             >
-              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsl(32 84% 55%), transparent)" }} />
+              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, hsl(207 30% 70%), transparent)" }} />
               <div className="flex items-start gap-2.5 p-3">
                 <div className="shrink-0 mt-0.5"><JarvisFace speaking={speaking} size={34} /></div>
                 <div className="min-w-0 flex-1">
@@ -891,7 +891,7 @@ export function Jarvis() {
             onPointerUp={onPointerUp}
             aria-label="Open JARVIS"
             className="relative grid place-items-center rounded-full cursor-grab active:cursor-grabbing jarvis-float"
-            style={{ width: AVATAR, height: AVATAR, boxShadow: "0 0 28px hsl(32 84% 55% / 0.28)" }}
+            style={{ width: AVATAR, height: AVATAR, boxShadow: "0 0 28px hsl(207 30% 70% / 0.28)" }}
           >
             <JarvisFace speaking={speaking} size={AVATAR} />
             <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card animate-pulse" />
@@ -912,7 +912,7 @@ export function Jarvis() {
       {open && (
         <div
           className="fixed z-50 flex flex-col rounded-2xl border border-primary/30 bg-card shadow-2xl overflow-hidden"
-          style={{ ...panelStyle, boxShadow: "0 0 40px hsl(32 84% 55% / 0.15)" }}
+          style={{ ...panelStyle, boxShadow: "0 0 40px hsl(207 30% 70% / 0.15)" }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
@@ -979,9 +979,9 @@ export function Jarvis() {
             </div>
           )}
           {boostActive && (
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-cyan-500/30 bg-cyan-500/10">
-              <Zap className="h-3.5 w-3.5 text-cyan-400 shrink-0 jarvis-boost-pulse" />
-              <span className="text-[10px] font-mono font-bold text-cyan-400" dir={lang === "he" ? "rtl" : "ltr"}>
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#9fb4c7]/30 bg-[#9fb4c7]/10">
+              <Zap className="h-3.5 w-3.5 text-[#9fb4c7] shrink-0 jarvis-boost-pulse" />
+              <span className="text-[10px] font-mono font-bold text-[#9fb4c7]" dir={lang === "he" ? "rtl" : "ltr"}>
                 {lang === "he" ? "מהירות האור פעילה — הצי בקצב מקסימלי" : "Light-speed active — fleet at max cadence"}
               </span>
             </div>

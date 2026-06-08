@@ -33,7 +33,7 @@ function dirMeta(direction: ScalpSignal["direction"]) {
 }
 
 function confColor(c: ScalpSignal["confidence"]): string {
-  if (c === "HIGH") return "hsl(32 84% 55%)";
+  if (c === "HIGH") return "hsl(207 30% 70%)";
   if (c === "MEDIUM") return "#84cc16";
   return "#71717a";
 }
@@ -156,7 +156,7 @@ function SignalCard({ s }: { s: ScalpSignal }) {
           >
             <Star
               className="h-3.5 w-3.5 transition-colors"
-              style={{ color: fav ? "hsl(32 84% 55%)" : "#52525b", fill: fav ? "hsl(32 84% 55%)" : "transparent" }}
+              style={{ color: fav ? "hsl(207 30% 70%)" : "#52525b", fill: fav ? "hsl(207 30% 70%)" : "transparent" }}
             />
           </button>
           <CryptoIcon asset={s.asset} size={24} />
@@ -245,15 +245,15 @@ function AutoTraderPanel() {
   return (
     <div
       className="rounded-lg border bg-card p-4 space-y-3 transition-colors"
-      style={{ borderColor: settings.enabled ? "hsl(32 84% 55% / 0.5)" : undefined }}
+      style={{ borderColor: settings.enabled ? "hsl(207 30% 70% / 0.5)" : undefined }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: settings.enabled ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
+            style={{ background: settings.enabled ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 100% / 0.05)" }}
           >
-            <Bot className="h-5 w-5" style={{ color: settings.enabled ? "hsl(32 84% 55%)" : "#71717a" }} />
+            <Bot className="h-5 w-5" style={{ color: settings.enabled ? "hsl(207 30% 70%)" : "#71717a" }} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -261,8 +261,8 @@ function AutoTraderPanel() {
               <span
                 className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full"
                 style={{
-                  background: settings.enabled ? "hsl(32 84% 55% / 0.15)" : "hsl(0 0% 100% / 0.06)",
-                  color: settings.enabled ? "hsl(32 84% 55%)" : "#71717a",
+                  background: settings.enabled ? "hsl(207 30% 70% / 0.15)" : "hsl(0 0% 100% / 0.06)",
+                  color: settings.enabled ? "hsl(207 30% 70%)" : "#71717a",
                 }}
               >
                 {settings.enabled ? "ARMED" : "OFF"}
@@ -329,7 +329,7 @@ function AutoTraderPanel() {
                   className={`flex-1 rounded py-1.5 text-[10px] font-mono font-bold transition-colors ${
                     settings.minConfidence === c ? "text-primary" : "text-muted-foreground hover:text-foreground bg-secondary/40"
                   }`}
-                  style={settings.minConfidence === c ? { background: "hsl(32 84% 55% / 0.15)", boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+                  style={settings.minConfidence === c ? { background: "hsl(207 30% 70% / 0.15)", boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
                 >
                   {c}
                 </button>
@@ -368,7 +368,7 @@ function AutoTraderPanel() {
                   className={`flex-1 rounded py-1.5 text-[10px] font-mono font-bold transition-colors ${
                     settings.strategy === st.key ? "text-primary" : "text-muted-foreground hover:text-foreground bg-secondary/40"
                   }`}
-                  style={settings.strategy === st.key ? { background: "hsl(32 84% 55% / 0.15)", boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+                  style={settings.strategy === st.key ? { background: "hsl(207 30% 70% / 0.15)", boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
                 >
                   {st.label}
                 </button>
@@ -528,7 +528,7 @@ export default function ScalpPage() {
                 ? "bg-primary/15 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
             }`}
-            style={filter === t.key ? { boxShadow: "inset 0 0 0 1px hsl(32 84% 55% / 0.3)" } : {}}
+            style={filter === t.key ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
           >
             {t.label}
           </button>

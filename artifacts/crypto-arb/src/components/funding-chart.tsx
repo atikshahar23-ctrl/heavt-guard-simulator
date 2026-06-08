@@ -61,8 +61,8 @@ export function FundingChart({ series, metric = "annualized", avgValue = null, u
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: "hsl(43 74% 52% / 0.5)", width: 1, style: LineStyle.Dotted, labelBackgroundColor: "hsl(43 74% 52%)" },
-        horzLine: { color: "hsl(43 74% 52% / 0.5)", width: 1, style: LineStyle.Dotted, labelBackgroundColor: "hsl(43 74% 52%)" },
+        vertLine: { color: "hsl(207 30% 70% / 0.5)", width: 1, style: LineStyle.Dotted, labelBackgroundColor: "hsl(207 30% 70%)" },
+        horzLine: { color: "hsl(207 30% 70% / 0.5)", width: 1, style: LineStyle.Dotted, labelBackgroundColor: "hsl(207 30% 70%)" },
       },
       width: el.clientWidth,
       height: el.clientHeight,
@@ -70,9 +70,9 @@ export function FundingChart({ series, metric = "annualized", avgValue = null, u
     chartRef.current = chart;
 
     const s = chart.addSeries(AreaSeries, {
-      lineColor: "hsl(43 74% 52%)",
-      topColor: "hsl(43 74% 52% / 0.35)",
-      bottomColor: "hsl(43 74% 52% / 0.02)",
+      lineColor: "hsl(207 30% 70%)",
+      topColor: "hsl(207 30% 70% / 0.35)",
+      bottomColor: "hsl(207 30% 70% / 0.02)",
       lineWidth: 2,
       priceLineVisible: false,
       baseLineVisible: true,
