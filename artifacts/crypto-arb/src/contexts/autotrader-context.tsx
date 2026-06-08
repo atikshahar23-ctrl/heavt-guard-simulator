@@ -167,6 +167,33 @@ export function cashReserveFloor(totalDeposited: number, cashFloorPct: number): 
  *  $50 floor) instead of over-committing; when it is exhausted it returns a
  *  margin of 0 so the engines simply wait for open trades to bank cash back. */
 export interface DynamicSizing { margin: number; leverage: number; recoveryMode: boolean; }
+
+/**
+ * Momentum Drive sizing — portfolio-proportional engine.
+ * Stake = stakePct % of current cash. Leverage scales from 2×
+ * (portfolio down) up to maxLeverage (portfolio growing well).
+ * Unlike the Account Manager it imposes NO cash-floor and NO
+ * recovery-mode cap: the whole balance is in play.
+ */
+export interface MomentumDriveSizing { margin: number; leverage: number; }
+export function computeMomentumDriveSizing(
+  cash: number,
+  totalDeposited: number,
+  stakePct: number,
+  maxLeverage: number,
+): MomentumDriveSizing {
+  const ratio = totalDeposited > 0 ? cash / totalDeposited : 1;
+  const pct   = Math.max(0.5, Math.min(10, stakePct));
+  const rawMargin = Math.max(0, cash) * (pct / 100);
+  const margin = Math.round(Math.max(10, Math.min(10_000, rawMargin)) / 10) * 10;
+
+  // Leverage: 2× when portfolio ≤0.85 of deposited, maxLeverage when ≥1.40
+  const minLev = 2;
+  const t = Math.max(0, Math.min(1, (ratio - 0.85) / 0.55));
+  const leverage = Math.max(minLev, Math.min(maxLeverage, Math.round(minLev + t * (maxLeverage - minLev))));
+  return { margin, leverage };
+}
+
 export function computeDynamicSizing(
   cash: number,
   totalDeposited: number,
@@ -225,6 +252,16 @@ export function resolveSizing(
   tradeHistory: { pnl: number }[],
   botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly",
 ): { margin: number; leverage: number; recoveryMode: boolean } {
+  // Momentum Drive: highest-priority override — portfolio-proportional, no cap.
+  if (settings.momentumDriveEnabled) {
+    const drive = computeMomentumDriveSizing(
+      cash, totalDeposited,
+      settings.momentumDriveStakePct,
+      settings.momentumDriveMaxLeverage,
+    );
+    if (settings.tradeMode === "SHLOMI") drive.leverage = Math.min(drive.leverage, SHLOMI_MAX_LEVERAGE);
+    return { ...drive, recoveryMode: false };
+  }
   if (settings.dynamicCapitalEnabled) {
     const dyn = computeDynamicSizing(cash, totalDeposited, tradeHistory, settings.cashFloorPct);
     // SHLOMI's low-leverage rule is mode-level — enforce it even under dynamic sizing.
@@ -574,6 +611,21 @@ export interface AutoTraderSettings {
    * every original value untouched.
    */
   maxPerfEnabled: boolean;
+
+  /* ── Momentum Drive (בוט הנעה) ── */
+  /**
+   * Portfolio-proportional sizing engine that calibrates EVERY bot's leverage
+   * and stake in real time based on current cash equity. Unlike the Account
+   * Manager there is no cash-floor reserve and no recovery-mode cap — the whole
+   * balance is in play. The transaction count is uncapped (maxOpenPositions
+   * lifted to 50); only available cash limits how many trades open at once.
+   * Takes highest priority in resolveSizing (above dynamicCapitalEnabled).
+   */
+  momentumDriveEnabled: boolean;
+  /** Percent of current cash committed as margin per trade (0.5–10 %). */
+  momentumDriveStakePct: number;
+  /** Upper leverage ceiling the drive can reach when portfolio is growing (2–20×). */
+  momentumDriveMaxLeverage: number;
 }
 
 export const DEFAULT_SETTINGS: AutoTraderSettings = {
@@ -673,6 +725,10 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   alphaCoordinatorEnabled: true,
 
   maxPerfEnabled: false,
+
+  momentumDriveEnabled: false,
+  momentumDriveStakePct: 2,
+  momentumDriveMaxLeverage: 8,
 };
 
 /**
@@ -977,6 +1033,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         alphaCoordinatorEnabled: false,
         dynamicCapitalEnabled: false,
         maxPerfEnabled: false,
+        momentumDriveEnabled: false,
         boostUntil: 0,
       }));
     };
@@ -1211,6 +1268,24 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         riskManagerEnabled: true,
       };
     }
+
+    // Momentum Drive: when on, lift ALL maxOpen caps so only cash limits
+    // how many positions can be open simultaneously.
+    if (settings.momentumDriveEnabled) {
+      const HIGH = 50;
+      eff = {
+        ...eff,
+        maxOpenPositions: Math.max(eff.maxOpenPositions, HIGH),
+        stockMaxOpen:     Math.max(eff.stockMaxOpen,     HIGH),
+        polyMaxOpenBets:  Math.max(eff.polyMaxOpenBets,  HIGH),
+        dipMaxOpen:       Math.max(eff.dipMaxOpen,       HIGH),
+        breakoutMaxOpen:  Math.max(eff.breakoutMaxOpen,  HIGH),
+        dcaMaxOpen:       Math.max(eff.dcaMaxOpen,       HIGH),
+        fundingMaxOpen:   Math.max(eff.fundingMaxOpen,   HIGH),
+        optionMaxOpen:    Math.max(eff.optionMaxOpen,    HIGH),
+      };
+    }
+
     return eff;
   }, [settings, activeWalletId]);
 

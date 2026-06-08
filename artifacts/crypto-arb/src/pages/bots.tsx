@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { usePortfolio, type ClosedTrade } from "@/contexts/portfolio-context";
 import {
-  useAutoTrader, computeDynamicSizing, intensityProfile, SCALP_SQUAD,
+  useAutoTrader, computeDynamicSizing, computeMomentumDriveSizing, intensityProfile, SCALP_SQUAD,
   ALPHA_COMMIT_PCT, ALPHA_STRONG_PCT,
   type AutoTraderSettings, type NewBotId, type RiskGuard, type TradeMode,
 } from "@/contexts/autotrader-context";
@@ -1060,6 +1060,108 @@ export default function Bots() {
         );
       })()}
 
+      {/* ── Momentum Drive (בוט הנעה) ── */}
+      {(() => {
+        const driveDisabled = settings.dynamicCapitalEnabled;
+        const drive = computeMomentumDriveSizing(cash, totalDeposited, settings.momentumDriveStakePct, settings.momentumDriveMaxLeverage);
+        const driveRatio = totalDeposited > 0 ? cash / totalDeposited : 1;
+        const driveRatioLabel = driveRatio >= 1.15 ? "צמיחה חזקה" : driveRatio >= 1.0 ? "ניטרלי" : driveRatio >= 0.85 ? "מתחת לסף" : "הפסד";
+        const driveRatioTone = driveRatio >= 1.0 ? "good" : driveRatio >= 0.85 ? undefined : "bad";
+        return (
+          <section className="rounded-lg border p-4" style={{ borderColor: "hsl(43 74% 52% / 0.45)", background: "hsl(43 74% 52% / 0.05)" }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="h-9 w-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "hsl(43 74% 52% / 0.18)" }}>
+                  <Rocket className="h-4 w-4" style={{ color: "hsl(43 74% 58%)" }} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold tracking-wide" style={{ color: "hsl(43 74% 62%)" }}>בוט הנעה</h2>
+                  <p className="text-[11px] text-muted-foreground" dir="rtl">
+                    מנוע ניהול סיכון פרופורציונלי לתיק — מכוון את <strong>כל</strong> המינופים וסכומי ההשקעה של כל הבוטים לפי שווי התיק הנוכחי. ללא הגבלת כמות עסקאות: רק המזומן הזמין קובע.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={settings.momentumDriveEnabled}
+                onCheckedChange={(v) => {
+                  update({ momentumDriveEnabled: v });
+                  if (v && settings.dynamicCapitalEnabled) update({ dynamicCapitalEnabled: false });
+                }}
+                disabled={driveDisabled}
+                aria-label="Toggle momentum drive"
+              />
+            </div>
+
+            {driveDisabled && (
+              <p className="mt-2 text-[10px] text-amber-400" dir="rtl">
+                כבה את המנהל הדינמי כדי להפעיל בוט הנעה — שניהם לא יכולים לפעול יחד.
+              </p>
+            )}
+
+            {/* Live preview + controls */}
+            <div className="mt-4 rounded-md border border-border/40 bg-background/40 p-3">
+              <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono mb-2">
+                {settings.momentumDriveEnabled ? "ערכים פעילים כעת (עוקפים כל הגדרה אחרת)" : "תצוגה מקדימה — מה יהיה אם תופעל"}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatChip label="מרג׳ין לעסקה" value={`$${drive.margin}`} tone={settings.momentumDriveEnabled ? "good" : undefined} />
+                <StatChip label="מינוף" value={`${drive.leverage}x`} tone={settings.momentumDriveEnabled ? "good" : undefined} />
+                <StatChip label="מצב תיק" value={driveRatioLabel} tone={driveRatioTone} />
+                <StatChip label="הגבלת עסקאות" value="ללא" tone={settings.momentumDriveEnabled ? "good" : undefined} />
+              </div>
+            </div>
+
+            {/* Stake % slider */}
+            <div className="mt-3 rounded-md border border-border/40 bg-background/40 p-3" dir="rtl">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-semibold">אחוז מרג׳ין מהתיק</span>
+                <span className="font-mono text-sm font-bold" style={{ color: "hsl(43 74% 58%)" }}>{settings.momentumDriveStakePct}%</span>
+              </div>
+              <Slider
+                value={[settings.momentumDriveStakePct]}
+                min={0.5}
+                max={10}
+                step={0.5}
+                onValueChange={([v]) => update({ momentumDriveStakePct: v })}
+                disabled={!settings.momentumDriveEnabled}
+                className="w-full"
+                aria-label="Momentum drive stake percent"
+              />
+              <p className="mt-1.5 text-[10px] text-muted-foreground">
+                כל עסקה תהיה {settings.momentumDriveStakePct}% מהמזומן הנוכחי — ${Math.round(cash * settings.momentumDriveStakePct / 100 / 10) * 10} לפי המצב הנוכחי.
+              </p>
+            </div>
+
+            {/* Max leverage slider */}
+            <div className="mt-3 rounded-md border border-border/40 bg-background/40 p-3" dir="rtl">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-semibold">מינוף מקסימלי</span>
+                <span className="font-mono text-sm font-bold" style={{ color: "hsl(43 74% 58%)" }}>{settings.momentumDriveMaxLeverage}x</span>
+              </div>
+              <Slider
+                value={[settings.momentumDriveMaxLeverage]}
+                min={2}
+                max={20}
+                step={1}
+                onValueChange={([v]) => update({ momentumDriveMaxLeverage: v })}
+                disabled={!settings.momentumDriveEnabled}
+                className="w-full"
+                aria-label="Momentum drive max leverage"
+              />
+              <p className="mt-1.5 text-[10px] text-muted-foreground">
+                הבוט יתחיל ב-2x בזמן הפסד ויטפס עד {settings.momentumDriveMaxLeverage}x ככל שהתיק צומח.
+              </p>
+            </div>
+
+            {settings.momentumDriveEnabled && (
+              <p className="mt-3 text-[10px] text-amber-400/90" dir="rtl">
+                בוט הנעה פעיל — הגדרות המרג׳ין, המינוף וגודל ה-Stake של כל הבוטים <span className="font-semibold">מושבתות</span> ומחושבות דינמית לפי שווי התיק. הגבלת עסקאות מרבית הוסרה; רק המזומן הזמין מגביל.
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
       {/* ── Global fleet overrides ── */}
       <section className="rounded-lg border p-4" style={{ borderColor: "hsl(207 30% 70% / 0.35)", background: "hsl(207 30% 70% / 0.04)" }}>
         <div className="flex items-start justify-between gap-3">
@@ -1071,7 +1173,7 @@ export default function Bots() {
               <h2 className="text-sm font-semibold tracking-wide">הגדרות גלובליות לכל הבוטים</h2>
               <p className="text-[11px] text-muted-foreground" dir="rtl">
                 מינוף וסכום השקעה אחיד לכל הבוטים בבת אחת. הגדרות האלה מופעלות את ההגדרות המקומיות של כל בוט.
-                {settings.dynamicCapitalEnabled && <span className="text-amber-400 font-semibold"> (מושבת בזמן שהמנהל הדינמי פעיל.)</span>}
+                {(settings.dynamicCapitalEnabled || settings.momentumDriveEnabled) && <span className="text-amber-400 font-semibold"> (מושבת בזמן שבוט הנעה / המנהל הדינמי פעיל.)</span>}
               </p>
             </div>
           </div>
@@ -1088,7 +1190,7 @@ export default function Bots() {
               checked={settings.globalLeverageEnabled}
               onCheckedChange={(v) => update({ globalLeverageEnabled: v })}
               aria-label="Toggle global leverage"
-              disabled={settings.dynamicCapitalEnabled}
+              disabled={settings.dynamicCapitalEnabled || settings.momentumDriveEnabled}
             />
           </div>
           <Slider
@@ -1097,7 +1199,7 @@ export default function Bots() {
             max={10}
             step={1}
             onValueChange={([v]) => update({ globalLeverage: v })}
-            disabled={!settings.globalLeverageEnabled || settings.dynamicCapitalEnabled}
+            disabled={!settings.globalLeverageEnabled || settings.dynamicCapitalEnabled || settings.momentumDriveEnabled}
             className="w-full"
             aria-label="Global leverage"
           />
@@ -1119,7 +1221,7 @@ export default function Bots() {
               checked={settings.fixedAmountEnabled}
               onCheckedChange={(v) => update({ fixedAmountEnabled: v })}
               aria-label="Toggle fixed amount"
-              disabled={settings.dynamicCapitalEnabled}
+              disabled={settings.dynamicCapitalEnabled || settings.momentumDriveEnabled}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -1131,7 +1233,7 @@ export default function Bots() {
               step={10}
               value={settings.fixedAmount}
               onChange={(e) => update({ fixedAmount: Math.max(10, Math.min(10000, Number(e.target.value) || 10)) })}
-              disabled={!settings.fixedAmountEnabled || settings.dynamicCapitalEnabled}
+              disabled={!settings.fixedAmountEnabled || settings.dynamicCapitalEnabled || settings.momentumDriveEnabled}
               className="h-8 font-mono text-sm bg-background/60"
               aria-label="Fixed amount USD"
             />
