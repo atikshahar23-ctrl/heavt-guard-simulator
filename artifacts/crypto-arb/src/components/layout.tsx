@@ -183,10 +183,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           alt="HEAVY GUARD SYSTEM"
           draggable={false}
           className="w-28 short:w-16 h-auto select-none transition-all"
-          style={{ filter: 'drop-shadow(0 0 14px hsl(207 30% 70% / 0.22))' }}
+          style={{ filter: 'drop-shadow(0 0 14px hsl(43 64% 54% / 0.28))' }}
         />
-        <h1 className="gleam-text uhnw-heading text-base short:text-sm font-semibold tracking-[0.22em] uppercase">Heavy Guard</h1>
-        <span className="text-[8.5px] short:text-[8px] tracking-[0.34em] uppercase font-mono text-[#cdbfa4]/75">Private Wealth</span>
+        <h1 className="gold-gleam uhnw-heading text-base short:text-sm font-semibold tracking-[0.22em] uppercase">Heavy Guard</h1>
+        <span className="text-[8.5px] short:text-[8px] tracking-[0.34em] uppercase font-mono text-[#d4af60]/80">Private Wealth</span>
         <MarketClock />
       </div>
 

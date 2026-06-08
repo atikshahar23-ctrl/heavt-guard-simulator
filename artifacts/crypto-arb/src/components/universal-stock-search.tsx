@@ -22,13 +22,17 @@ function categoryFor(type: string): StockQuote["category"] {
  * candles, so the standard detail/trade panel works for instruments outside the
  * curated universe. Fetches once via the existing klines proxy.
  */
-function SearchedStockPanel({
+export function SearchedStockPanel({
   result,
   onClose,
+  labels,
 }: {
   result: StockSearchResult;
   onClose: () => void;
+  labels?: { loading: (sym: string) => string; notFound: (sym: string) => string };
 }) {
+  const loadingText = labels?.loading ?? ((sym: string) => `טוען נתוני ${sym}…`);
+  const notFoundText = labels?.notFound ?? ((sym: string) => `לא נמצאו נתוני מסחר עבור ${sym}.`);
   const params = { symbol: result.symbol, range: "1mo", interval: "1d" };
   const { data: candles, isLoading, isError } = useGetStockKlines(params, {
     query: { queryKey: getGetStockKlinesQueryKey(params) },
@@ -41,7 +45,7 @@ function SearchedStockPanel({
         <div className="relative w-full sm:max-w-md h-full bg-card border-l border-border shadow-2xl flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="text-xs font-mono">טוען נתוני {result.symbol}…</span>
+            <span className="text-xs font-mono">{loadingText(result.symbol)}</span>
           </div>
         </div>
       </div>
@@ -53,10 +57,10 @@ function SearchedStockPanel({
       <div className="fixed inset-0 z-50 flex justify-end">
         <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={onClose} />
         <div className="relative w-full sm:max-w-md h-full bg-card border-l border-border shadow-2xl flex flex-col items-center justify-center gap-3 p-6 text-center">
-          <button onClick={onClose} className="absolute top-3 left-3 p-1.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} aria-label="Close" className="absolute top-3 left-3 p-1.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
-          <div className="text-sm text-muted-foreground">לא נמצאו נתוני מסחר עבור {result.symbol}.</div>
+          <div className="text-sm text-muted-foreground">{notFoundText(result.symbol)}</div>
         </div>
       </div>
     );

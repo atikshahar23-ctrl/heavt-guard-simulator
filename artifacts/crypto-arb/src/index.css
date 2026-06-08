@@ -166,7 +166,7 @@
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(207 25% 52%);
+    background: hsl(var(--gold) / 0.8);
   }
 }
 
@@ -178,13 +178,23 @@ aside::before {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, hsl(207 30% 70%), transparent);
-  opacity: 0.6;
+  background: linear-gradient(90deg, transparent, hsl(var(--gold)), transparent);
+  opacity: 0.7;
 }
 
 /* Subtle gold glow on primary elements */
 .text-primary {
-  text-shadow: 0 0 20px hsl(207 30% 70% / 0.3);
+  text-shadow: 0 0 20px hsl(var(--gold) / 0.28);
+}
+
+/* Gold gleam wordmark — warm sweep for brand headlines */
+.gold-gleam {
+  background: linear-gradient(120deg, #8a6d2f 0%, #f2d585 48%, #fff4d6 52%, #c79a3e 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: gleam 6s ease-in-out infinite;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -261,7 +271,7 @@ textarea:focus-visible,
   outline-offset: 2px;
   box-shadow:
     0 0 0 2px hsl(0 0% 4%),
-    0 0 0 4px hsl(207 30% 70% / 0.55);
+    0 0 0 4px hsl(var(--gold) / 0.6);
   border-radius: 5px;
 }
 
@@ -537,9 +547,12 @@ textarea:focus-visible,
    Onyx weave backdrop + couture panel/gleam/jewel utilities (platinum,
    champagne hairline). Numbers stay Space Mono via .uhnw-mono. */
 :root {
-  --champagne-hairline: rgba(205, 191, 164, 0.25);
-  --champagne-glow: rgba(205, 191, 164, 0.08);
+  --champagne-hairline: rgba(212, 175, 96, 0.30);
+  --champagne-glow: rgba(212, 175, 96, 0.10);
   --steel-accent: 207 30% 70%;
+  /* Gold accent layered over the Carbon Noir base */
+  --gold: 43 64% 54%;
+  --gold-soft: rgba(212, 175, 96, 0.55);
 }
 
 /* Fine carbon-fiber weave over the onyx base — fixed so it reads as material */
