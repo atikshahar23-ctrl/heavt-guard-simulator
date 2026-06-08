@@ -443,3 +443,92 @@ textarea:focus-visible,
 }
 .auth-rise      { animation: auth-rise 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .auth-rise-late { animation: auth-rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
+
+/* ── VIP auth — premium motion layer ─────────────────────────────────── */
+/* Animated gold sheen sweeping across the wordmark */
+.auth-shine {
+  background-image: linear-gradient(
+    100deg,
+    #9c7c40 0%,
+    #d9bd82 30%,
+    #fff7e0 50%,
+    #d9bd82 70%,
+    #9c7c40 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: auth-shine 5.5s ease-in-out infinite;
+}
+@keyframes auth-shine {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* Logo medallion: gentle float, pulsing aura, dual rotating halos */
+.auth-float {
+  animation: auth-float 6s ease-in-out infinite;
+}
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.auth-logo {
+  box-shadow: 0 0 0 1px rgba(205, 171, 104, 0.35),
+    0 18px 50px -12px rgba(0, 0, 0, 0.9);
+}
+.auth-medallion-glow {
+  background: radial-gradient(circle, rgba(205, 171, 104, 0.45) 0%, transparent 70%);
+  filter: blur(6px);
+  animation: auth-glow 4.5s ease-in-out infinite;
+}
+@keyframes auth-glow {
+  0%, 100% { opacity: 0.45; transform: scale(0.92); }
+  50%      { opacity: 0.9;  transform: scale(1.12); }
+}
+.auth-halo,
+.auth-halo-rev {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(205, 171, 104, 0) 30%,
+    rgba(246, 232, 194, 0.95) 50%,
+    rgba(205, 171, 104, 0) 70%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+}
+.auth-halo {
+  animation: auth-spin 7s linear infinite;
+}
+.auth-halo-rev {
+  opacity: 0.6;
+  animation: auth-spin 11s linear infinite reverse;
+}
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Slow diagonal light beam sweeping across the whole entrance */
+.auth-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(246, 232, 194, 0.05) 47%,
+    rgba(246, 232, 194, 0.13) 50%,
+    rgba(246, 232, 194, 0.05) 53%,
+    transparent 62%
+  );
+  transform: translateX(-120%);
+  animation: auth-sweep 9s ease-in-out infinite;
+}
+@keyframes auth-sweep {
+  0%       { transform: translateX(-120%); }
+  55%, 100% { transform: translateX(120%); }
+}

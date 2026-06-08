@@ -86,7 +86,7 @@ export function AuthShell({
   return (
     <div
       dir="rtl"
-      className="auth-shell relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#050505] text-white lg:flex-row"
+      className="auth-shell auth-sweep relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#050505] text-white lg:flex-row"
     >
       {/* Cinematic backdrop spanning the whole viewport */}
       <div className="pointer-events-none absolute inset-0">
@@ -129,7 +129,7 @@ export function AuthShell({
           </div>
 
           <h1
-            className="mt-5 bg-gradient-to-b from-[#f7ead0] via-[#d9bd82] to-[#9c7c40] bg-clip-text font-serif text-4xl font-bold tracking-[0.18em] text-transparent md:text-6xl"
+            className="auth-shine mt-5 font-serif text-4xl font-bold tracking-[0.18em] md:text-6xl"
             style={{ fontFamily: "'Playfair Display', serif" }}
           >
             HEAVY&nbsp;GUARD
