@@ -6,7 +6,7 @@ import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3,
+  LogIn, LogOut, User, BarChart3, Crown,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
@@ -118,47 +118,56 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const groups: NavGroup[] = [
     {
-      title: "מסחר",
+      title: "לשכה פרטית",
       links: [
-        { href: "/", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/stock-desk", label: "חדר מניות", icon: LineChart },
-        { href: "/trade-desk", label: "Trade Desk", icon: Zap },
-        { href: "/simulator", label: "Simulator", icon: Trophy, extra: <PortfolioMiniBalance /> },
-        { href: "/bots", label: "Bot Command", icon: Bot },
+        { href: "/", label: "לוח בקרה", icon: LayoutDashboard },
         { href: "/advisor", label: "היועץ הראשי", icon: Compass },
+        { href: "/simulator", label: "תיק ההשקעות", icon: Trophy, extra: <PortfolioMiniBalance /> },
       ],
     },
     {
-      title: "סיגנלים",
+      title: "שווקים גלובליים",
       links: [
-        { href: "/scalp", label: "Scalp Signals", icon: Gauge },
-        { href: "/funding-arb", label: "Funding Arb", icon: Coins },
-        { href: "/momentum", label: "Momentum Radar", icon: Rocket },
-        { href: "/quickbets", label: "Quick Bets", icon: Timer },
-        { href: "/smart-money", label: "Smart Money", icon: Megaphone },
+        { href: "/markets", label: "קריפטו נזיל", icon: LineChart },
+        { href: "/stocks", label: "מניות ואופציות", icon: TrendingUp },
+        { href: "/stock-desk", label: "חדר מניות", icon: BarChart3 },
+        { href: "/browse", label: "סורק שוק חי", icon: Globe },
+        { href: "/binance", label: "בורסת ביננס", icon: CandlestickChart },
+        { href: "/movers", label: "תנודות שוק", icon: Activity },
       ],
     },
     {
-      title: "שווקים",
+      title: "אלגוריתמיקה",
       links: [
-        { href: "/stocks", label: "Stocks", icon: TrendingUp },
-        { href: "/markets", label: "Crypto Markets", icon: LineChart },
-        { href: "/movers", label: "Market Movers", icon: Activity },
-        { href: "/browse", label: "Live Markets", icon: Globe },
-        { href: "/binance", label: "Binance", icon: CandlestickChart },
+        { href: "/scalp", label: "סקאלפ מהיר", icon: Gauge },
+        { href: "/funding-arb", label: "ארביטראז' פאנדינג", icon: Coins },
+        { href: "/momentum", label: "מומנטום כבד", icon: Rocket },
+        { href: "/quickbets", label: "הימורים מהירים", icon: Timer },
+        { href: "/smart-money", label: "כסף חכם", icon: Megaphone },
       ],
     },
     {
-      title: "כלים",
+      title: "פעילות אוטומטית",
+      links: [
+        { href: "/bots", label: "מערך הבוטים", icon: Bot },
+        { href: "/trade-desk", label: "שולחן המסחר", icon: Zap },
+      ],
+    },
+    {
+      title: "מחקר וכלים",
       links: [
         { href: "/briefing", label: "תדריך שוק", icon: Newspaper },
-        { href: "/tools", label: "כלי סחור", icon: Calculator },
-        { href: "/research", label: "Research Desk", icon: Search },
+        { href: "/research", label: "חדר מחקר", icon: Search },
         { href: "/insights", label: "ניתוח ותובנות", icon: BarChart3 },
-        { href: "/history", label: "Trade History", icon: History },
+        { href: "/tools", label: "כלי סחר", icon: Calculator },
+        { href: "/history", label: "היסטוריית עסקאות", icon: History },
       ],
     },
   ];
+
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 5 ? "לילה טוב" : hour < 12 ? "בוקר טוב" : hour < 18 ? "צהריים טובים" : "ערב טוב";
 
   const SidebarContent = () => (
     <>
@@ -172,19 +181,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           src={logoUrl}
           alt="HEAVY GUARD SYSTEM"
           draggable={false}
-          className="w-32 short:w-20 h-auto select-none transition-all"
+          className="w-28 short:w-16 h-auto select-none transition-all"
           style={{ filter: 'drop-shadow(0 0 14px hsl(207 30% 70% / 0.22))' }}
         />
-        <p className="text-[9px] short:text-[8px] text-muted-foreground tracking-[0.32em] uppercase font-mono">Sentinel Terminal</p>
+        <h1 className="gleam-text uhnw-heading text-base short:text-sm font-semibold tracking-[0.22em] uppercase">Heavy Guard</h1>
+        <span className="text-[8.5px] short:text-[8px] tracking-[0.34em] uppercase font-mono text-[#cdbfa4]/75">Private Wealth</span>
         <MarketClock />
       </div>
 
-      <nav className="relative flex-1 px-2.5 py-3 short:py-2 space-y-3 overflow-y-auto">
+      <nav className="relative flex-1 px-2.5 py-3 short:py-2 space-y-5 short:space-y-3 overflow-y-auto">
         {groups.map((group) => (
           <div key={group.title}>
-            <div className="flex items-center gap-2 px-2 mb-1">
-              <span className="text-[8.5px] font-mono uppercase tracking-[0.28em] text-[#9fb4c7]/70" dir="rtl">{group.title}</span>
-              <span className="h-px flex-1" style={{ background: 'linear-gradient(90deg, hsl(39 28% 72% / 0.3), transparent)' }} />
+            <div className="px-3 pb-2 short:pb-1">
+              <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55" dir="rtl">{group.title}</span>
             </div>
             <div className="space-y-0.5">
               {group.links.map((link) => {
@@ -194,19 +203,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`group relative flex flex-col px-3 py-1.5 rounded-md transition-all duration-200 ${
+                    className={`group relative flex flex-col pr-3 pl-3 py-2 short:py-1.5 rounded-md transition-all duration-300 border-r-2 ${
                       isActive
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                        ? 'text-foreground border-[#cdbfa4]'
+                        : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-white/[0.02]'
                     }`}
                     style={isActive ? {
-                      background: 'linear-gradient(90deg, hsl(207 30% 70% / 0.12), hsl(39 28% 72% / 0.04))',
-                      boxShadow: 'inset 2px 0 0 hsl(207 30% 70%), 0 0 16px hsl(207 30% 70% / 0.10)',
+                      background: 'linear-gradient(90deg, hsl(39 28% 72% / 0.10), transparent)',
+                      boxShadow: 'inset 0 0 20px hsl(39 28% 72% / 0.04)',
                     } : {}}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${isActive ? 'text-primary' : 'group-hover:translate-x-0.5'}`} />
-                      <span className={`text-xs font-medium tracking-wide ${isActive ? 'font-semibold' : ''}`}>{link.label}</span>
+                      <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${isActive ? 'text-[#cdbfa4]' : 'opacity-70 group-hover:translate-x-0.5'}`} strokeWidth={1.5} />
+                      <span className={`text-[13px] tracking-wide ${isActive ? 'font-medium' : 'font-normal'}`}>{link.label}</span>
                     </div>
                     {link.extra}
                   </Link>
@@ -281,6 +290,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <span className="text-[11px] font-black font-mono text-primary tracking-widest uppercase">HEAVY GUARD</span>
           <div className="ml-auto">
             <WalletSwitcher compact />
+          </div>
+        </div>
+        {/* Concierge greeting bar (desktop) */}
+        <div className="hidden md:flex shrink-0 items-center justify-between px-6 py-1.5 border-b border-[#cdbfa4]/10 bg-background/95 backdrop-blur-sm text-[10px] tracking-widest">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Crown className="h-3 w-3 text-[#cdbfa4]" strokeWidth={1.5} />
+            <span className="text-[#cdbfa4]">{greeting} · לקוח פרטי</span>
+            <span className="opacity-30">|</span>
+            <span className="font-mono opacity-60">חיבור מוצפן בטוח</span>
+          </div>
+          <div className="flex items-center gap-2 border border-[#cdbfa4]/25 px-2.5 py-0.5 rounded bg-[#cdbfa4]/5">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#cdbfa4] jewel-dot" />
+            <span className="text-[#cdbfa4] font-semibold">OBSIDIAN TIER</span>
           </div>
         </div>
         {/* Live global price tape */}
