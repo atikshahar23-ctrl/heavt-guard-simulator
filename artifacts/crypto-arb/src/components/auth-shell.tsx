@@ -29,25 +29,25 @@ function useStarfield(count: number): Star[] {
   }, [count]);
 }
 
-const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
+const logoUrl = `${import.meta.env.BASE_URL}brand-logo.png`;
 
 function Medallion() {
   return (
-    <div className="auth-float relative flex h-40 w-40 items-center justify-center md:h-48 md:w-48">
+    <div className="auth-float relative flex h-44 w-44 items-center justify-center md:h-52 md:w-52">
       {/* Pulsing gold aura behind the crest */}
-      <div className="auth-medallion-glow absolute h-28 w-28 rounded-full md:h-32 md:w-32" />
+      <div className="auth-medallion-glow absolute h-32 w-32 rounded-full md:h-40 md:w-40" />
       {/* Two counter-rotating hairline halos with a travelling bright arc */}
       <div className="auth-halo absolute inset-0 rounded-full" />
-      <div className="auth-halo-rev absolute inset-[10%] rounded-full" />
-      {/* Faint static guide ring */}
-      <div className="absolute inset-[6%] rounded-full border border-[#cdab68]/15" />
-      {/* The actual brand logo */}
-      <img
-        src={logoUrl}
-        alt="HEAVY GUARD"
-        className="auth-logo relative h-24 w-24 rounded-[26%] md:h-28 md:w-28"
-        draggable={false}
-      />
+      <div className="auth-halo-rev absolute inset-[9%] rounded-full" />
+      {/* The brand emblem — black padding cropped away so the gear-bull fills the disc */}
+      <div className="auth-logo relative h-28 w-28 overflow-hidden rounded-full md:h-32 md:w-32">
+        <img
+          src={logoUrl}
+          alt="HEAVY GUARD"
+          className="h-full w-full scale-[1.6] object-cover"
+          draggable={false}
+        />
+      </div>
     </div>
   );
 }
