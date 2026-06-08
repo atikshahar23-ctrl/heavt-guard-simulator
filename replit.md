@@ -49,7 +49,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Node.js full ICU data required for timezone tests** — `timezone.test.ts` calls `Intl.DateTimeFormat` with `timeZone: 'Asia/Jerusalem'`. Node 24 ships with full ICU by default, so this works out of the box. If the Node runtime is ever swapped or the ICU bundle is trimmed (e.g. `--with-intl=small-icu`), the formatter silently falls back to UTC and all 19 timezone tests produce wrong results without an obvious failure signal. A `beforeAll` guard in the test file catches this immediately. If you see the guard fire, set `NODE_ICU_DATA` to point to a full ICU dataset or switch back to a full-ICU Node build.
 
 ## Pointers
 

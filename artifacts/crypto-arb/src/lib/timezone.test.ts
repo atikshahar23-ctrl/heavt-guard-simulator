@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 
 /**
  * timezone.test.ts
@@ -14,6 +14,27 @@ import { describe, it, expect, vi } from "vitest";
  *   - Spring forward: 2024-03-29 00:00 UTC (local clock jumps 02:00 → 03:00)
  *   - Fall back:      2024-10-26 23:00 UTC (local clock falls 02:00 → 01:00)
  */
+
+beforeAll(() => {
+  const probe = new Date("2024-01-15T10:00:00Z");
+  const hour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Jerusalem",
+      hour: "numeric",
+      hour12: false,
+    }).format(probe),
+    10
+  );
+  if (hour !== 12) {
+    throw new Error(
+      `Full ICU timezone data is not available for 'Asia/Jerusalem'. ` +
+        `Expected hour 12 for 10:00 UTC in winter (UTC+2 offset), but got ${hour}. ` +
+        `Ensure Node.js is built with full ICU data (--with-intl=full-icu) or ` +
+        `the NODE_ICU_DATA env var points to a full ICU dataset. ` +
+        `All 19 timezone tests would produce wrong results without this.`
+    );
+  }
+});
 
 vi.mock("lightweight-charts", () => ({
   TickMarkType: {
