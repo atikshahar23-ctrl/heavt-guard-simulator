@@ -1,0 +1,96 @@
+/* Carbon Noir Token & Animation System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --carbon-bg: #08090A;
+  --carbon-surface: #0B0C0E;
+  --carbon-panel: #14161A;
+  --carbon-panel-hover: #181B20;
+  --platinum-text: #E8ECF1;
+  --platinum-muted: #8A9099;
+  --steel-accent: #9FB4C7;
+  --hairline: rgba(255, 255, 255, 0.08);
+}
+
+.carbon-theme {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--carbon-bg);
+  color: var(--platinum-text);
+}
+
+.font-mono {
+  font-family: 'Space Mono', monospace;
+}
+
+.bg-carbon {
+  background-color: var(--carbon-bg);
+  background-image: 
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 1px, transparent 1px, transparent 4px);
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-150%) skewX(-45deg); }
+  100% { transform: translateX(250%) skewX(-45deg); }
+}
+
+.animate-sweep {
+  animation: sweep 4s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gleam-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gleam-highlight::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: sweep 5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.platinum-glow {
+  box-shadow: 0 0 20px rgba(159, 180, 199, 0.08);
+}
+
+.platinum-border {
+  border: 1px solid var(--hairline);
+}
+
+.razor-panel {
+  background-color: var(--carbon-panel);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  position: relative;
+}
+
+.razor-edge-active {
+  border-right: 2px solid var(--steel-accent);
+  background: linear-gradient(to left, rgba(159, 180, 199, 0.1), transparent);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--carbon-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2d35;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f4451;
+}
