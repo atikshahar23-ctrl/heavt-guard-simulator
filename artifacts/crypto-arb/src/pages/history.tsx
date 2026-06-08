@@ -5,7 +5,7 @@ import {
   History as HistoryIcon, TrendingUp, TrendingDown, Trophy, Target,
   Bot, Hand, Wallet, Activity, Cpu, LineChart as ChartIcon,
   Gauge, Rocket, Megaphone, Timer, Layers, Coins, Sparkles,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, ExternalLink,
 } from "lucide-react";
 import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition, STARTING_BALANCE } from "@/contexts/portfolio-context";
 import { BotStatsPopover } from "@/components/bot-stats-popover";
@@ -777,13 +777,24 @@ export default function HistoryPage() {
                     onPointerUp={clearLongPress}
                     onPointerLeave={clearLongPress}
                     onPointerCancel={clearLongPress}
-                    title={active ? `${bd.title} — לחיצה ארוכה לפתיחת לוח הבוט` : bd.title}
+                    title={active ? `${bd.title} — לחץ על החץ לפתיחת לוח הבוט` : bd.title}
                     className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"} ${empty && !active ? "opacity-40" : ""}`}
                     style={active ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
                   >
                     <Icon className="h-2.5 w-2.5" />
                     {bd.title}
                     <span className={`tabular-nums ${active ? "text-primary/80" : "text-muted-foreground/70"}`}>({count})</span>
+                    {active && (
+                      <span
+                        role="button"
+                        aria-label={`פתח לוח ${bd.title}`}
+                        onClick={(e) => { e.stopPropagation(); goToBotPanel(bd.key); }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="inline-flex items-center justify-center rounded p-0.5 ms-0.5 text-primary/60 hover:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors touch-manipulation"
+                      >
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </span>
+                    )}
                   </button>
                 );
               })}
