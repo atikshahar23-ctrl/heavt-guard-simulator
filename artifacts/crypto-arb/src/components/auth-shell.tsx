@@ -29,66 +29,26 @@ function useStarfield(count: number): Star[] {
   }, [count]);
 }
 
-function Emblem() {
+const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
+
+function Medallion() {
   return (
-    <svg
-      viewBox="0 0 200 200"
-      className="h-20 w-20 md:h-24 md:w-24"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="goldStroke" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#f4e2b0" />
-          <stop offset="45%" stopColor="#cdab68" />
-          <stop offset="100%" stopColor="#8a6a32" />
-        </linearGradient>
-      </defs>
-      {/* Outer hairline ring */}
-      <circle
-        cx="100"
-        cy="100"
-        r="84"
-        fill="none"
-        stroke="url(#goldStroke)"
-        strokeWidth="1.2"
-        opacity="0.7"
+    <div className="auth-float relative flex h-40 w-40 items-center justify-center md:h-48 md:w-48">
+      {/* Pulsing gold aura behind the crest */}
+      <div className="auth-medallion-glow absolute h-28 w-28 rounded-full md:h-32 md:w-32" />
+      {/* Two counter-rotating hairline halos with a travelling bright arc */}
+      <div className="auth-halo absolute inset-0 rounded-full" />
+      <div className="auth-halo-rev absolute inset-[10%] rounded-full" />
+      {/* Faint static guide ring */}
+      <div className="absolute inset-[6%] rounded-full border border-[#cdab68]/15" />
+      {/* The actual brand logo */}
+      <img
+        src={logoUrl}
+        alt="HEAVY GUARD"
+        className="auth-logo relative h-24 w-24 rounded-[26%] md:h-28 md:w-28"
+        draggable={false}
       />
-      <circle
-        cx="100"
-        cy="100"
-        r="74"
-        fill="none"
-        stroke="url(#goldStroke)"
-        strokeWidth="0.6"
-        opacity="0.35"
-      />
-      {/* Wings — original abstract motif, evokes flight not any trademark figurine */}
-      <path
-        d="M100 58 C72 40 44 44 22 60 C50 56 76 62 100 78 Z"
-        fill="url(#goldStroke)"
-        opacity="0.85"
-      />
-      <path
-        d="M100 58 C128 40 156 44 178 60 C150 56 124 62 100 78 Z"
-        fill="url(#goldStroke)"
-        opacity="0.85"
-      />
-      {/* Crown star */}
-      <circle cx="100" cy="50" r="3.4" fill="#f4e2b0" />
-      {/* Monogram */}
-      <text
-        x="100"
-        y="138"
-        textAnchor="middle"
-        fontFamily="'Playfair Display', serif"
-        fontWeight={700}
-        fontSize="62"
-        letterSpacing="2"
-        fill="url(#goldStroke)"
-      >
-        HG
-      </text>
-    </svg>
+    </div>
   );
 }
 
@@ -158,7 +118,7 @@ export function AuthShell({
       <section className="auth-rise relative flex flex-1 flex-col items-center justify-center px-6 pb-4 pt-12 text-center lg:px-12 lg:pb-12 lg:pt-12">
         <Grille />
         <div className="relative flex flex-col items-center">
-          <Emblem />
+          <Medallion />
 
           <div className="mt-6 flex items-center gap-3">
             <span className="h-px w-8 bg-gradient-to-l from-transparent to-[#cdab68]/70" />
