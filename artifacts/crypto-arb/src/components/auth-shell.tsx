@@ -33,21 +33,33 @@ const logoUrl = `${import.meta.env.BASE_URL}brand-logo.png`;
 
 function Medallion() {
   return (
-    <div className="auth-float relative flex h-44 w-44 items-center justify-center md:h-52 md:w-52">
-      {/* Pulsing gold aura behind the crest */}
-      <div className="auth-medallion-glow absolute h-32 w-32 rounded-full md:h-40 md:w-40" />
-      {/* Two counter-rotating hairline halos with a travelling bright arc */}
+    <div className="auth-float relative flex h-56 w-56 items-center justify-center md:h-64 md:w-64">
+      {/* Pulsing gold aura — now visible through the cut-out emblem */}
+      <div className="auth-medallion-glow absolute h-44 w-44 rounded-full md:h-52 md:w-52" />
+      {/* Two counter-rotating hairline halos orbiting the crest */}
       <div className="auth-halo absolute inset-0 rounded-full" />
-      <div className="auth-halo-rev absolute inset-[9%] rounded-full" />
-      {/* The brand emblem — black padding cropped away so the gear-bull fills the disc */}
-      <div className="auth-logo relative h-28 w-28 overflow-hidden rounded-full md:h-32 md:w-32">
-        <img
-          src={logoUrl}
-          alt="HEAVY GUARD"
-          className="h-full w-full scale-[1.6] object-cover"
-          draggable={false}
-        />
-      </div>
+      <div className="auth-halo-rev absolute inset-[10%] rounded-full" />
+      {/* The brand emblem — transparent cut-out, shown whole and centered */}
+      <img
+        src={logoUrl}
+        alt="HEAVY GUARD"
+        className="relative h-40 w-40 object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.75)] md:h-44 md:w-44"
+        draggable={false}
+      />
+    </div>
+  );
+}
+
+function LuxuryFrame() {
+  // Thin passe-partout border with gold corner brackets — couture detailing.
+  const corner = "absolute h-6 w-6 border-[#cdab68]/45";
+  return (
+    <div className="pointer-events-none absolute inset-3 md:inset-5">
+      <div className="absolute inset-0 rounded-[2px] border border-[#cdab68]/12" />
+      <span className={`${corner} left-0 top-0 border-l border-t`} />
+      <span className={`${corner} right-0 top-0 border-r border-t`} />
+      <span className={`${corner} bottom-0 left-0 border-b border-l`} />
+      <span className={`${corner} bottom-0 right-0 border-b border-r`} />
     </div>
   );
 }
@@ -112,6 +124,16 @@ export function AuthShell({
         ))}
         {/* Cinematic vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.85)_100%)]" />
+      </div>
+
+      {/* Couture passe-partout frame */}
+      <LuxuryFrame />
+
+      {/* Bottom maison signature (desktop) */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-7 z-10 hidden items-center justify-center gap-4 font-mono text-[0.55rem] uppercase tracking-[0.4em] text-[#cdab68]/40 lg:flex">
+        <span className="h-px w-12 bg-gradient-to-l from-transparent to-[#cdab68]/30" />
+        Heavy Guard · Est. MMXXVI
+        <span className="h-px w-12 bg-gradient-to-r from-transparent to-[#cdab68]/30" />
       </div>
 
       {/* Brand panel */}
