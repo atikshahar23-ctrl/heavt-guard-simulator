@@ -14,6 +14,7 @@ import {
 import { optionPositionValue, yearsToExpiry } from "@/lib/options-model";
 import { useRefresh } from "@/contexts/refresh-context";
 import { useLivePrices } from "@/contexts/live-price-context";
+import { useAutoTrader } from "@/contexts/autotrader-context";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,7 +29,7 @@ import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
   ChartCandlestick, BarChart3, Trophy, History, X, Plus,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
-  ShieldAlert, Target, Clock, Bot, Sparkles,
+  ShieldAlert, Target, Clock, Bot, Sparkles, PlayCircle,
 } from "lucide-react";
 
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10] as const;
@@ -1251,6 +1252,7 @@ export default function SimulatorPage() {
   const [stocksFilter, setStocksFilter] = useState<PosFilter>("ALL");
   const [polyFilter, setPolyFilter] = useState<PosFilter>("ALL");
   const { polyPositions, binancePositions, stockPositions, optionPositions, cash, resetPortfolio, checkSlTp, closeAllBotPositions } = usePortfolio();
+  const { settings, update: updateAutoTrader } = useAutoTrader();
   const { intervalFor } = useRefresh();
 
   // REST is only the slow baseline / asset list now — the live WS (below) is the
@@ -1398,6 +1400,16 @@ export default function SimulatorPage() {
           <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25 shrink-0">VIRTUAL</span>
         </div>
         <div className="flex items-center gap-3 ml-auto text-[11px] font-mono">
+          {settings.fleetPaused && (
+            <button
+              onClick={() => updateAutoTrader({ fleetPaused: false })}
+              className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded border border-amber-500/50 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-all animate-pulse"
+              title="הבוטים מושהים — לחץ לביטול ההשהיה"
+            >
+              <PlayCircle className="h-3 w-3 shrink-0" />
+              <span>בוטים מושהים</span>
+            </button>
+          )}
           <WalletSwitcher />
           <div className="flex items-center gap-1">
             <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
