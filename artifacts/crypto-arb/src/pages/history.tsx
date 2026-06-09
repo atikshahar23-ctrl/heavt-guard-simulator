@@ -5,14 +5,30 @@ import {
   History as HistoryIcon, TrendingUp, TrendingDown, Trophy, Target,
   Bot, Hand, Wallet, Activity, Cpu, LineChart as ChartIcon,
   Gauge, Rocket, Megaphone, Timer, Layers, Coins, Sparkles,
-  ChevronDown, ChevronRight, ExternalLink,
+  ChevronDown, ChevronRight, ExternalLink, Share2,
 } from "lucide-react";
 import { usePortfolio, type ClosedTrade, type BinancePosition, type StockPosition, STARTING_BALANCE } from "@/contexts/portfolio-context";
+import { toast } from "@/hooks/use-toast";
 import { BotStatsPopover } from "@/components/bot-stats-popover";
 import { CryptoIcon } from "@/components/crypto-icon";
 import { StockIcon } from "@/components/stock-icon";
 import { TradeAnalytics } from "@/components/trade-analytics";
 import { TradeDetailModal } from "@/components/trade-detail-modal";
+
+/** Share a winning paper-trade via Web Share API; falls back to clipboard. */
+async function shareTrade(symbol: string, pnl: number, toastFn: (opts: { title: string; description: string }) => void) {
+  const text = `🚀 רווח וירטואלי של $${Math.abs(pnl).toFixed(0)} על ${symbol} ב-Heavy Guard!\n\nמסחר נייר — הדמיה חינוכית בלבד, ללא כסף אמיתי.`;
+  try {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      await navigator.share({ title: "Heavy Guard — רווח נייר 🚀", text });
+    } else {
+      await navigator.clipboard.writeText(text);
+      toastFn({ title: "הועתק ✓", description: "הטקסט הועתק — הדבק אותו בכל מקום שתרצה." });
+    }
+  } catch {
+    // user cancelled or API unavailable — silently ignore
+  }
+}
 
 type TypeFilter = "ALL" | "BINANCE" | "STOCK" | "POLYMARKET" | "FUNDING" | "OPTION";
 type ResultFilter = "ALL" | "WINS" | "LOSSES";
@@ -1120,8 +1136,20 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                               <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${ex.color}1a`, color: ex.color }}>{ex.label}</span>
                             </div>
                             <div className="hidden sm:block text-right font-mono text-[11px] text-muted-foreground">${fmtUsd(totalCost)}</div>
-                            <div className="text-right">
-                              <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}${fmtUsd(totalPnl)}</div>
+                            <div className="text-right flex flex-col items-end gap-0.5">
+                              <div className="flex items-center gap-1">
+                                {up && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); shareTrade(first.symbol ?? first.description?.split(" ")[0] ?? "נכס", totalPnl, toast); }}
+                                    title="שתף רווח 🚀"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 hover:bg-emerald-500/20"
+                                    aria-label="שתף רווח"
+                                  >
+                                    <Share2 className="h-3 w-3" style={{ color: "#22c55e" }} />
+                                  </button>
+                                )}
+                                <div className="font-mono text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}${fmtUsd(totalPnl)}</div>
+                              </div>
                               <div className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}{pct.toFixed(1)}%</div>
                             </div>
                             <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">

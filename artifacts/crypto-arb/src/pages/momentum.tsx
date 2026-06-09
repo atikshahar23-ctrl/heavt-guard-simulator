@@ -3,7 +3,7 @@ import { useGetMomentumCoins, getGetMomentumCoinsQueryKey } from "@workspace/api
 import type { MomentumCoin } from "@workspace/api-client-react";
 import {
   Rocket, Flame, TrendingUp, Activity, RefreshCw, Target, Shield, LogIn,
-  Star, Wallet, BarChart3, Zap,
+  Star, Wallet, BarChart3, Zap, MessageCircle, ChevronDown,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,35 @@ interface StageMeta {
   Icon: typeof Flame;
   color: string;
   label: string;
+}
+
+/** Rule-based JARVIS momentum explanation — pure, no AI, no network. */
+function explainMomentumCoin(c: MomentumCoin): string[] {
+  const lines: string[] = [];
+  const stageHe: Record<string, string> = {
+    HOT: "🔥 מטבע חם — בשיא הפעילות",
+    SURGING: "🚀 התפרצות — תנועה חזקה ומהירה",
+    BUILDING: "📊 בניית תנועה — תנע מצטבר",
+    COOLING: "🧊 התקררות — השיא כנראה מאחורינו",
+  };
+  lines.push(stageHe[c.stage] ?? c.stage);
+
+  if (c.score >= 80) lines.push(`ציון הנעה ${c.score}/100 — חזק מאוד. המטבע בשיא הפעילות שלו.`);
+  else if (c.score >= 60) lines.push(`ציון הנעה ${c.score}/100 — גבוה. תנועה ברורה ומגובה.`);
+  else lines.push(`ציון הנעה ${c.score}/100 — בינוני. תנועה קיימת אך לא חזקה.`);
+
+  if (c.rvol >= 3) lines.push(`נפח מוגבר פי ${c.rvol.toFixed(1)} מהממוצע — כסף גדול נכנס לשוק!`);
+  else if (c.rvol >= 1.5) lines.push(`נפח יחסי ${c.rvol.toFixed(1)}× — מוגבר, תנועה מגובה בביקוש.`);
+  else lines.push(`נפח יחסי ${c.rvol.toFixed(1)}× — ממוצע, תנועה ממומנת בצניעות.`);
+
+  if (c.roc15m > 0.5) lines.push(`+${c.roc15m.toFixed(2)}% ב-15 דקות — עלייה מהירה בטווח הקצר.`);
+  else if (c.roc15m < -0.5) lines.push(`${c.roc15m.toFixed(2)}% ב-15 דקות — ירידה מהירה בטווח הקצר.`);
+
+  if (c.roc1h > 1) lines.push(`+${c.roc1h.toFixed(2)}% בשעה — מגמה שעתית חיובית ברורה.`);
+  else if (c.roc1h < -1) lines.push(`${c.roc1h.toFixed(2)}% בשעה — מגמה שעתית שלילית.`);
+
+  for (const r of c.reasons) lines.push(`• ${r}`);
+  return lines;
 }
 
 function stageMeta(stage: MomentumCoin["stage"]): StageMeta {
@@ -150,6 +179,8 @@ function MomentumCard({ c }: { c: MomentumCoin }) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const favId = `coin:${c.asset}`;
   const fav = isFavorite(favId);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const explanation = whyOpen ? explainMomentumCoin(c) : [];
 
   return (
     <div
@@ -256,6 +287,41 @@ function MomentumCard({ c }: { c: MomentumCoin }) {
           </li>
         ))}
       </ul>
+
+      {/* JARVIS "למה?" toggle */}
+      <button
+        onClick={() => setWhyOpen((v) => !v)}
+        className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded-md border border-dashed transition-colors text-[10px] font-mono"
+        style={{
+          borderColor: whyOpen ? "hsl(43 74% 52% / 0.6)" : "hsl(207 30% 70% / 0.25)",
+          color: whyOpen ? "hsl(43 74% 62%)" : "hsl(207 30% 60%)",
+          background: whyOpen ? "hsl(43 74% 52% / 0.08)" : "transparent",
+        }}
+        aria-label="Toggle JARVIS explanation"
+      >
+        <MessageCircle className="h-3 w-3" />
+        🤖 JARVIS — למה?
+        <ChevronDown className="h-3 w-3 transition-transform" style={{ transform: whyOpen ? "rotate(180deg)" : "none" }} />
+      </button>
+
+      {/* JARVIS explanation panel */}
+      {whyOpen && (
+        <div
+          className="rounded-md p-3 space-y-1.5 border"
+          dir="rtl"
+          style={{ background: "hsl(43 74% 52% / 0.07)", borderColor: "hsl(43 74% 52% / 0.3)" }}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "hsl(43 74% 62%)" }}>ניתוח JARVIS</span>
+            <span className="text-[8px] text-muted-foreground/60 font-mono">(כלי חינוכי בלבד · אינו ייעוץ פיננסי)</span>
+          </div>
+          {explanation.map((line, i) => (
+            <p key={i} className="text-[10px] leading-relaxed" style={{ color: i === 0 ? "hsl(43 74% 68%)" : "hsl(0 0% 75%)" }}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
 
       <QuickInvest c={c} />
     </div>

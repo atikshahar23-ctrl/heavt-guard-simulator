@@ -3,7 +3,7 @@ import { useGetScalpSignals, getGetScalpSignalsQueryKey } from "@workspace/api-c
 import type { ScalpSignal } from "@workspace/api-client-react";
 import {
   Zap, TrendingUp, TrendingDown, Minus, RefreshCw, Target, Shield, LogIn, Star,
-  Wallet, Bot, Settings2, ShieldAlert,
+  Wallet, Bot, Settings2, ShieldAlert, MessageCircle, ChevronDown,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,29 @@ function dirMeta(direction: ScalpSignal["direction"]) {
   if (direction === "LONG") return { Icon: TrendingUp, color: "#22c55e", label: "LONG" };
   if (direction === "SHORT") return { Icon: TrendingDown, color: "#ef4444", label: "SHORT" };
   return { Icon: Minus, color: "#71717a", label: "NEUTRAL" };
+}
+
+/** Rule-based JARVIS explanation — pure, no AI, no network. */
+function explainScalpSignal(s: ScalpSignal): string[] {
+  const lines: string[] = [];
+  if (s.direction === "LONG") lines.push("📈 סיגנל קנייה — JARVIS מזהה תנאים לעלייה בטווח הקצר.");
+  else if (s.direction === "SHORT") lines.push("📉 סיגנל מכירה — JARVIS מזהה לחץ מכירה בטווח הקצר.");
+  else lines.push("⏸ אין כיוון ברור כרגע — JARVIS ממליץ להמתין.");
+
+  if (s.rsi <= 30) lines.push(`RSI ${s.rsi} — Oversold: המטבע נמכר יתר על המידה, לחץ קנייה צפוי.`);
+  else if (s.rsi >= 70) lines.push(`RSI ${s.rsi} — Overbought: המטבע קנה יתר, לחץ מכירה מוגבר.`);
+  else if (s.direction === "SHORT" && s.rsi >= 58) lines.push(`RSI ${s.rsi} — מגיע לרמה שבה עליות נתקלות בהתנגדות.`);
+  else lines.push(`RSI ${s.rsi} — אזור ניטרלי, תנועה יכולה ללכת לשני הכיוונים.`);
+
+  if (s.riskReward >= 2) lines.push(`יחס סיכון/סיכוי ${s.riskReward.toFixed(2)} — מצוין! הרווח הפוטנציאלי גדול פי ${s.riskReward.toFixed(1)} מהסיכון.`);
+  else if (s.riskReward >= 1.5) lines.push(`יחס סיכון/סיכוי ${s.riskReward.toFixed(2)} — טוב. מקצועי.`);
+  else if (s.riskReward > 0) lines.push(`יחס סיכון/סיכוי ${s.riskReward.toFixed(2)} — נמוך יחסית. שים לב.`);
+
+  const confHe = s.confidence === "HIGH" ? "גבוה" : s.confidence === "MEDIUM" ? "בינוני" : "נמוך";
+  lines.push(`ביטחון ${confHe} (ציון ${s.score}) — ${s.confidence === "HIGH" ? "רוב האינדיקטורים מסכימים." : s.confidence === "MEDIUM" ? "חלקם מסכימים, זהירות." : "תמיכה חלקית — עסקה מסוכנת יותר."}`);
+
+  for (const r of s.reasons) lines.push(`• ${r}`);
+  return lines;
 }
 
 function confColor(c: ScalpSignal["confidence"]): string {
@@ -140,6 +163,8 @@ function SignalCard({ s }: { s: ScalpSignal }) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const favId = `coin:${s.asset}`;
   const fav = isFavorite(favId);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const explanation = whyOpen ? explainScalpSignal(s) : [];
 
   return (
     <div
@@ -223,6 +248,41 @@ function SignalCard({ s }: { s: ScalpSignal }) {
           </li>
         ))}
       </ul>
+
+      {/* JARVIS "למה?" toggle */}
+      <button
+        onClick={() => setWhyOpen((v) => !v)}
+        className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded-md border border-dashed transition-colors text-[10px] font-mono"
+        style={{
+          borderColor: whyOpen ? "hsl(43 74% 52% / 0.6)" : "hsl(207 30% 70% / 0.25)",
+          color: whyOpen ? "hsl(43 74% 62%)" : "hsl(207 30% 60%)",
+          background: whyOpen ? "hsl(43 74% 52% / 0.08)" : "transparent",
+        }}
+        aria-label="Toggle JARVIS explanation"
+      >
+        <MessageCircle className="h-3 w-3" />
+        🤖 JARVIS — למה?
+        <ChevronDown className="h-3 w-3 transition-transform" style={{ transform: whyOpen ? "rotate(180deg)" : "none" }} />
+      </button>
+
+      {/* JARVIS explanation panel */}
+      {whyOpen && (
+        <div
+          className="rounded-md p-3 space-y-1.5 border"
+          dir="rtl"
+          style={{ background: "hsl(43 74% 52% / 0.07)", borderColor: "hsl(43 74% 52% / 0.3)" }}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "hsl(43 74% 62%)" }}>ניתוח JARVIS</span>
+            <span className="text-[8px] text-muted-foreground/60 font-mono">(כלי חינוכי בלבד · אינו ייעוץ פיננסי)</span>
+          </div>
+          {explanation.map((line, i) => (
+            <p key={i} className="text-[10px] leading-relaxed" style={{ color: i === 0 ? "hsl(43 74% 68%)" : "hsl(0 0% 75%)" }}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* Quick invest */}
       {s.direction !== "NEUTRAL" && <QuickInvest s={s} />}
