@@ -1,6 +1,7 @@
 import { useGetMarketMovers, getGetMarketMoversQueryKey } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
-import { Newspaper, ExternalLink } from "lucide-react";
+import { Newspaper, ExternalLink, ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -12,7 +13,8 @@ function timeAgo(iso: string): string {
   return `לפני ${Math.floor(hrs / 24)} ימים`;
 }
 
-export function SidebarNews() {
+export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) {
+  const [open, setOpen] = useState(false);
   const { data, isLoading } = useGetMarketMovers({
     query: {
       queryKey: getGetMarketMoversQueryKey(),
@@ -25,12 +27,25 @@ export function SidebarNews() {
 
   return (
     <div className="px-1" dir="rtl">
-      <div className="px-3 pb-2 flex items-center gap-2">
-        <Newspaper className="h-3.5 w-3.5 text-[#cdbfa4]/70" strokeWidth={1.5} />
-        <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">חדשות שוק</span>
-      </div>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full px-3 pb-2 flex items-center gap-2 text-right"
+          aria-expanded={open}
+        >
+          <Newspaper className="h-3.5 w-3.5 text-[#cdbfa4]/70" strokeWidth={1.5} />
+          <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">חדשות שוק</span>
+          <ChevronDown className={`h-3.5 w-3.5 text-[#cdbfa4]/55 mr-auto transition-transform duration-200 ${open ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+        </button>
+      ) : (
+        <div className="px-3 pb-2 flex items-center gap-2">
+          <Newspaper className="h-3.5 w-3.5 text-[#cdbfa4]/70" strokeWidth={1.5} />
+          <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">חדשות שוק</span>
+        </div>
+      )}
 
-      <div className="space-y-0.5">
+      <div className={`space-y-0.5 ${collapsible && !open ? 'hidden' : ''}`}>
         {isLoading ? (
           <div className="space-y-2 px-2 py-1">
             {Array.from({ length: 3 }).map((_, i) => (

@@ -228,9 +228,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         ))}
 
-        {/* Market News — desktop only, scrolls with nav so it never crowds links */}
+        {/* Market News — desktop: always expanded, scrolls with nav */}
         <div className="hidden md:block pt-1 border-t border-border/40">
           <SidebarNews />
+        </div>
+        {/* Market News — mobile: collapsible accordion so it never crowds nav links */}
+        <div className="md:hidden pt-1 border-t border-border/40">
+          <SidebarNews collapsible />
         </div>
       </nav>
 
