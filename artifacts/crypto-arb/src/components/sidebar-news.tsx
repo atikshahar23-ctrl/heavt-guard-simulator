@@ -1,7 +1,9 @@
 import { useGetMarketMovers, getGetMarketMoversQueryKey } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
 import { Newspaper, ExternalLink, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const NEWS_OPEN_KEY = "sidebar-news-open";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -14,7 +16,16 @@ function timeAgo(iso: string): string {
 }
 
 export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(NEWS_OPEN_KEY) === "true";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(NEWS_OPEN_KEY, String(open));
+  }, [open]);
+
   const { data, isLoading } = useGetMarketMovers({
     query: {
       queryKey: getGetMarketMoversQueryKey(),
