@@ -178,17 +178,25 @@ export function Jarvis() {
   const pickVoice = useCallback((l: Lang): SpeechSynthesisVoice | undefined => {
     const voices = voicesRef.current;
     if (!voices.length) return undefined;
-    if (l === "he") {
-      return voices.find((v) => v.lang?.toLowerCase().startsWith("he"));
-    }
-    // English — prefer a refined British male (closest to Iron Man's JARVIS).
-    const en = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
-    const byName = (re: RegExp) => en.find((v) => re.test(v.name));
-    return (
-      byName(/daniel|arthur|oliver|george|british|uk english male/i) ??
-      en.find((v) => v.lang?.toLowerCase() === "en-gb") ??
-      en[0]
-    );
+    const all = voices.filter((v) => v.lang?.toLowerCase().startsWith(l === "he" ? "he" : "en"));
+    if (!all.length) return undefined;
+    const score = (v: SpeechSynthesisVoice) => {
+      let s = 0;
+      const name = v.name.toLowerCase();
+      if (/premium|enhanced|neural|wavenet|advanced|pro/.test(name)) s += 100;
+      if (v.name.includes("Google")) s += 60;
+      if (v.name.includes("Apple")) s += 50;
+      if (v.name.includes("Microsoft")) s += 40;
+      if (l === "en") {
+        if (/daniel|arthur|oliver|george|british|uk english male/i.test(name)) s += 20;
+      } else {
+        if (/carmit|hebrew|il|premium/i.test(name)) s += 20;
+      }
+      if (/basic|compact|low|test|default/.test(name)) s -= 30;
+      return s;
+    };
+    const sorted = [...all].sort((a, b) => score(b) - score(a));
+    return sorted[0];
   }, []);
 
   const speak = useCallback(
@@ -414,8 +422,8 @@ export function Jarvis() {
     const sig = `${boostAdvice.level}-${boostAdvice.durationMin}`;
     if (boostSpokeRef.current === sig) return;
     boostSpokeRef.current = sig;
-    if (!muted) speak(boostAdvice.text);
-  }, [showBoostAlert, boostAdvice, muted, speak]);
+    // JARVIS only speaks when explicitly activated by the user, not on auto-alerts.
+  }, [showBoostAlert, boostAdvice]);
 
   const activateBoost = useCallback(() => {
     const min = boostAdvice.durationMin;
