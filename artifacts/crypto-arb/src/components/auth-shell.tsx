@@ -1,4 +1,6 @@
 import { useMemo, type ReactNode } from "react";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 type Star = {
   top: number;
@@ -94,10 +96,11 @@ export function AuthShell({
   subtitle: string;
 }) {
   const stars = useStarfield(64);
+  const { lang, dir } = useLanguage();
 
   return (
     <div
-      dir="rtl"
+      dir={dir}
       className="auth-shell auth-sweep entrance-marble-bg relative flex min-h-[100dvh] w-full flex-col overflow-hidden text-white lg:flex-row"
     >
       {/* Cinematic backdrop spanning the whole viewport */}
@@ -131,7 +134,7 @@ export function AuthShell({
 
       {/* Top private-client tag (desktop) */}
       <div className="pointer-events-none absolute inset-x-0 top-8 z-10 hidden items-center justify-center gap-3 font-mono text-[0.55rem] uppercase tracking-[0.4em] text-[#9fb4c7]/55 lg:flex">
-        <span>מועדון פרטי</span>
+        <span>{t("auth.privateClub", lang)}</span>
         <span className="h-[3px] w-[3px] rounded-full bg-[#cdbfa4]/70" />
         <span>Private Client</span>
       </div>
@@ -139,7 +142,7 @@ export function AuthShell({
       {/* Bottom maison signature (desktop) */}
       <div className="pointer-events-none absolute inset-x-0 bottom-7 z-10 hidden items-center justify-center gap-4 font-mono text-[0.55rem] uppercase tracking-[0.4em] text-[#9fb4c7]/35 lg:flex">
         <span className="h-px w-12 bg-gradient-to-l from-transparent to-[#9fb4c7]/30" />
-        Heavy Guard · Est. MMXXVI · דמו לימודי בלבד
+        Heavy Guard · Est. MMXXVI · {t("landing.demoOnly", lang)}
         <span className="h-px w-12 bg-gradient-to-r from-transparent to-[#9fb4c7]/30" />
       </div>
 

@@ -11,6 +11,8 @@ import {
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { israelTickMarkFormatter, israelTimeFormatter } from "../lib/timezone";
 import { TrendingUp, TrendingDown, LineChart as LineChartIcon } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
+import { t as tr } from "@/lib/i18n";
 
 function fmtUsd(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -24,6 +26,7 @@ function fmtUsd(n: number) {
  */
 export function WalletProgress() {
   const { tradeHistory, totalDeposited, activeWalletName, activeWalletId } = usePortfolio();
+  const { lang } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -139,7 +142,7 @@ export function WalletProgress() {
         <div className="flex items-center gap-2">
           <LineChartIcon className="h-4 w-4 text-primary" />
           <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">
-            התקדמות הארנק
+            {tr("wp.title", lang)}
           </span>
           <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[120px]">· {activeWalletName}</span>
         </div>
@@ -154,8 +157,8 @@ export function WalletProgress() {
         {!hasData && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
             <LineChartIcon className="h-8 w-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs font-mono text-muted-foreground">אין עדיין עסקאות סגורות</p>
-            <p className="text-[10px] font-mono text-muted-foreground/70">הגרף יתעדכן ככל שתסגור פוזיציות</p>
+            <p className="text-xs font-mono text-muted-foreground">{tr("wp.noTrades", lang)}</p>
+            <p className="text-[10px] font-mono text-muted-foreground/70">{tr("wp.willUpdate", lang)}</p>
           </div>
         )}
       </div>

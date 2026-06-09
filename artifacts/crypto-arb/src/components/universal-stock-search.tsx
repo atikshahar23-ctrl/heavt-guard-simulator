@@ -10,6 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Search, Loader2, Globe, X } from "lucide-react";
 import { StockDetailPanel } from "@/components/stock-detail-panel";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 function categoryFor(type: string): StockQuote["category"] {
   const t = type.toUpperCase();
@@ -31,8 +33,9 @@ export function SearchedStockPanel({
   onClose: () => void;
   labels?: { loading: (sym: string) => string; notFound: (sym: string) => string };
 }) {
-  const loadingText = labels?.loading ?? ((sym: string) => `טוען נתוני ${sym}…`);
-  const notFoundText = labels?.notFound ?? ((sym: string) => `לא נמצאו נתוני מסחר עבור ${sym}.`);
+  const { lang } = useLanguage();
+  const loadingText = labels?.loading ?? ((sym: string) => t("markets.loadingStock", lang).replace("{sym}", sym));
+  const notFoundText = labels?.notFound ?? ((sym: string) => t("markets.noTradeData", lang).replace("{sym}", sym));
   const params = { symbol: result.symbol, range: "1mo", interval: "1d" };
   const { data: candles, isLoading, isError } = useGetStockKlines(params, {
     query: { queryKey: getGetStockKlinesQueryKey(params) },
@@ -100,6 +103,7 @@ export function SearchedStockPanel({
 }
 
 export function UniversalStockSearch() {
+  const { lang, dir } = useLanguage();
   const [term, setTerm] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
@@ -132,12 +136,12 @@ export function UniversalStockSearch() {
           <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
           <Input
             type="search"
-            placeholder="חיפוש כל מניה בעולם — שם או סימול (למשל TSLA, נטפליקס)…"
+            placeholder={t("markets.searchPlaceholder", lang)}
             value={term}
             onChange={(e) => { setTerm(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
             className="pl-9 pr-9 bg-secondary/30 border-primary/30 focus-visible:border-primary"
-            dir="rtl"
+            dir={dir}
           />
           {isFetching && enabled && (
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
@@ -148,7 +152,7 @@ export function UniversalStockSearch() {
           <div className="absolute z-40 mt-1 w-full rounded-lg border border-border bg-card shadow-2xl overflow-hidden">
             {!results || results.length === 0 ? (
               <div className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                {isFetching ? "מחפש…" : "לא נמצאו תוצאות"}
+                {isFetching ? t("markets.searching", lang) : t("markets.noResults", lang)}
               </div>
             ) : (
               <div className="max-h-80 overflow-y-auto">

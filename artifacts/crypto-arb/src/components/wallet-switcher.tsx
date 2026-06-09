@@ -246,7 +246,7 @@ export function WalletSwitcher({ compact = false }: { compact?: boolean }) {
               <div className="h-px bg-border mt-2 mb-1" />
               <div className="px-1 pb-1">
                 <p className="px-1 pb-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                  השוואת ארנקים
+                  {t("wallet.compare", lang)}
                 </p>
                 <div className="flex flex-col gap-0.5">
                   {wallets.map((w) => {

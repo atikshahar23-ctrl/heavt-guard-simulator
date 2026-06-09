@@ -8,6 +8,7 @@ import type {
 } from "@/contexts/portfolio-context";
 import type { BotStat } from "@/contexts/autotrader-context";
 import { assetCautionFromStat } from "@/contexts/autotrader-context";
+import { t, type Lang } from "@/lib/i18n";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Rule-based analytics & insights engine.
@@ -28,12 +29,12 @@ export const ASSET_CLASSES: AssetClass[] = [
   "FUNDING",
 ];
 
-export const CLASS_LABEL_HE: Record<AssetClass, string> = {
-  BINANCE: "קריפטו (פיוצ'רס)",
-  STOCK: "מניות",
-  POLYMARKET: "הימורי שוק",
-  OPTION: "אופציות",
-  FUNDING: "מימון דלתא-נייטרל",
+const CLASS_LABEL_KEY: Record<AssetClass, string> = {
+  BINANCE: "insights.class.binance",
+  STOCK: "insights.class.stock",
+  POLYMARKET: "insights.class.polymarket",
+  OPTION: "insights.class.option",
+  FUNDING: "insights.class.funding",
 };
 
 export interface SymbolAgg {
@@ -67,21 +68,21 @@ export interface ClassAgg {
 
 export interface BotDef {
   key: string;
-  title: string;
+  titleKey: string;
   match: (t: ClosedTrade) => boolean;
 }
 
 /** Per-bot matchers — mirrors the labelling used on the History page. */
 export const BOT_DEFS: BotDef[] = [
-  { key: "scalp", title: "סקאלפ", match: (t) => (t.source ?? "").includes("Scalp") },
-  { key: "momentum", title: "מומנטום", match: (t) => (t.source ?? "").includes("Momentum") },
-  { key: "smart", title: "כסף חכם", match: (t) => (t.source ?? "").includes("Smart-Money") },
-  { key: "dipbuyer", title: "קונה ירידות", match: (t) => t.source === "Dip Buyer" },
-  { key: "breakout", title: "צייד פריצות", match: (t) => t.source === "Breakout Hunter" },
-  { key: "dca", title: "צבירת בלו-צ'יפ", match: (t) => t.source === "Blue-Chip DCA" },
-  { key: "poly", title: "הימורי קריפטו", match: (t) => t.type === "POLYMARKET" },
-  { key: "funding", title: "מימון", match: (t) => t.type === "FUNDING" },
-  { key: "options", title: "אופציות", match: (t) => t.type === "OPTION" },
+  { key: "scalp", titleKey: "insights.bot.scalp", match: (t) => (t.source ?? "").includes("Scalp") },
+  { key: "momentum", titleKey: "insights.bot.momentum", match: (t) => (t.source ?? "").includes("Momentum") },
+  { key: "smart", titleKey: "insights.bot.smart", match: (t) => (t.source ?? "").includes("Smart-Money") },
+  { key: "dipbuyer", titleKey: "insights.bot.dipbuyer", match: (t) => t.source === "Dip Buyer" },
+  { key: "breakout", titleKey: "insights.bot.breakout", match: (t) => t.source === "Breakout Hunter" },
+  { key: "dca", titleKey: "insights.bot.dca", match: (t) => t.source === "Blue-Chip DCA" },
+  { key: "poly", titleKey: "insights.bot.poly", match: (t) => t.type === "POLYMARKET" },
+  { key: "funding", titleKey: "insights.bot.funding", match: (t) => t.type === "FUNDING" },
+  { key: "options", titleKey: "insights.bot.options", match: (t) => t.type === "OPTION" },
 ];
 
 export interface BotAgg {
@@ -195,7 +196,7 @@ function openCapitalFor(key: AssetClass, open: OpenPositions): { count: number; 
   }
 }
 
-export function computeClassAggs(tradeHistory: ClosedTrade[], open: OpenPositions): ClassAgg[] {
+export function computeClassAggs(tradeHistory: ClosedTrade[], open: OpenPositions, lang: Lang): ClassAgg[] {
   return ASSET_CLASSES.map((key) => {
     const trades = tradeHistory.filter((t) => t.type === key);
     const wins = trades.filter((t) => t.pnl > 0).length;
@@ -204,7 +205,7 @@ export function computeClassAggs(tradeHistory: ClosedTrade[], open: OpenPosition
     const { count, capital } = openCapitalFor(key, open);
     return {
       key,
-      label: CLASS_LABEL_HE[key],
+      label: t(CLASS_LABEL_KEY[key], lang),
       trades: trades.length,
       wins,
       winRate: trades.length ? (wins / trades.length) * 100 : 0,
@@ -221,14 +222,14 @@ export function computeClassAggs(tradeHistory: ClosedTrade[], open: OpenPosition
   });
 }
 
-export function computeBotAggs(tradeHistory: ClosedTrade[], botStats: Record<string, BotStat>): BotAgg[] {
+export function computeBotAggs(tradeHistory: ClosedTrade[], botStats: Record<string, BotStat>, lang: Lang): BotAgg[] {
   return BOT_DEFS.map((b) => {
     const trades = tradeHistory.filter(b.match);
     const wins = trades.filter((t) => t.pnl > 0).length;
     const net = trades.reduce((a, t) => a + t.pnl, 0);
     return {
       key: b.key,
-      title: b.title,
+      title: t(b.titleKey, lang),
       trades: trades.length,
       wins,
       winRate: trades.length ? (wins / trades.length) * 100 : 0,
@@ -255,19 +256,22 @@ export function computeCautioned(assetStats: Record<string, BotStat>): CautionEn
     .sort((a, b) => b.caution - a.caution || a.net - b.net);
 }
 
-/* ── Rule-based Hebrew conclusions ──────────────────────────────────────────
+/* ── Rule-based conclusions ──────────────────────────────────────────────────
  * Educational observations only. No advice, no win-rate/return promises. */
-function buildConclusions(d: Omit<InsightsData, "conclusions">): string[] {
+function buildConclusions(d: Omit<InsightsData, "conclusions">, lang: Lang): string[] {
   const out: string[] = [];
 
   if (d.totalTrades === 0) {
-    out.push("עדיין אין עסקאות סגורות לניתוח — הפעל את הבוטים וכשייסגרו עסקאות, כאן יופיעו תובנות מבוססות-חוקים על האפיקים והבוטים.");
+    out.push(t("insights.concl.empty", lang));
     return out;
   }
 
   // Overall picture.
   out.push(
-    `סך הכול ${d.totalTrades} עסקאות סגורות, ${d.overallWinRate.toFixed(0)}% מהן בירוק, רווח/הפסד מצטבר ${signed(d.totalNet)}.`,
+    t("insights.concl.overall", lang)
+      .replace("{trades}", String(d.totalTrades))
+      .replace("{winRate}", d.overallWinRate.toFixed(0))
+      .replace("{net}", signed(d.totalNet)),
   );
 
   // Strongest / weakest asset class.
@@ -276,12 +280,19 @@ function buildConclusions(d: Omit<InsightsData, "conclusions">): string[] {
   if (ranked.length) {
     const best = ranked[0];
     out.push(
-      `האפיק החזק ביותר עד כה: ${best.label} (${signed(best.net)} על ${best.trades} עסקאות, ${best.winRate.toFixed(0)}% הצלחה).`,
+      t("insights.concl.bestClass", lang)
+        .replace("{label}", best.label)
+        .replace("{net}", signed(best.net))
+        .replace("{trades}", String(best.trades))
+        .replace("{winRate}", best.winRate.toFixed(0)),
     );
     const worst = ranked[ranked.length - 1];
     if (ranked.length > 1 && worst.net < 0) {
       out.push(
-        `האפיק שמתקשה ביותר: ${worst.label} (${signed(worst.net)}, ${worst.winRate.toFixed(0)}% הצלחה) — נצפתה חולשה יחסית, מקום לזהירות.`,
+        t("insights.concl.worstClass", lang)
+          .replace("{label}", worst.label)
+          .replace("{net}", signed(worst.net))
+          .replace("{winRate}", worst.winRate.toFixed(0)),
       );
     }
   }
@@ -289,46 +300,69 @@ function buildConclusions(d: Omit<InsightsData, "conclusions">): string[] {
   // Best / worst symbol across coins & stocks.
   if (d.bestSymbols.length && d.bestSymbols[0].net > 0) {
     const s = d.bestSymbols[0];
-    out.push(`הנכס הבולט לטובה: ${s.symbol} (${signed(s.net)} על ${s.trades} עסקאות).`);
+    out.push(
+      t("insights.concl.bestSymbol", lang)
+        .replace("{symbol}", s.symbol)
+        .replace("{net}", signed(s.net))
+        .replace("{trades}", String(s.trades)),
+    );
   }
   if (d.worstSymbols.length && d.worstSymbols[0].net < 0) {
     const s = d.worstSymbols[0];
-    out.push(`הנכס המאתגר ביותר: ${s.symbol} (${signed(s.net)} על ${s.trades} עסקאות).`);
+    out.push(
+      t("insights.concl.worstSymbol", lang)
+        .replace("{symbol}", s.symbol)
+        .replace("{net}", signed(s.net))
+        .replace("{trades}", String(s.trades)),
+    );
   }
 
   // Best / worst bot.
   const botsRanked = [...d.botAggs].sort((a, b) => b.net - a.net);
   if (botsRanked.length) {
     const bb = botsRanked[0];
-    if (bb.net > 0) out.push(`הבוט המוביל: ${bb.title} (${signed(bb.net)}, ${bb.winRate.toFixed(0)}% הצלחה).`);
+    if (bb.net > 0) {
+      out.push(
+        t("insights.concl.bestBot", lang)
+          .replace("{title}", bb.title)
+          .replace("{net}", signed(bb.net))
+          .replace("{winRate}", bb.winRate.toFixed(0)),
+      );
+    }
     const wb = botsRanked[botsRanked.length - 1];
     if (botsRanked.length > 1 && wb.net < 0) {
-      out.push(`הבוט שמתקשה: ${wb.title} (${signed(wb.net)}, ${wb.winRate.toFixed(0)}% הצלחה).`);
+      out.push(
+        t("insights.concl.worstBot", lang)
+          .replace("{title}", wb.title)
+          .replace("{net}", signed(wb.net))
+          .replace("{winRate}", wb.winRate.toFixed(0)),
+      );
     }
   }
 
   // Rising per-asset caution.
   if (d.cautioned.length) {
     const top = d.cautioned.slice(0, 4).map((c) => `${c.symbol} (×${c.caution.toFixed(2)})`).join(", ");
-    out.push(`הסוכן מעלה זהירות על נכסים שחזרו להפסיד עליהם: ${top} — נדרש שם סטאפ חזק יותר לפני כניסה נוספת.`);
+    out.push(t("insights.concl.caution", lang).replace("{list}", top));
   }
 
   // Short-term trend.
   const recent = d.classAggs.reduce((a, c) => a + c.recentNet, 0);
   if (Math.abs(recent) > 0.5) {
     out.push(
-      recent >= 0
-        ? `המגמה האחרונה חיובית — העסקאות האחרונות הצטברו ל-${signed(recent)}.`
-        : `המגמה האחרונה שלילית — העסקאות האחרונות הצטברו ל-${signed(recent)}; שלב טוב להגביר סלקטיביות.`,
+      (recent >= 0
+        ? t("insights.concl.trendUp", lang)
+        : t("insights.concl.trendDown", lang)
+      ).replace("{net}", signed(recent)),
     );
   }
 
   // Low overall win-rate note.
   if (d.totalTrades >= 10 && d.overallWinRate < 45) {
-    out.push("אחוז ההצלחה הכולל נמוך מ-45% — מבחינה לימודית כדאי לבחון הידוק ספי כניסה והקטנת חשיפה.");
+    out.push(t("insights.concl.lowWinRate", lang));
   }
 
-  out.push("כל התובנות מבוססות-חוקים ולמטרות לימוד בלבד — אינן ייעוץ פיננסי ואינן הבטחה לתשואה.");
+  out.push(t("insights.concl.disclaimer", lang));
   return out;
 }
 
@@ -338,12 +372,13 @@ export function buildInsights(
   open: OpenPositions,
   assetStats: Record<string, BotStat>,
   botStats: Record<string, BotStat>,
+  lang: Lang,
 ): InsightsData {
   const totalTrades = tradeHistory.length;
   const totalWins = tradeHistory.filter((t) => t.pnl > 0).length;
   const totalNet = tradeHistory.reduce((a, t) => a + t.pnl, 0);
-  const classAggs = computeClassAggs(tradeHistory, open);
-  const botAggs = computeBotAggs(tradeHistory, botStats);
+  const classAggs = computeClassAggs(tradeHistory, open, lang);
+  const botAggs = computeBotAggs(tradeHistory, botStats, lang);
   const cautioned = computeCautioned(assetStats);
   const totalOpen =
     open.binance.length + open.stock.length + open.poly.length + open.funding.length + open.option.length;
@@ -368,5 +403,5 @@ export function buildInsights(
     cautioned,
   };
 
-  return { ...base, conclusions: buildConclusions(base) };
+  return { ...base, conclusions: buildConclusions(base, lang) };
 }

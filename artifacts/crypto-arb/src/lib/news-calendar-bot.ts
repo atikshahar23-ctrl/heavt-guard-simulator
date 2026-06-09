@@ -9,6 +9,7 @@
  */
 
 import { getMarketNotes } from "./market-calendar";
+import type { Lang } from "./i18n";
 
 export type EventImpact = "high" | "medium" | "low";
 export type EventSource = "news" | "macro";
@@ -45,16 +46,20 @@ const MONTH_RE =
   "jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december";
 
 /** Importance + category lexicon. First match wins (most market-moving first). */
-const KEYWORDS: { re: RegExp; impact: EventImpact; category: string }[] = [
-  { re: /fomc|rate decision|interest rate|federal reserve|\bfed\b|rate cut|rate hike/i, impact: "high", category: "מאקרו" },
-  { re: /\bcpi\b|inflation|\bppi\b|pce\b/i, impact: "high", category: "מאקרו" },
-  { re: /jobs report|non-?farm|payrolls|\bnfp\b|unemployment/i, impact: "high", category: "מאקרו" },
-  { re: /\betf\b/i, impact: "high", category: "רגולציה" },
-  { re: /\bsec\b|securities and exchange|\bcftc\b|regulat|lawsuit|\bsues?\b|court|settlement|\bban\b|approval|deadline/i, impact: "high", category: "רגולציה" },
-  { re: /halving|hard fork|mainnet|token unlock|\bunlock\b|airdrop|token generation|\btge\b|snapshot/i, impact: "high", category: "קריפטו" },
-  { re: /hack|exploit|breach|stolen|drained/i, impact: "high", category: "קריפטו" },
-  { re: /earnings|guidance|quarterly results|revenue/i, impact: "medium", category: "מניות" },
-  { re: /upgrade|launch|listing|partnership|integration|rollout|release|conference|summit/i, impact: "medium", category: "קריפטו" },
+const CAT_MACRO = { he: "מאקרו", en: "Macro" };
+const CAT_REGULATION = { he: "רגולציה", en: "Regulation" };
+const CAT_CRYPTO = { he: "קריפטו", en: "Crypto" };
+const CAT_STOCKS = { he: "מניות", en: "Stocks" };
+const KEYWORDS: { re: RegExp; impact: EventImpact; category: { he: string; en: string } }[] = [
+  { re: /fomc|rate decision|interest rate|federal reserve|\bfed\b|rate cut|rate hike/i, impact: "high", category: CAT_MACRO },
+  { re: /\bcpi\b|inflation|\bppi\b|pce\b/i, impact: "high", category: CAT_MACRO },
+  { re: /jobs report|non-?farm|payrolls|\bnfp\b|unemployment/i, impact: "high", category: CAT_MACRO },
+  { re: /\betf\b/i, impact: "high", category: CAT_REGULATION },
+  { re: /\bsec\b|securities and exchange|\bcftc\b|regulat|lawsuit|\bsues?\b|court|settlement|\bban\b|approval|deadline/i, impact: "high", category: CAT_REGULATION },
+  { re: /halving|hard fork|mainnet|token unlock|\bunlock\b|airdrop|token generation|\btge\b|snapshot/i, impact: "high", category: CAT_CRYPTO },
+  { re: /hack|exploit|breach|stolen|drained/i, impact: "high", category: CAT_CRYPTO },
+  { re: /earnings|guidance|quarterly results|revenue/i, impact: "medium", category: CAT_STOCKS },
+  { re: /upgrade|launch|listing|partnership|integration|rollout|release|conference|summit/i, impact: "medium", category: CAT_CRYPTO },
 ];
 
 function ymd(d: Date): string {
@@ -89,11 +94,11 @@ function cleanTitle(title: string): string {
   return title.replace(/\s+-\s+[^-]+$/, "").trim() || title.trim();
 }
 
-function classify(title: string): { impact: EventImpact; category: string } {
+function classify(title: string, lang: Lang = "he"): { impact: EventImpact; category: string } {
   for (const k of KEYWORDS) {
-    if (k.re.test(title)) return { impact: k.impact, category: k.category };
+    if (k.re.test(title)) return { impact: k.impact, category: lang === "en" ? k.category.en : k.category.he };
   }
-  return { impact: "low", category: "חדשות" };
+  return { impact: "low", category: lang === "en" ? "News" : "חדשות" };
 }
 
 /** Build a local-midnight Date only if y/m/d survive without JS rollover. */
@@ -155,7 +160,7 @@ function extractDate(title: string, ref: Date): Date | null {
 }
 
 /** Turn raw news headlines into dated calendar events. */
-export function extractEventsFromNews(news: NewsLike[], now: Date): CalendarEvent[] {
+export function extractEventsFromNews(news: NewsLike[], now: Date, lang: Lang = "he"): CalendarEvent[] {
   const out: CalendarEvent[] = [];
   const today = startOfDay(now);
   const maxFuture = new Date(today);
@@ -168,7 +173,7 @@ export function extractEventsFromNews(news: NewsLike[], now: Date): CalendarEven
     if (!date) continue;
     if (date < today || date > maxFuture) continue;
 
-    const { impact, category } = classify(item.title);
+    const { impact, category } = classify(item.title, lang);
     out.push({
       id: `news:${ymd(date)}:${hash(item.title)}`,
       date: ymd(date),
@@ -184,17 +189,23 @@ export function extractEventsFromNews(news: NewsLike[], now: Date): CalendarEven
 }
 
 /** Pull the static macro calendar (FOMC / NFP / expiry / holidays) over a window. */
-export function getMacroEvents(now: Date, daysAhead = 60): CalendarEvent[] {
+export function getMacroEvents(now: Date, lang: Lang = "he", daysAhead = 60): CalendarEvent[] {
   const out: CalendarEvent[] = [];
   const start = startOfDay(now);
   for (let i = 0; i < daysAhead; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
-    for (const n of getMarketNotes(d)) {
+    for (const n of getMarketNotes(d, lang)) {
       if (n.kind === "weekend") continue; // too noisy for a curated calendar
       const impact: EventImpact = n.kind === "macro" ? "high" : n.kind === "expiry" ? "medium" : "low";
       const category =
-        n.kind === "macro" ? "מאקרו" : n.kind === "expiry" ? "נגזרים" : n.kind === "holiday" ? "חגים" : "כללי";
+        n.kind === "macro"
+          ? (lang === "en" ? "Macro" : "מאקרו")
+          : n.kind === "expiry"
+            ? (lang === "en" ? "Derivatives" : "נגזרים")
+            : n.kind === "holiday"
+              ? (lang === "en" ? "Holidays" : "חגים")
+              : (lang === "en" ? "General" : "כללי");
       out.push({ id: `macro:${ymd(d)}:${n.short}`, date: ymd(d), title: n.label, impact, category, source: "macro" });
     }
   }
@@ -206,8 +217,8 @@ function impactRank(i: EventImpact): number {
 }
 
 /** Merge macro + news events, de-dupe, and sort by date then importance. */
-export function buildCalendarEvents(news: NewsLike[] | undefined, now: Date): CalendarEvent[] {
-  const merged = [...getMacroEvents(now), ...extractEventsFromNews(news ?? [], now)];
+export function buildCalendarEvents(news: NewsLike[] | undefined, now: Date, lang: Lang = "he"): CalendarEvent[] {
+  const merged = [...getMacroEvents(now, lang), ...extractEventsFromNews(news ?? [], now, lang)];
   const seen = new Set<string>();
   const deduped = merged.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
   deduped.sort((a, b) => a.date.localeCompare(b.date) || impactRank(b.impact) - impactRank(a.impact));
@@ -232,9 +243,15 @@ export function daysUntil(event: CalendarEvent, now: Date): number {
   return Math.round((d - today) / 86_400_000);
 }
 
-/** Hebrew relative-day label for an event. */
-export function relativeDayLabel(event: CalendarEvent, now: Date): string {
+/** Relative-day label for an event. */
+export function relativeDayLabel(event: CalendarEvent, now: Date, lang: Lang = "he"): string {
   const n = daysUntil(event, now);
+  if (lang === "en") {
+    if (n <= 0) return "Today";
+    if (n === 1) return "Tomorrow";
+    if (n === 2) return "In 2 days";
+    return `In ${n} days`;
+  }
   if (n <= 0) return "היום";
   if (n === 1) return "מחר";
   if (n === 2) return "בעוד יומיים";

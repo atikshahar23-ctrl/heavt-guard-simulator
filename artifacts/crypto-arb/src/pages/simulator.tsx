@@ -16,7 +16,7 @@ import { useRefresh } from "@/contexts/refresh-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { useAutoTrader } from "@/contexts/autotrader-context";
 import { useLanguage } from "@/contexts/language-context";
-import { t } from "@/lib/i18n";
+import { t, type Lang } from "@/lib/i18n";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -104,13 +104,14 @@ function DepositDialog({ cash, onClose, onDeposit }: { cash: number; onClose: ()
   );
 }
 
-/* ─── Active wallet age (live, Hebrew) ─── */
+/* ─── Active wallet age (live) ─── */
 function WalletAge() {
   const { activeWalletCreatedAt } = usePortfolio();
+  const { lang, dir } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
   }, []);
 
   const created = new Date(activeWalletCreatedAt).getTime();
@@ -120,13 +121,13 @@ function WalletAge() {
   const hours = totalHours % 24;
   const label =
     days > 0
-      ? `${days} ${days === 1 ? "יום" : "ימים"} ו-${hours} ${hours === 1 ? "שעה" : "שעות"}`
-      : `${hours} ${hours === 1 ? "שעה" : "שעות"}`;
+      ? `${days} ${days === 1 ? t("sim.day", lang) : t("sim.days", lang)} ${t("sim.and", lang)}${hours} ${hours === 1 ? t("sim.hour", lang) : t("sim.hours", lang)}`
+      : `${hours} ${hours === 1 ? t("sim.hour", lang) : t("sim.hours", lang)}`;
 
   return (
-    <div className="flex items-center gap-1" dir="rtl" title="גיל הארנק הפעיל">
+    <div className="flex items-center gap-1" dir={dir} title={t("sim.walletAgeTitle", lang)}>
       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-      <span className="text-muted-foreground">גיל הארנק:</span>
+      <span className="text-muted-foreground">{t("sim.walletAge", lang)}</span>
       <span className="text-foreground font-bold tabular-nums">{label}</span>
     </div>
   );
@@ -194,6 +195,7 @@ function PosFilterToggle({ value, onChange, counts }: { value: PosFilter; onChan
 
 function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelectAsset }: { binancePrices: Record<string, number>; posFilter: PosFilter; setPosFilter: (v: PosFilter) => void; onSelectAsset?: (asset: string) => void }) {
   const { binancePositions, closeBinancePosition, tradeHistory } = usePortfolio();
+  const { lang } = useLanguage();
   const [histFilter, setHistFilter] = useState<PosFilter>("ALL");
   const [, navigate] = useLocation();
   const binanceTrades = tradeHistory.filter(t => t.type === "BINANCE");
@@ -253,7 +255,7 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelec
                   key={pos.id}
                   className="px-3 py-2.5 space-y-1.5 hover:bg-secondary/20 transition-colors cursor-pointer"
                   onClick={() => onSelectAsset?.(pos.asset)}
-                  title={`צפה בגרף ${pos.asset}`}
+                  title={`${t("sim.viewChartFor", lang)} ${pos.asset}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
@@ -930,7 +932,7 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
                 key={pos.id}
                 onClick={() => setSelectedChartSymbol(isChartSelected ? null : pos.symbol)}
                 className={`rounded-lg border p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${pnlBg(pnl)} ${isChartSelected ? "ring-1 ring-primary/50" : "hover:border-primary/30"}`}
-                title="לחץ לצפייה בגרף"
+                title={t("sim.viewChart", lang)}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`text-xs font-black font-mono ${(pos.direction ?? "LONG") === "SHORT" ? "text-red-400" : "text-emerald-400"}`}>{pos.direction ?? "LONG"}</div>
@@ -981,13 +983,13 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
           <div className="rounded-xl border border-primary/20 bg-card overflow-hidden" style={{ height: 360 }}>
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/60 shrink-0">
               <ChartCandlestick className="h-3.5 w-3.5 text-primary" />
-              <span className="text-[11px] font-bold tracking-widest uppercase text-primary">גרף — {selectedChartSymbol}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">קווי כניסה · SL · TP מוצגים על הגרף</span>
+              <span className="text-[11px] font-bold tracking-widest uppercase text-primary">{t("sim.chartLabel", lang)}{selectedChartSymbol}</span>
+              <span className="text-[10px] text-muted-foreground font-mono">{t("sim.chartHint", lang)}</span>
               <div className="flex-1" />
               <button
                 onClick={() => setSelectedChartSymbol(null)}
                 className="text-muted-foreground hover:text-foreground transition-colors"
-                title="סגור גרף"
+                title={t("sim.closeChart", lang)}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -1168,19 +1170,20 @@ function TradeHistoryPanel() {
 }
 
 /* ─── Options: open-position panel ─── */
-function fmtExpiry(ms: number): string {
+function fmtExpiry(ms: number, lang: Lang): string {
   const now = Date.now();
   const left = ms - now;
-  if (left <= 0) return "פג תוקף";
+  if (left <= 0) return t("opt.expired", lang);
   const days = Math.floor(left / 86_400_000);
   const hours = Math.floor((left % 86_400_000) / 3_600_000);
-  if (days >= 1) return `${days} ימים ${hours} שעות`;
+  if (days >= 1) return `${days} ${t("sim.days", lang)} ${hours} ${t("sim.hours", lang)}`;
   const mins = Math.floor((left % 3_600_000) / 60_000);
-  return `${hours} שעות ${mins} דק'`;
+  return `${hours} ${t("sim.hours", lang)} ${mins} ${t("opt.minShort", lang)}`;
 }
 
 function OptionsTab({ priceFor }: { priceFor: (pos: OptionPosition) => number }) {
   const { optionPositions, closeOptionPosition } = usePortfolio();
+  const { lang, dir } = useLanguage();
   const [posFilter, setPosFilter] = useState<PosFilter>("ALL");
   const autoOptions = optionPositions.filter((p) => p.auto);
   const visible = optionPositions.filter((p) =>
@@ -1193,9 +1196,9 @@ function OptionsTab({ priceFor }: { priceFor: (pos: OptionPosition) => number })
         <div className="flex items-start gap-3">
           <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <div className="min-w-0">
-            <h2 className="text-sm font-black tracking-tight">סוכן האופציות — פוזיציות פתוחות</h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5" dir="rtl">
-              אופציות CALL/PUT לונג בלבד. ההפסד המרבי הוא הפרמיה ששולמה. השווי מסומן לפי מודל בלאק-שולס מפושט ויורד עם התקרבות התפוגה (דעיכת זמן). מדומה ולימודי בלבד — ללא הבטחת תשואה.
+            <h2 className="text-sm font-black tracking-tight">{t("opt.agentTitle", lang)}</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5" dir={dir}>
+              {t("opt.agentDesc", lang)}
             </p>
           </div>
         </div>
@@ -1203,7 +1206,7 @@ function OptionsTab({ priceFor }: { priceFor: (pos: OptionPosition) => number })
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-semibold">
-          <span>פוזיציות</span>
+          <span>{t("opt.positions", lang)}</span>
           {optionPositions.length > 0 && (
             <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-mono">{optionPositions.length}</span>
           )}
@@ -1217,7 +1220,7 @@ function OptionsTab({ priceFor }: { priceFor: (pos: OptionPosition) => number })
 
       {visible.length === 0 ? (
         <div className="text-center text-sm text-muted-foreground py-12 border border-dashed border-border rounded-xl">
-          {optionPositions.length === 0 ? "אין פוזיציות אופציה פתוחות" : "אין פוזיציות התואמות לסינון"}
+          {optionPositions.length === 0 ? t("opt.noOpen", lang) : t("opt.noMatch", lang)}
         </div>
       ) : (
         <div className="space-y-2">
@@ -1241,7 +1244,7 @@ function OptionsTab({ priceFor }: { priceFor: (pos: OptionPosition) => number })
                     </span>
                     <span className="font-bold text-sm truncate">{pos.underlying}</span>
                     <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground">
-                      {pos.market === "CRYPTO" ? "קריפטו" : "מניה"}
+                      {pos.market === "CRYPTO" ? t("opt.crypto", lang) : t("opt.stock", lang)}
                     </span>
                     {pos.auto ? (
                       <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 flex items-center gap-0.5">
@@ -1258,37 +1261,37 @@ function OptionsTab({ priceFor }: { priceFor: (pos: OptionPosition) => number })
                 </div>
                 <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-y-1.5 gap-x-3 text-[10px] font-mono">
                   <div>
-                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">סטרייק</div>
+                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">{t("opt.strike", lang)}</div>
                     <div className="text-foreground">${pos.strike.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">חוזים</div>
+                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">{t("opt.contracts", lang)}</div>
                     <div className="text-foreground">{pos.contracts.toFixed(4)}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">פרמיה</div>
+                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">{t("opt.premium", lang)}</div>
                     <div className="text-foreground">{fmtUsd(pos.premiumPaid)}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">שווי נוכחי</div>
+                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">{t("opt.currentValue", lang)}</div>
                     <div className="text-foreground">{fmtUsd(safeValue)}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">מחיר נכס בסיס</div>
+                    <div className="text-muted-foreground uppercase tracking-wider text-[8px]">{t("opt.underlyingPrice", lang)}</div>
                     <div className="text-foreground">${mark.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                   </div>
                   <div className="col-span-2 sm:col-span-3">
                     <div className="text-muted-foreground uppercase tracking-wider text-[8px] flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" /> זמן לתפוגה
+                      <Clock className="h-2.5 w-2.5" /> {t("opt.timeToExpiry", lang)}
                     </div>
-                    <div className={expired ? "text-red-400" : "text-foreground"}>{fmtExpiry(pos.expiryMs)}</div>
+                    <div className={expired ? "text-red-400" : "text-foreground"}>{fmtExpiry(pos.expiryMs, lang)}</div>
                   </div>
                 </div>
                 <button
                   onClick={() => closeOptionPosition(pos.id, mark, "MANUAL")}
                   className="mt-2 w-full text-[11px] font-mono font-bold py-1.5 rounded border border-border bg-secondary/40 hover:bg-secondary/70 transition-colors text-foreground"
                 >
-                  סגור פוזיציה
+                  {t("cc.closePosition", lang)}
                 </button>
               </div>
             );
@@ -1318,6 +1321,7 @@ export default function SimulatorPage() {
   const { polyPositions, binancePositions, stockPositions, optionPositions, cash, resetPortfolio, checkSlTp, closeAllBotPositions } = usePortfolio();
   const { settings, update: updateAutoTrader } = useAutoTrader();
   const { intervalFor } = useRefresh();
+  const { lang } = useLanguage();
 
   // REST is only the slow baseline / asset list now — the live WS (below) is the
   // real-time price source. Floor it at 5s even in fast mode so it stops blowing
@@ -1468,10 +1472,10 @@ export default function SimulatorPage() {
             <button
               onClick={() => updateAutoTrader({ fleetPaused: false })}
               className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded border border-amber-500/50 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-all animate-pulse"
-              title="הבוטים מושהים — לחץ לביטול ההשהיה"
+              title={t("sim.botsPausedTitle", lang)}
             >
               <PlayCircle className="h-3 w-3 shrink-0" />
-              <span>בוטים מושהים</span>
+              <span>{t("sim.botsPaused", lang)}</span>
             </button>
           )}
           <WalletSwitcher />

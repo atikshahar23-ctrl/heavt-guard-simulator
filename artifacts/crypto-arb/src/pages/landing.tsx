@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useLocation } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 const logoUrl = `${import.meta.env.BASE_URL}brand-logo.png`;
 
@@ -21,46 +23,47 @@ function useStarfield(count: number): Star[] {
   }, [count]);
 }
 
-const FEATURES: { icon: string; title: string; desc: string }[] = [
+const FEATURES: { icon: string; titleKey: string; descKey: string }[] = [
   {
     icon: "◎",
-    title: "סורק שוק חי",
-    desc: "קריפטו, מניות ושווקי תחזיות במקום אחד — אותות סקאלפ ומומנטום בזמן אמת.",
+    titleKey: "landing.feat.scanner.title",
+    descKey: "landing.feat.scanner.desc",
   },
   {
     icon: "▦",
-    title: "סימולטור מסחר",
-    desc: "תיק תרגול עם מספר ארנקים ועקומת הון. כסף וירטואלי בלבד, ללא סיכון.",
+    titleKey: "landing.feat.simulator.title",
+    descKey: "landing.feat.simulator.desc",
   },
   {
     icon: "⬡",
-    title: "מרכז פיקוד בוטים",
-    desc: "צוות בוטים לתרגול אוטומטי — סקאלפ, פריצות וצבירה, עם בקרת עוצמה אחת.",
+    titleKey: "landing.feat.bots.title",
+    descKey: "landing.feat.bots.desc",
   },
   {
     icon: "✦",
-    title: "שולחן מחקר",
-    desc: "חיפוש חופשי של מניות וקריפטו עם מחירים חיים וקישורי מחקר חיצוניים.",
+    titleKey: "landing.feat.research.title",
+    descKey: "landing.feat.research.desc",
   },
   {
     icon: "◈",
-    title: "עוזר JARVIS",
-    desc: "מוח חכם מבוסס כללים, דו-לשוני (עברית/אנגלית) — ללא בינה מלאכותית בתשלום.",
+    titleKey: "landing.feat.jarvis.title",
+    descKey: "landing.feat.jarvis.desc",
   },
   {
     icon: "◆",
-    title: "שווקי תחזיות",
-    desc: "הצלבת נתוני בינאנס מול סנטימנט הקהל ב-Polymarket לזיהוי פערים.",
+    titleKey: "landing.feat.predictions.title",
+    descKey: "landing.feat.predictions.desc",
   },
 ];
 
 export default function Landing() {
   const [, setLocation] = useLocation();
   const stars = useStarfield(70);
+  const { lang } = useLanguage();
 
   return (
     <div
-      dir="rtl"
+      dir={lang === "he" ? "rtl" : "ltr"}
       className="entrance-marble-bg relative min-h-[100dvh] w-full overflow-hidden text-white"
     >
       {/* Backdrop */}
@@ -103,7 +106,7 @@ export default function Landing() {
           onClick={() => setLocation("/sign-in")}
           className="rounded-lg border border-[#9fb4c7]/25 px-4 py-2 text-xs font-medium tracking-wide text-[#cfe0ee] transition-colors hover:border-[#9fb4c7]/50 hover:bg-white/[0.04]"
         >
-          כניסת חברים
+          {t("landing.memberLogin", lang)}
         </button>
       </header>
 
@@ -121,9 +124,9 @@ export default function Landing() {
           className="text-4xl font-semibold leading-tight tracking-[0.04em] text-[#e6edf4] md:text-6xl"
           style={{ fontFamily: "'Playfair Display', serif" }}
         >
-          מודיעין שוק.
+          {t("landing.heroTitle1", lang)}
           <br />
-          ברמה אחרת.
+          {t("landing.heroTitle2", lang)}
         </h1>
 
         <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#cdbfa4]/30 bg-[#cdbfa4]/[0.04] px-4 py-1.5 font-mono text-[0.58rem] uppercase tracking-[0.35em] text-[#cdbfa4]/85">
@@ -132,8 +135,7 @@ export default function Landing() {
         </div>
 
         <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-[#dbe3ec] md:text-lg">
-          מצליבים נתוני קריפטו, מניות ושווקי תחזיות לכדי תמונת שוק אחת חדה —
-          ומתרגלים מסחר בסביבת הדמיה מלאה, ללא סיכון.
+          {t("landing.heroSubtitle", lang)}
         </p>
 
         <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
@@ -142,14 +144,14 @@ export default function Landing() {
             onClick={() => setLocation("/sign-up")}
             className="w-full rounded-lg bg-gradient-to-r from-[#c9d6e2] via-[#9fb4c7] to-[#6f8294] px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.12em] text-[#0b0f14] shadow-[0_8px_24px_-8px_rgba(159,180,199,0.5)] transition-[filter] hover:brightness-110 sm:w-auto"
           >
-            בקשת חברות
+            {t("landing.requestMembership", lang)}
           </button>
           <button
             type="button"
             onClick={() => setLocation("/sign-in")}
             className="w-full rounded-lg border border-[#9fb4c7]/25 px-8 py-3.5 text-sm font-medium tracking-wide text-[#cfe0ee] transition-colors hover:border-[#9fb4c7]/50 hover:bg-white/[0.04] sm:w-auto"
           >
-            כניסת חברים
+            {t("landing.memberLogin", lang)}
           </button>
         </div>
       </section>
@@ -159,17 +161,17 @@ export default function Landing() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div
-              key={f.title}
-              className="rounded-xl border border-[#9fb4c7]/15 bg-white/[0.02] p-5 text-right transition-colors hover:border-[#9fb4c7]/30 hover:bg-white/[0.035]"
+              key={f.titleKey}
+              className={`rounded-xl border border-[#9fb4c7]/15 bg-white/[0.02] p-5 ${lang === "he" ? "text-right" : "text-left"} transition-colors hover:border-[#9fb4c7]/30 hover:bg-white/[0.035]`}
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#9fb4c7]/10 text-xl text-[#9fb4c7]">
                 {f.icon}
               </span>
               <h3 className="mt-4 text-base font-semibold text-[#e6edf4]">
-                {f.title}
+                {t(f.titleKey, lang)}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-white/55">
-                {f.desc}
+                {t(f.descKey, lang)}
               </p>
             </div>
           ))}
@@ -180,12 +182,10 @@ export default function Landing() {
       <footer className="relative z-10 border-t border-[#9fb4c7]/10 px-5 py-8 md:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-center">
           <p className="max-w-2xl text-xs leading-relaxed text-white/45">
-            הדמיה חינוכית בלבד. כל הנתונים והאותות מיועדים ללימוד ולתרגול — אין
-            כסף אמיתי, אין הבטחות לרווח ואין ייעוץ פיננסי. ביצועי עבר אינם מעידים
-            על העתיד.
+            {t("landing.disclaimer", lang)}
           </p>
           <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-[#9fb4c7]/35">
-            Heavy Guard · Est. MMXXVI · דמו לימודי בלבד
+            Heavy Guard · Est. MMXXVI · {t("landing.demoOnly", lang)}
           </p>
         </div>
       </footer>

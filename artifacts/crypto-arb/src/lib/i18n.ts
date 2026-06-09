@@ -1,6 +1,14 @@
 export type Lang = "he" | "en";
 
-export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
+import { botsStrings } from "./i18n-extra/bots";
+import { tradesStrings } from "./i18n-extra/trades";
+import { historyStrings } from "./i18n-extra/history";
+import { marketsStrings } from "./i18n-extra/markets";
+import { advisorStrings } from "./i18n-extra/advisor";
+import { miscStrings } from "./i18n-extra/misc";
+import { settingsStrings } from "./i18n-extra/settings";
+
+const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   // --- Sidebar / Navigation ---
   "nav.dashboard": { he: "לוח בקרה", en: "Dashboard" },
   "nav.advisor": { he: "היועץ הראשי", en: "Master Advisor" },
@@ -350,6 +358,17 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "ob.virtualMoney": { he: "כסף וירטואלי לתרגול בלבד. כל הפעילות היא הדמיה חינוכית — אין כסף אמיתי, אין הבטחות לרווח ואין ייעוץ פיננסי.", en: "Virtual money for practice only. All activity is educational simulation — no real money, no profit guarantees, and no financial advice." },
   "ob.dashboardReady": { he: "לוח המחוונים, הסימולטור והבוטים ממתינים לכם. בואו נתחיל לתרגל.", en: "The dashboard, simulator, and bots are ready. Let's start practicing." },
   "ob.login": { he: "כניסה למערכת", en: "Enter System" },
+};
+
+export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
+  ...BASE_TRANSLATIONS,
+  ...botsStrings,
+  ...tradesStrings,
+  ...historyStrings,
+  ...marketsStrings,
+  ...advisorStrings,
+  ...miscStrings,
+  ...settingsStrings,
 };
 
 export function t(key: string, lang: Lang): string {

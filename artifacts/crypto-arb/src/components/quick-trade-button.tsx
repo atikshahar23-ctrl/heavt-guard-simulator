@@ -5,6 +5,8 @@ import {
 } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { recommendLevels } from "@/lib/recommend-levels";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 import { Zap, Check, AlertTriangle, Loader2 } from "lucide-react";
 
 /** Fraction of available cash committed by a one-click quick trade. */
@@ -23,6 +25,7 @@ function topTradable(recs: StockRecommendation[] | undefined): StockRecommendati
  */
 export function QuickTradeButton({ compact = false }: { compact?: boolean }) {
   const { cash, openStockPosition, activeWalletName } = usePortfolio();
+  const { lang } = useLanguage();
   const { data: recs, isLoading } = useGetStockRecommendations({
     query: { queryKey: getGetStockRecommendationsQueryKey(), refetchInterval: 60000 },
   });
@@ -33,10 +36,10 @@ export function QuickTradeButton({ compact = false }: { compact?: boolean }) {
   const disabled = isLoading || !top;
 
   function execute() {
-    if (!top) { setStatus({ kind: "err", msg: "אין כרגע המלצה זמינה לביצוע" }); return; }
+    if (!top) { setStatus({ kind: "err", msg: t("qt.noRec", lang) }); return; }
     const direction = top.action === "SELL" ? "SHORT" : "LONG";
     const amount = Math.min(QUICK_TRADE_MAX_USD, Math.max(0, cash * QUICK_TRADE_CASH_FRACTION));
-    if (amount < 1) { setStatus({ kind: "err", msg: "אין מספיק מזומן בארנק" }); return; }
+    if (amount < 1) { setStatus({ kind: "err", msg: t("qt.noCash", lang) }); return; }
 
     const { sl, tp } = recommendLevels(top.price, direction, { slPct: 0.03, tpPct: 0.06 });
     const err = openStockPosition(
@@ -54,7 +57,7 @@ export function QuickTradeButton({ compact = false }: { compact?: boolean }) {
     if (err) { setStatus({ kind: "err", msg: err }); return; }
     setStatus({
       kind: "ok",
-      msg: `${direction === "LONG" ? "קנייה" : "מכירה"} ${top.symbol} ב-$${amount.toFixed(0)} → ${activeWalletName}`,
+      msg: `${direction === "LONG" ? t("sim.buy", lang) : t("qt.sell", lang)} ${top.symbol} ${t("qt.forUsd", lang)}${amount.toFixed(0)} → ${activeWalletName}`,
     });
     setTimeout(() => setStatus(null), 4000);
   }
@@ -64,11 +67,11 @@ export function QuickTradeButton({ compact = false }: { compact?: boolean }) {
       <button
         onClick={execute}
         disabled={disabled}
-        title={top ? `מסחר מהיר: ${top.action} ${top.symbol}` : "אין המלצה זמינה"}
+        title={top ? `${t("qt.quickTradeTitle", lang)}: ${top.action} ${top.symbol}` : t("qt.noRecShort", lang)}
         className="flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/15 px-2 py-1 text-[11px] font-mono font-bold text-primary hover:bg-primary/25 disabled:opacity-40 transition-colors"
       >
         {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-        מהיר
+        {t("qt.fast", lang)}
       </button>
     );
   }
@@ -82,12 +85,12 @@ export function QuickTradeButton({ compact = false }: { compact?: boolean }) {
         style={{ boxShadow: top ? "0 0 24px hsl(207 30% 70% / 0.12)" : undefined }}
       >
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-        מסחר מהיר — בצע את ההמלצה המובילה
+        {t("qt.executeTop", lang)}
       </button>
       {top && (
         <p className="text-[10px] font-mono text-muted-foreground text-center">
-          {top.action === "SELL" ? "מכירה (SHORT)" : "קנייה (LONG)"} {top.symbol} @ ${top.price.toFixed(2)} ·
-          {" "}10% מהמזומן · SL/TP אוטומטי 3%/6%
+          {top.action === "SELL" ? t("qt.sellShort", lang) : t("qt.buyLong", lang)} {top.symbol} @ ${top.price.toFixed(2)} ·
+          {" "}{t("qt.tenPctCash", lang)} · {t("qt.autoSlTp", lang)}
         </p>
       )}
       {status && (

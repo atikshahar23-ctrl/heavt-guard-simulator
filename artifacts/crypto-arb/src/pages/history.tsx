@@ -14,16 +14,20 @@ import { CryptoIcon } from "@/components/crypto-icon";
 import { StockIcon } from "@/components/stock-icon";
 import { TradeAnalytics } from "@/components/trade-analytics";
 import { TradeDetailModal } from "@/components/trade-detail-modal";
+import { useLanguage } from "@/contexts/language-context";
+import { t, type Lang } from "@/lib/i18n";
 
 /** Share a winning paper-trade via Web Share API; falls back to clipboard. */
-async function shareTrade(symbol: string, pnl: number, toastFn: (opts: { title: string; description: string }) => void) {
-  const text = `🚀 רווח וירטואלי של $${Math.abs(pnl).toFixed(0)} על ${symbol} ב-Heavy Guard!\n\nמסחר נייר — הדמיה חינוכית בלבד, ללא כסף אמיתי.`;
+async function shareTrade(symbol: string, pnl: number, toastFn: (opts: { title: string; description: string }) => void, lang: Lang) {
+  const text = t("history.share.text", lang)
+    .replace("{amount}", Math.abs(pnl).toFixed(0))
+    .replace("{symbol}", symbol);
   try {
     if (typeof navigator !== "undefined" && navigator.share) {
-      await navigator.share({ title: "Heavy Guard — רווח נייר 🚀", text });
+      await navigator.share({ title: t("history.share.title", lang), text });
     } else {
       await navigator.clipboard.writeText(text);
-      toastFn({ title: "הועתק ✓", description: "הטקסט הועתק — הדבק אותו בכל מקום שתרצה." });
+      toastFn({ title: t("history.share.copiedTitle", lang), description: t("history.share.copiedDesc", lang) });
     }
   } catch {
     // user cancelled or API unavailable — silently ignore
@@ -63,42 +67,46 @@ function fmtPrice(p: number): string {
   return p.toPrecision(3);
 }
 
-function exit(t: ClosedTrade) {
-  if (t.exit === "TP") return { label: "TP", color: "#22c55e" };
-  if (t.exit === "SL") return { label: "SL", color: "#ef4444" };
-  if (t.exit === "LIQ") return { label: "LIQ", color: "#f59e0b" };
-  return { label: "ידני", color: "#a1a1aa" };
+function exit(tr: ClosedTrade, lang: Lang) {
+  if (tr.exit === "TP") return { label: "TP", color: "#22c55e" };
+  if (tr.exit === "SL") return { label: "SL", color: "#ef4444" };
+  if (tr.exit === "LIQ") return { label: "LIQ", color: "#f59e0b" };
+  return { label: t("history.filter.manual", lang), color: "#a1a1aa" };
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, lang: Lang): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "עכשיו";
-  if (m < 60) return `לפני ${m} ד׳`;
+  if (m < 1) return t("history.time.now", lang);
+  if (m < 60) return t("history.time.minutesAgo", lang).replace("{n}", String(m));
   const h = Math.floor(m / 60);
-  if (h < 24) return `לפני ${h} ש׳`;
-  return `לפני ${Math.floor(h / 24)} י׳`;
+  if (h < 24) return t("history.time.hoursAgo", lang).replace("{n}", String(h));
+  return t("history.time.daysAgo", lang).replace("{n}", String(Math.floor(h / 24)));
 }
 
 /** Holding duration from open to close, when both timestamps are known. */
-function duration(t: ClosedTrade): string | null {
-  if (!t.openedAt) return null;
-  const ms = new Date(t.closedAt).getTime() - new Date(t.openedAt).getTime();
+function duration(tr: ClosedTrade, lang: Lang): string | null {
+  if (!tr.openedAt) return null;
+  const ms = new Date(tr.closedAt).getTime() - new Date(tr.openedAt).getTime();
   if (!(ms > 0)) return null;
   const m = Math.floor(ms / 60000);
-  if (m < 60) return `${m} ד׳`;
+  if (m < 60) return t("history.dur.minutes", lang).replace("{m}", String(m));
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ש׳ ${m % 60} ד׳`;
-  return `${Math.floor(h / 24)} י׳ ${h % 24} ש׳`;
+  if (h < 24) return t("history.dur.hoursMinutes", lang).replace("{h}", String(h)).replace("{m}", String(m % 60));
+  return t("history.dur.daysHours", lang).replace("{d}", String(Math.floor(h / 24))).replace("{h}", String(h % 24));
 }
 
-const TYPE_LABEL: Record<ClosedTrade["type"], string> = {
-  BINANCE: "פיוצ'רס",
-  STOCK: "מניות",
-  POLYMARKET: "הימור",
-  FUNDING: "מימון",
-  OPTION: "אופציות",
+const TYPE_LABEL_KEY: Record<ClosedTrade["type"], string> = {
+  BINANCE: "history.type.binance",
+  STOCK: "history.type.stock",
+  POLYMARKET: "history.type.polymarket",
+  FUNDING: "history.type.funding",
+  OPTION: "history.type.option",
 };
+
+function typeLabel(type: ClosedTrade["type"], lang: Lang): string {
+  return t(TYPE_LABEL_KEY[type], lang);
+}
 
 /* ─── Per-bot definitions (used by BotSummaryGrid) ──────────────────────── */
 const BOT_DEFS: {
@@ -120,6 +128,7 @@ const BOT_DEFS: {
 
 /* ─── Interactive equity curve ───────────────────────────────────────────── */
 function EquityCurveChart() {
+  const { lang, dir } = useLanguage();
   const { tradeHistory, totalDeposited } = usePortfolio();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -196,26 +205,26 @@ function EquityCurveChart() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <ChartIcon className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-black tracking-tight">עקומת ההון</h2>
-          <span className="text-[9px] font-mono text-muted-foreground/70">({tradeHistory.length} עסקאות)</span>
+          <h2 className="text-sm font-black tracking-tight">{t("history.equity.title", lang)}</h2>
+          <span className="text-[9px] font-mono text-muted-foreground/70">({t("history.tradesCount", lang).replace("{n}", String(tradeHistory.length))})</span>
         </div>
-        <div className="flex items-center gap-4" dir="rtl">
+        <div className="flex items-center gap-4" dir={dir}>
           <div className="text-right">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">תשואה</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{t("history.equity.return", lang)}</div>
             <div className="font-mono font-bold text-sm" style={{ color: totalReturn >= 0 ? "#22c55e" : "#ef4444" }}>
               {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(1)}%
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">שיא</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{t("history.equity.peak", lang)}</div>
             <div className="font-mono font-bold text-sm text-primary">${fmtUsd(peak, 0)}</div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">DD מקס׳</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{t("history.equity.maxDD", lang)}</div>
             <div className="font-mono font-bold text-sm text-amber-400">{maxDD.toFixed(1)}%</div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">כעת</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{t("history.equity.now", lang)}</div>
             <div className="font-mono font-bold text-sm" style={{ color: last >= baseline ? "#22c55e" : "#ef4444" }}>
               ${fmtUsd(last, 0)}
             </div>
@@ -264,9 +273,9 @@ function EquityCurveChart() {
           >
             <div className="flex items-center gap-3">
               <div>
-                <div className="text-muted-foreground">{timeAgo(hoverMeta.closedAt)}</div>
+                <div className="text-muted-foreground">{timeAgo(hoverMeta.closedAt, lang)}</div>
                 {hoverMeta.source && <div className="text-primary font-semibold">{hoverMeta.source}</div>}
-                <div className="text-[9px] text-muted-foreground/70">עסקה #{activeIdx}</div>
+                <div className="text-[9px] text-muted-foreground/70">{t("history.equity.tradeNum", lang).replace("{n}", String(activeIdx))}</div>
               </div>
               <div className="text-right">
                 <div className="font-black text-sm">${fmtUsd(hoverBal, 0)}</div>
@@ -297,9 +306,9 @@ function EquityCurveChart() {
       </div>
 
       <div className="flex items-center justify-between px-0.5 text-[9px] font-mono text-muted-foreground/55">
-        <span>התחלה · ${fmtUsd(baseline, 0)}</span>
-        <span>← רחף לפרטי עסקה →</span>
-        <span>כעת · ${fmtUsd(last, 0)}</span>
+        <span>{t("history.equity.start", lang).replace("{amount}", fmtUsd(baseline, 0))}</span>
+        <span>{t("history.equity.hoverHint", lang)}</span>
+        <span>{t("history.equity.nowAmount", lang).replace("{amount}", fmtUsd(last, 0))}</span>
       </div>
     </div>
   );
@@ -307,6 +316,7 @@ function EquityCurveChart() {
 
 /* ─── Per-bot performance summary grid ──────────────────────────────────── */
 function BotSummaryGrid() {
+  const { lang } = useLanguage();
   const { tradeHistory } = usePortfolio();
 
   const bots = useMemo(() => {
@@ -329,8 +339,8 @@ function BotSummaryGrid() {
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <Bot className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-black tracking-tight">ביצועי בוטים</h2>
-        <span className="text-[9px] font-mono text-muted-foreground/70">({bots.length} פעילים)</span>
+        <h2 className="text-sm font-black tracking-tight">{t("insights.botPerformance", lang)}</h2>
+        <span className="text-[9px] font-mono text-muted-foreground/70">({t("insights.activeCount", lang).replace("{n}", String(bots.length))})</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         {bots.map((b) => {
@@ -376,11 +386,11 @@ function BotSummaryGrid() {
               )}
               <div className="grid grid-cols-3 gap-x-1 text-center border-t border-border/40 pt-1.5">
                 <div>
-                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">עסקאות</div>
+                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.trades", lang)}</div>
                   <div className="text-[11px] font-mono font-bold tabular-nums">{b.trades}</div>
                 </div>
                 <div>
-                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">הצלחה</div>
+                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.success", lang)}</div>
                   <div
                     className="text-[11px] font-mono font-bold tabular-nums"
                     style={{ color: b.wr >= 50 ? "#22c55e" : "#ef4444" }}
@@ -389,7 +399,7 @@ function BotSummaryGrid() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">ממוצע</div>
+                  <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.avg", lang)}</div>
                   <div
                     className="text-[11px] font-mono font-bold tabular-nums"
                     style={{ color: b.avg >= 0 ? "#22c55e" : "#ef4444" }}
@@ -421,6 +431,7 @@ function StatCard({ label, value, sub, color, Icon }: {
 }
 
 function OpenPositions() {
+  const { lang } = useLanguage();
   const [, navigate] = useLocation();
   const { binancePositions, closeBinancePosition, stockPositions, closeStockPosition, polyPositions, closePolyPosition } = usePortfolio();
   const { data: overview } = useGetMarketOverview({
@@ -462,7 +473,7 @@ function OpenPositions() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Activity className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-black tracking-tight">פוזיציות פתוחות ({total})</h2>
+        <h2 className="text-sm font-black tracking-tight">{t("history.openPositions", lang)} ({total})</h2>
       </div>
 
       {/* Crypto / Binance Futures */}
@@ -472,7 +483,7 @@ function OpenPositions() {
             <Cpu className="h-3 w-3 text-muted-foreground" />
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">{botName}</span>
             <div className="flex-1 h-px bg-border/50" />
-            <span className="text-[9px] font-mono text-muted-foreground">{positions.length} קריפטו</span>
+            <span className="text-[9px] font-mono text-muted-foreground">{positions.length} {t("history.unit.crypto", lang)}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {positions.map((p) => {
@@ -491,7 +502,7 @@ function OpenPositions() {
                   onClick={() => navigate(`/simulator?tab=futures&asset=${encodeURIComponent(p.asset)}`)}
                   role="button"
                   tabIndex={0}
-                  title="צפה בגרף"
+                  title={t("history.viewChart", lang)}
                   className="rounded-lg border bg-card p-3 space-y-2 cursor-pointer transition-colors hover:bg-secondary/30"
                   style={{ borderColor: `${accent}30` }}
                 >
@@ -507,8 +518,8 @@ function OpenPositions() {
                   </div>
                   <div className="flex items-end justify-between">
                     <div className="text-[10px] font-mono text-muted-foreground">
-                      <div>כניסה ${fmtPrice(p.entryPrice)}</div>
-                      <div>שוק ${fmtPrice(cur)}</div>
+                      <div>{t("history.entry", lang)} ${fmtPrice(p.entryPrice)}</div>
+                      <div>{t("history.market", lang)} ${fmtPrice(cur)}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-mono font-bold text-sm" style={{ color: up ? "#22c55e" : "#ef4444" }}>
@@ -523,7 +534,7 @@ function OpenPositions() {
                     onClick={(e) => { e.stopPropagation(); closeBinancePosition(p.id, cur); }}
                     className="w-full rounded py-1.5 text-[11px] font-mono font-bold bg-secondary/60 hover:bg-secondary transition-colors"
                   >
-                    סגור @ ${fmtPrice(cur)}
+                    {t("history.closeAt", lang).replace("{price}", fmtPrice(cur))}
                   </button>
                 </div>
               );
@@ -539,7 +550,7 @@ function OpenPositions() {
             <Cpu className="h-3 w-3 text-muted-foreground" />
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">{botName}</span>
             <div className="flex-1 h-px bg-border/50" />
-            <span className="text-[9px] font-mono text-muted-foreground">{positions.length} מניות</span>
+            <span className="text-[9px] font-mono text-muted-foreground">{positions.length} {t("history.unit.stocks", lang)}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {positions.map((p) => {
@@ -551,7 +562,7 @@ function OpenPositions() {
                   onClick={() => navigate(`/simulator?tab=stocks`)}
                   role="button"
                   tabIndex={0}
-                  title="צפה בגרף"
+                  title={t("history.viewChart", lang)}
                   className="rounded-lg border bg-card p-3 space-y-2 cursor-pointer transition-colors hover:bg-secondary/30"
                   style={{ borderColor: `${accent}30` }}
                 >
@@ -566,13 +577,13 @@ function OpenPositions() {
                     <ChartIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </div>
                   <div className="text-[10px] font-mono text-muted-foreground">
-                    {p.shares.toFixed(2)} מניות @ ${fmtPrice(p.entryPrice)}
+                    {t("history.sharesAt", lang).replace("{shares}", p.shares.toFixed(2)).replace("{price}", fmtPrice(p.entryPrice))}
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); closeStockPosition(p.id, p.entryPrice); }}
                     className="w-full rounded py-1.5 text-[11px] font-mono font-bold bg-secondary/60 hover:bg-secondary transition-colors"
                   >
-                    סגור
+                    {t("history.close", lang)}
                   </button>
                 </div>
               );
@@ -586,9 +597,9 @@ function OpenPositions() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Cpu className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">שוקי חיזוי</span>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">{t("history.predictionMarkets", lang)}</span>
             <div className="flex-1 h-px bg-border/50" />
-            <span className="text-[9px] font-mono text-muted-foreground">{polyPositions.length} הימורים</span>
+            <span className="text-[9px] font-mono text-muted-foreground">{polyPositions.length} {t("history.unit.bets", lang)}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {polyPositions.map((p) => (
@@ -597,7 +608,7 @@ function OpenPositions() {
                 onClick={() => navigate("/simulator?tab=prediction")}
                 role="button"
                 tabIndex={0}
-                title="צפה בשוק החיזוי"
+                title={t("history.viewPredictionMarket", lang)}
                 className="rounded-lg border bg-card p-3 space-y-2 cursor-pointer transition-colors hover:bg-secondary/30"
               >
                 <div className="flex items-center justify-between">
@@ -611,13 +622,13 @@ function OpenPositions() {
                 </div>
                 <p className="text-xs text-foreground/80 line-clamp-2">{p.question}</p>
                 <div className="text-[10px] font-mono text-muted-foreground">
-                  {p.shares.toFixed(2)} יחידות · כניסה ${p.entryPrice.toFixed(3)}
+                  {t("history.unitsEntry", lang).replace("{units}", p.shares.toFixed(2)).replace("{price}", p.entryPrice.toFixed(3))}
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); closePolyPosition(p.id, p.entryPrice); }}
                   className="w-full rounded py-1.5 text-[11px] font-mono font-bold bg-secondary/60 hover:bg-secondary transition-colors"
                 >
-                  סגור
+                  {t("history.close", lang)}
                 </button>
               </div>
             ))}
@@ -629,6 +640,7 @@ function OpenPositions() {
 }
 
 export default function HistoryPage() {
+  const { lang, dir } = useLanguage();
   const { tradeHistory, cash, totalDeposited } = usePortfolio();
   const [, navigate] = useLocation();
   const [typeF, setTypeF] = useState<TypeFilter>("ALL");
@@ -703,40 +715,33 @@ export default function HistoryPage() {
 
   const pnlColor = stats.totalPnl > 0 ? "#22c55e" : stats.totalPnl < 0 ? "#ef4444" : undefined;
 
-  function exit(t: ClosedTrade) {
-    if (t.exit === "TP") return { label: "TP", color: "#22c55e" };
-    if (t.exit === "SL") return { label: "SL", color: "#ef4444" };
-    if (t.exit === "LIQ") return { label: "LIQ", color: "#f59e0b" };
-    return { label: "ידני", color: "#a1a1aa" };
-  }
-
   return (
-    <div className="p-5 space-y-4">
+    <div className="p-5 space-y-4" dir={dir}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <HistoryIcon className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-black tracking-tight">היסטוריית עסקאות</h1>
+            <h1 className="text-xl font-black tracking-tight">{t("nav.history", lang)}</h1>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            מעקב הדמו המלא שלך — כל פוזיציה שנסגרה, אחוז ההצלחה והרווח/הפסד. הדמיה חינוכית בלבד, ללא כסף אמיתי.
+            {t("history.subtitle", lang)}
           </p>
         </div>
       </div>
 
       {/* Account row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-        <StatCard label="יתרה" value={`$${fmtUsd(cash, 0)}`} Icon={Wallet} sub={`הופקדו $${fmtUsd(totalDeposited, 0)}`} />
-        <StatCard label="רווח/הפסד ממומש" value={`${stats.totalPnl >= 0 ? "+" : ""}$${fmtUsd(stats.totalPnl)}`} color={pnlColor} Icon={stats.totalPnl >= 0 ? TrendingUp : TrendingDown} sub={`${stats.n} עסקאות סגורות`} />
-        <StatCard label="אחוז הצלחה" value={`${stats.winRate.toFixed(0)}%`} Icon={Trophy} sub={`${stats.wins} נצחונות · ${stats.losses} הפסדים`} />
-        <StatCard label="מקדם רווח" value={stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2)} Icon={Target} sub={`${stats.autoCount} אוטומטיות`} />
-        <StatCard label="עמלות מסחר" value={`$${fmtUsd(stats.totalFees)}`} color="#f59e0b" Icon={Activity} sub="סה&quot;כ עמלות" />
+        <StatCard label={t("history.stat.balance", lang)} value={`$${fmtUsd(cash, 0)}`} Icon={Wallet} sub={t("history.stat.deposited", lang).replace("{amount}", fmtUsd(totalDeposited, 0))} />
+        <StatCard label={t("history.stat.realizedPnl", lang)} value={`${stats.totalPnl >= 0 ? "+" : ""}$${fmtUsd(stats.totalPnl)}`} color={pnlColor} Icon={stats.totalPnl >= 0 ? TrendingUp : TrendingDown} sub={t("history.stat.closedTrades", lang).replace("{n}", String(stats.n))} />
+        <StatCard label={t("history.stat.winRate", lang)} value={`${stats.winRate.toFixed(0)}%`} Icon={Trophy} sub={t("history.stat.winsLosses", lang).replace("{wins}", String(stats.wins)).replace("{losses}", String(stats.losses))} />
+        <StatCard label={t("history.stat.profitFactor", lang)} value={stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2)} Icon={Target} sub={t("history.stat.autoCount", lang).replace("{n}", String(stats.autoCount))} />
+        <StatCard label={t("history.stat.fees", lang)} value={`$${fmtUsd(stats.totalFees)}`} color="#f59e0b" Icon={Activity} sub={t("history.stat.feesSub", lang)} />
       </div>
 
       {/* Best/Worst row */}
       <div className="grid grid-cols-2 gap-2">
-        <StatCard label="העסקה הטובה ביותר" value={`+$${fmtUsd(stats.best)}`} color="#22c55e" Icon={TrendingUp} />
-        <StatCard label="העסקה הגרועה ביותר" value={`-$${fmtUsd(Math.abs(stats.worst))}`} color="#ef4444" Icon={TrendingDown} />
+        <StatCard label={t("history.stat.bestTrade", lang)} value={`+$${fmtUsd(stats.best)}`} color="#22c55e" Icon={TrendingUp} />
+        <StatCard label={t("history.stat.worstTrade", lang)} value={`-$${fmtUsd(Math.abs(stats.worst))}`} color="#ef4444" Icon={TrendingDown} />
       </div>
 
       <EquityCurveChart />
@@ -750,20 +755,20 @@ export default function HistoryPage() {
       {/* Filters */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <FilterGroup label="סוג" value={typeF} setValue={(v) => setTypeF(v as TypeFilter)} options={["ALL", "BINANCE", "STOCK", "POLYMARKET", "FUNDING", "OPTION"]} render={(o) => (o === "ALL" ? "הכל" : TYPE_LABEL[o as ClosedTrade["type"]])} />
-          <FilterGroup label="תוצאה" value={resultF} setValue={(v) => setResultF(v as ResultFilter)} options={["ALL", "WINS", "LOSSES"]} render={(o) => ({ ALL: "הכל", WINS: "רווחים", LOSSES: "הפסדים" }[o] ?? o)} />
-          <FilterGroup label="מקור" value={sourceF} setValue={(v) => handleSourceF(v as SourceFilter)} options={["ALL", "AUTO", "MANUAL"]} render={(o) => ({ ALL: "הכל", AUTO: "אוטומטי", MANUAL: "ידני" }[o] ?? o)} />
+          <FilterGroup label={t("history.filter.type", lang)} value={typeF} setValue={(v) => setTypeF(v as TypeFilter)} options={["ALL", "BINANCE", "STOCK", "POLYMARKET", "FUNDING", "OPTION"]} render={(o) => (o === "ALL" ? t("history.filter.all", lang) : typeLabel(o as ClosedTrade["type"], lang))} />
+          <FilterGroup label={t("history.filter.result", lang)} value={resultF} setValue={(v) => setResultF(v as ResultFilter)} options={["ALL", "WINS", "LOSSES"]} render={(o) => ({ ALL: t("history.filter.all", lang), WINS: t("history.filter.wins", lang), LOSSES: t("history.filter.losses", lang) }[o] ?? o)} />
+          <FilterGroup label={t("history.filter.source", lang)} value={sourceF} setValue={(v) => handleSourceF(v as SourceFilter)} options={["ALL", "AUTO", "MANUAL"]} render={(o) => ({ ALL: t("history.filter.all", lang), AUTO: t("history.filter.auto", lang), MANUAL: t("history.filter.manual", lang) }[o] ?? o)} />
         </div>
         {sourceF !== "MANUAL" && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">בוט</span>
+            <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{t("history.filter.bot", lang)}</span>
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 onClick={() => setBotF("ALL")}
                 className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${botF === "ALL" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"}`}
                 style={botF === "ALL" ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
               >
-                הכל
+                {t("history.filter.all", lang)}
               </button>
               {BOT_DEFS.map((bd) => {
                 const Icon = bd.icon;
@@ -793,7 +798,7 @@ export default function HistoryPage() {
                     onPointerUp={clearLongPress}
                     onPointerLeave={clearLongPress}
                     onPointerCancel={clearLongPress}
-                    title={active ? `${bd.title} — לחץ על החץ לפתיחת לוח הבוט` : bd.title}
+                    title={active ? t("history.botPanelHint", lang).replace("{title}", bd.title) : bd.title}
                     className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"} ${empty && !active ? "opacity-40" : ""}`}
                     style={active ? { boxShadow: "inset 0 0 0 1px hsl(207 30% 70% / 0.3)" } : {}}
                   >
@@ -803,7 +808,7 @@ export default function HistoryPage() {
                     {active && (
                       <span
                         role="button"
-                        aria-label={`פתח לוח ${bd.title}`}
+                        aria-label={t("history.openBotPanel", lang).replace("{title}", bd.title)}
                         onClick={(e) => { e.stopPropagation(); goToBotPanel(bd.key); }}
                         onPointerDown={(e) => e.stopPropagation()}
                         className="inline-flex items-center justify-center rounded p-0.5 ms-0.5 text-primary/60 hover:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors touch-manipulation"
@@ -823,11 +828,11 @@ export default function HistoryPage() {
       {tradeHistory.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
           <HistoryIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">עדיין אין עסקאות סגורות.</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">פתח עסקת דמו ממסך סיגנלי הסקאלפ או הסימולטור כדי להתחיל.</p>
+          <p className="text-sm text-muted-foreground">{t("history.empty", lang)}</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">{t("history.emptyHint", lang)}</p>
         </div>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-10 text-center">אין עסקאות שתואמות את הסינון.</p>
+        <p className="text-sm text-muted-foreground py-10 text-center">{t("history.noMatch", lang)}</p>
       ) : (
         <ClosedTradeTable trades={filtered} onSelect={setSelected} />
       )}
@@ -845,11 +850,12 @@ function groupKey(t: ClosedTrade): string {
 
 /* ─── Hover tooltip ──────────────────────────────────────────────────────── */
 function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: number }) {
+  const { lang } = useLanguage();
   const up = trade.pnl >= 0;
   const pct = trade.cost > 0 ? (trade.pnl / trade.cost) * 100 : 0;
-  const ex = exit(trade);
+  const ex = exit(trade, lang);
   const bot = botName(trade.source);
-  const dur = duration(trade);
+  const dur = duration(trade, lang);
   const isLong = trade.direction === "LONG" || trade.direction === "YES";
 
   // Flip left if too close to right edge
@@ -866,7 +872,7 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-secondary/20">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[trade.type]}</span>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{typeLabel(trade.type, lang)}</span>
             {trade.symbol && <span className="font-bold text-primary">{trade.symbol}</span>}
             {trade.direction && (
               <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: isLong ? "#22c55e1a" : "#ef44441a", color: isLong ? "#22c55e" : "#ef4444" }}>
@@ -882,13 +888,13 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
           <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/40 bg-primary/5">
             <Bot className="h-3 w-3 text-primary/70 shrink-0" />
             <span className="text-primary font-bold truncate">{bot ?? trade.source}</span>
-            {!bot && trade.auto && <span className="text-[9px] text-muted-foreground">(אוטו)</span>}
+            {!bot && trade.auto && <span className="text-[9px] text-muted-foreground">{t("history.tooltip.auto", lang)}</span>}
           </div>
         )}
         {!trade.source && !trade.auto && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/40 bg-secondary/10">
             <Hand className="h-3 w-3 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground">ידני</span>
+            <span className="text-muted-foreground">{t("history.filter.manual", lang)}</span>
           </div>
         )}
 
@@ -896,13 +902,13 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
         <div className="px-3 py-2 space-y-1">
           {trade.entryPrice != null && trade.exitPrice != null && (
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">כניסה → יציאה</span>
+              <span className="text-muted-foreground">{t("history.tooltip.entryExit", lang)}</span>
               <span>${fmtPrice(trade.entryPrice)} → ${fmtPrice(trade.exitPrice)}</span>
             </div>
           )}
           {trade.leverage != null && trade.leverage > 1 && (
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">מינוף</span>
+              <span className="text-muted-foreground">{t("history.tooltip.leverage", lang)}</span>
               <span className="text-primary">{trade.leverage}x</span>
             </div>
           )}
@@ -919,16 +925,16 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
             </div>
           )}
           <div className="flex justify-between gap-3">
-            <span className="text-muted-foreground">מרג'ין</span>
+            <span className="text-muted-foreground">{t("history.tooltip.margin", lang)}</span>
             <span>${fmtUsd(trade.cost)}</span>
           </div>
           <div className="flex justify-between gap-3">
-            <span className="text-muted-foreground">תמורה</span>
+            <span className="text-muted-foreground">{t("history.tooltip.proceeds", lang)}</span>
             <span>${fmtUsd(trade.proceeds)}</span>
           </div>
           {(trade.fees ?? 0) > 0 && (
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">עמלות</span>
+              <span className="text-muted-foreground">{t("history.tooltip.fees", lang)}</span>
               <span className="text-amber-400">${fmtUsd(trade.fees!)}</span>
             </div>
           )}
@@ -936,7 +942,7 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
 
         {/* P&L bar */}
         <div className="mx-3 mb-2 rounded px-2 py-1.5 flex justify-between items-center" style={{ background: up ? "#22c55e14" : "#ef444414" }}>
-          <span className="text-muted-foreground">רווח / הפסד (נטו)</span>
+          <span className="text-muted-foreground">{t("history.tooltip.pnlNet", lang)}</span>
           <div className="text-right">
             <span className="font-black text-sm" style={{ color: up ? "#22c55e" : "#ef4444" }}>
               {up ? "+" : ""}{fmtUsd(trade.pnl)}
@@ -949,7 +955,7 @@ function TradeTooltip({ trade, x, y }: { trade: ClosedTrade; x: number; y: numbe
 
         {/* Timing */}
         <div className="px-3 pb-2 flex justify-between text-[10px] text-muted-foreground/70">
-          <span>{timeAgo(trade.closedAt)}</span>
+          <span>{timeAgo(trade.closedAt, lang)}</span>
           {dur && <span>⏱ {dur}</span>}
         </div>
 
@@ -969,6 +975,7 @@ const CATEGORY_ORDER = ["BINANCE", "STOCK", "POLYMARKET", "FUNDING", "OPTION"] a
 function CategoryHeaderRow({ type, count, totalCost, totalPnl, collapsed, onToggle }: {
   type: string; count: number; totalCost: number; totalPnl: number; collapsed: boolean; onToggle: () => void;
 }) {
+  const { lang } = useLanguage();
   const up = totalPnl >= 0;
   const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
   return (
@@ -978,11 +985,11 @@ function CategoryHeaderRow({ type, count, totalCost, totalPnl, collapsed, onTogg
     >
       <div className="flex items-center gap-2 min-w-0">
         {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
-        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/50 text-foreground/80">{TYPE_LABEL[type as ClosedTrade["type"]]}</span>
-        <span className="text-[10px] text-muted-foreground font-mono">{count} עסקאות</span>
+        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/50 text-foreground/80">{typeLabel(type as ClosedTrade["type"], lang)}</span>
+        <span className="text-[10px] text-muted-foreground font-mono">{t("history.tradesCount", lang).replace("{n}", String(count))}</span>
       </div>
       <div className="flex items-center gap-2 text-right shrink-0">
-        <span className="text-[10px] text-muted-foreground font-mono">מרג'ין ${fmtUsd(totalCost)}</span>
+        <span className="text-[10px] text-muted-foreground font-mono">{t("history.marginAmount", lang).replace("{amount}", fmtUsd(totalCost))}</span>
         <div className="font-mono text-[11px] font-black" style={{ color: up ? "#22c55e" : "#ef4444" }}>
           {up ? "+" : ""}${fmtUsd(totalPnl)}
         </div>
@@ -995,6 +1002,7 @@ function CategoryHeaderRow({ type, count, totalCost, totalPnl, collapsed, onTogg
 }
 
 function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelect: (t: ClosedTrade) => void }) {
+  const { lang } = useLanguage();
   const [hovered, setHovered] = useState<ClosedTrade | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const moveRef = useRef<number | null>(null);
@@ -1044,7 +1052,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
       {hovered && <TradeTooltip trade={hovered} x={mousePos.x} y={mousePos.y} />}
       <div className="rounded-lg border bg-card overflow-hidden">
         <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 border-b border-border text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
-          <span>עסקה</span><span className="text-right">יציאה</span><span className="text-right">מרג'ין</span><span className="text-right">רווח/הפסד</span><span className="text-right">מתי</span>
+          <span>{t("history.col.trade", lang)}</span><span className="text-right">{t("history.col.exit", lang)}</span><span className="text-right">{t("history.col.margin", lang)}</span><span className="text-right">{t("history.col.pnl", lang)}</span><span className="text-right">{t("history.col.when", lang)}</span>
         </div>
         <div className="divide-y divide-border/60">
           {CATEGORY_ORDER.map((type) => {
@@ -1075,8 +1083,8 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                       const up = totalPnl >= 0;
                       const pct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
                       const ex = isGroup
-                        ? { label: `${rows.length} טרידים`, color: up ? "#22c55e" : "#ef4444" }
-                        : exit(first);
+                        ? { label: t("history.groupTrades", lang).replace("{n}", String(rows.length)), color: up ? "#22c55e" : "#ef4444" }
+                        : exit(first, lang);
 
                       return (
                         <div key={key} className="group" dir="rtl">
@@ -1088,12 +1096,12 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                             onMouseMove={onMove}
                             role="button"
                             tabIndex={0}
-                            title="צפה בפרטי העסקה"
+                            title={t("history.tooltip.viewDetails", lang)}
                             className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1 px-3 py-2.5 items-center text-xs cursor-pointer transition-colors hover:bg-secondary/30"
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{TYPE_LABEL[first.type]}</span>
+                                <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">{typeLabel(first.type, lang)}</span>
                                 <ChartIcon className="h-3 w-3 text-muted-foreground/50" />
                                 {first.symbol && <span className="font-mono text-[9px] font-bold text-primary">{first.symbol}</span>}
                                 {first.direction && (
@@ -1128,7 +1136,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                               )}
                               {isGroup && (
                                 <div className="font-mono text-[9px] text-muted-foreground/60 mt-0.5">
-                                  {rows.length} חזיוניות באותו הסווג
+                                  {t("history.tradesInGroup", lang).replace("{n}", String(rows.length))}
                                 </div>
                               )}
                             </div>
@@ -1140,10 +1148,10 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                               <div className="flex items-center gap-1">
                                 {up && (
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); shareTrade(first.symbol ?? first.description?.split(" ")[0] ?? "נכס", totalPnl, toast); }}
-                                    title="שתף רווח 🚀"
+                                    onClick={(e) => { e.stopPropagation(); shareTrade(first.symbol ?? first.description?.split(" ")[0] ?? t("history.assetFallback", lang), totalPnl, toast, lang); }}
+                                    title={t("history.share.btnTitle", lang)}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 hover:bg-emerald-500/20"
-                                    aria-label="שתף רווח"
+                                    aria-label={t("history.share.btnAria", lang)}
                                   >
                                     <Share2 className="h-3 w-3" style={{ color: "#22c55e" }} />
                                   </button>
@@ -1153,8 +1161,8 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                               <div className="font-mono text-[10px]" style={{ color: up ? "#22c55e" : "#ef4444" }}>{up ? "+" : ""}{pct.toFixed(1)}%</div>
                             </div>
                             <div className="hidden sm:block text-right font-mono text-[10px] text-muted-foreground">
-                              <div>{timeAgo(first.closedAt)}</div>
-                              {duration(first) && <div className="text-muted-foreground/50">{duration(first)}</div>}
+                              <div>{timeAgo(first.closedAt, lang)}</div>
+                              {duration(first, lang) && <div className="text-muted-foreground/50">{duration(first, lang)}</div>}
                             </div>
                           </div>
 
@@ -1164,7 +1172,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                               {rows.map((t) => {
                                 const u = t.pnl >= 0;
                                 const p = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
-                                const ex = exit(t);
+                                const ex = exit(t, lang);
                                 return (
                                   <div
                                     key={t.id}
@@ -1187,7 +1195,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                                       <div className="font-mono text-[9px]" style={{ color: u ? "#22c55e" : "#ef4444" }}>{u ? "+" : ""}{p.toFixed(1)}%</div>
                                     </div>
                                     <div className="hidden sm:block text-right font-mono text-[9px] text-muted-foreground">
-                                      {timeAgo(t.closedAt)}
+                                      {timeAgo(t.closedAt, lang)}
                                     </div>
                                   </div>
                                 );

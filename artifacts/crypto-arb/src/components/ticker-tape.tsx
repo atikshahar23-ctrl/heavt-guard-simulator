@@ -7,6 +7,8 @@ import {
 } from "@workspace/api-client-react";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { TrendingUp, TrendingDown, Pause, Play } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
+import { t as tr } from "@/lib/i18n";
 
 function fmtPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -33,6 +35,7 @@ export function TickerTape() {
   });
   const { get: getLive } = useLivePrices();
   const [paused, setPaused] = useState(false);
+  const { lang } = useLanguage();
 
   // Heavy filter/find work only recomputes when the underlying data changes,
   // not on every 250ms live-price tick.
@@ -81,8 +84,8 @@ export function TickerTape() {
         type="button"
         onClick={() => setPaused((p) => !p)}
         aria-pressed={paused}
-        aria-label={paused ? "הפעל גלילת מחירים" : "השהה גלילת מחירים"}
-        title={paused ? "הפעל" : "השהה"}
+        aria-label={paused ? tr("tt.playScroll", lang) : tr("tt.pauseScroll", lang)}
+        title={paused ? tr("tt.play", lang) : tr("tt.pause", lang)}
         className="absolute inset-y-0 right-0 z-20 flex w-8 items-center justify-center bg-gradient-to-l from-[hsl(0_0%_3%)] via-[hsl(0_0%_3%)] to-transparent text-muted-foreground hover:text-primary transition-colors"
       >
         {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}

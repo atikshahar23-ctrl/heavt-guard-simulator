@@ -643,8 +643,8 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   favoritesOnly: false,
   boostUntil: 0,
   boostDurationMin: 5,
-  cashFloorPct: 15,
-  intensity: 3,
+  cashFloorPct: 20,
+  intensity: 2,
   intensityByWallet: {},
   tradeMode: "NORMAL",
 
@@ -653,8 +653,8 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   trailingEnabled: true,
   trailActivatePct: 1.5,
   trailDistancePct: 1.0,
-  dailyStopEnabled: false,
-  dailyMaxLossPct: 10,
+  dailyStopEnabled: true,
+  dailyMaxLossPct: 8,
 
   smartExitEnabled: true,
   scalpTakeProfitPct: 0.6,
@@ -664,9 +664,9 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   maxScalpHoldSec: 90,
 
   catastrophicExitEnabled: true,
-  maxLossPerTradePct: 40,
-  portfolioStopEnabled: false,
-  portfolioMaxDrawdownPct: 25,
+  maxLossPerTradePct: 30,
+  portfolioStopEnabled: true,
+  portfolioMaxDrawdownPct: 20,
 
   stocksEnabled: false,
   stockStakePerTrade: 200,

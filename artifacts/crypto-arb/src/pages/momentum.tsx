@@ -14,6 +14,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { useFavorites } from "@/contexts/favorites-context";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
+import { t, type Lang } from "@/lib/i18n";
 
 function fmtPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -31,29 +33,25 @@ interface StageMeta {
 }
 
 /** Rule-based JARVIS momentum explanation — pure, no AI, no network. */
-function explainMomentumCoin(c: MomentumCoin): string[] {
+function explainMomentumCoin(c: MomentumCoin, lang: Lang): string[] {
   const lines: string[] = [];
-  const stageHe: Record<string, string> = {
-    HOT: "🔥 מטבע חם — בשיא הפעילות",
-    SURGING: "🚀 התפרצות — תנועה חזקה ומהירה",
-    BUILDING: "📊 בניית תנועה — תנע מצטבר",
-    COOLING: "🧊 התקררות — השיא כנראה מאחורינו",
-  };
-  lines.push(stageHe[c.stage] ?? c.stage);
+  const stageKey = `momentum.stage.${c.stage}`;
+  const stageLine = t(stageKey, lang);
+  lines.push(stageLine === stageKey ? c.stage : stageLine);
 
-  if (c.score >= 80) lines.push(`ציון הנעה ${c.score}/100 — חזק מאוד. המטבע בשיא הפעילות שלו.`);
-  else if (c.score >= 60) lines.push(`ציון הנעה ${c.score}/100 — גבוה. תנועה ברורה ומגובה.`);
-  else lines.push(`ציון הנעה ${c.score}/100 — בינוני. תנועה קיימת אך לא חזקה.`);
+  if (c.score >= 80) lines.push(t("momentum.score.veryStrong", lang).replace("{n}", String(c.score)));
+  else if (c.score >= 60) lines.push(t("momentum.score.high", lang).replace("{n}", String(c.score)));
+  else lines.push(t("momentum.score.medium", lang).replace("{n}", String(c.score)));
 
-  if (c.rvol >= 3) lines.push(`נפח מוגבר פי ${c.rvol.toFixed(1)} מהממוצע — כסף גדול נכנס לשוק!`);
-  else if (c.rvol >= 1.5) lines.push(`נפח יחסי ${c.rvol.toFixed(1)}× — מוגבר, תנועה מגובה בביקוש.`);
-  else lines.push(`נפח יחסי ${c.rvol.toFixed(1)}× — ממוצע, תנועה ממומנת בצניעות.`);
+  if (c.rvol >= 3) lines.push(t("momentum.rvol.high", lang).replace("{n}", c.rvol.toFixed(1)));
+  else if (c.rvol >= 1.5) lines.push(t("momentum.rvol.elevated", lang).replace("{n}", c.rvol.toFixed(1)));
+  else lines.push(t("momentum.rvol.average", lang).replace("{n}", c.rvol.toFixed(1)));
 
-  if (c.roc15m > 0.5) lines.push(`+${c.roc15m.toFixed(2)}% ב-15 דקות — עלייה מהירה בטווח הקצר.`);
-  else if (c.roc15m < -0.5) lines.push(`${c.roc15m.toFixed(2)}% ב-15 דקות — ירידה מהירה בטווח הקצר.`);
+  if (c.roc15m > 0.5) lines.push(t("momentum.roc15m.up", lang).replace("{n}", c.roc15m.toFixed(2)));
+  else if (c.roc15m < -0.5) lines.push(t("momentum.roc15m.down", lang).replace("{n}", c.roc15m.toFixed(2)));
 
-  if (c.roc1h > 1) lines.push(`+${c.roc1h.toFixed(2)}% בשעה — מגמה שעתית חיובית ברורה.`);
-  else if (c.roc1h < -1) lines.push(`${c.roc1h.toFixed(2)}% בשעה — מגמה שעתית שלילית.`);
+  if (c.roc1h > 1) lines.push(t("momentum.roc1h.up", lang).replace("{n}", c.roc1h.toFixed(2)));
+  else if (c.roc1h < -1) lines.push(t("momentum.roc1h.down", lang).replace("{n}", c.roc1h.toFixed(2)));
 
   for (const r of c.reasons) lines.push(`• ${r}`);
   return lines;
@@ -177,10 +175,11 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 function MomentumCard({ c }: { c: MomentumCoin }) {
   const { Icon, color, label } = stageMeta(c.stage);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { lang, dir } = useLanguage();
   const favId = `coin:${c.asset}`;
   const fav = isFavorite(favId);
   const [whyOpen, setWhyOpen] = useState(false);
-  const explanation = whyOpen ? explainMomentumCoin(c) : [];
+  const explanation = whyOpen ? explainMomentumCoin(c, lang) : [];
 
   return (
     <div
@@ -288,7 +287,7 @@ function MomentumCard({ c }: { c: MomentumCoin }) {
         ))}
       </ul>
 
-      {/* JARVIS "למה?" toggle */}
+      {/* JARVIS "Why?" toggle */}
       <button
         onClick={() => setWhyOpen((v) => !v)}
         className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded-md border border-dashed transition-colors text-[10px] font-mono"
@@ -300,7 +299,7 @@ function MomentumCard({ c }: { c: MomentumCoin }) {
         aria-label="Toggle JARVIS explanation"
       >
         <MessageCircle className="h-3 w-3" />
-        🤖 JARVIS — למה?
+        {t("scalp.jarvisBtn", lang)}
         <ChevronDown className="h-3 w-3 transition-transform" style={{ transform: whyOpen ? "rotate(180deg)" : "none" }} />
       </button>
 
@@ -308,12 +307,12 @@ function MomentumCard({ c }: { c: MomentumCoin }) {
       {whyOpen && (
         <div
           className="rounded-md p-3 space-y-1.5 border"
-          dir="rtl"
+          dir={dir}
           style={{ background: "hsl(43 74% 52% / 0.07)", borderColor: "hsl(43 74% 52% / 0.3)" }}
         >
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "hsl(43 74% 62%)" }}>ניתוח JARVIS</span>
-            <span className="text-[8px] text-muted-foreground/60 font-mono">(כלי חינוכי בלבד · אינו ייעוץ פיננסי)</span>
+            <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "hsl(43 74% 62%)" }}>{t("scalp.jarvisTitle", lang)}</span>
+            <span className="text-[8px] text-muted-foreground/60 font-mono">{t("scalp.jarvisDisclaimer", lang)}</span>
           </div>
           {explanation.map((line, i) => (
             <p key={i} className="text-[10px] leading-relaxed" style={{ color: i === 0 ? "hsl(43 74% 68%)" : "hsl(0 0% 75%)" }}>

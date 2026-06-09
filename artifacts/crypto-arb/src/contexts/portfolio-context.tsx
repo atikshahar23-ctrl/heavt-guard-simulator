@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { useUser } from "@clerk/react";
 import { useServerSync } from "@/contexts/server-sync-context";
+import { useLanguage } from "@/contexts/language-context";
+import { t, type Lang } from "@/lib/i18n";
 import { toast } from "@/hooks/use-toast";
 import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES } from "@/lib/fees";
 import { optionPositionValue } from "@/lib/options-model";
@@ -317,7 +319,7 @@ function makeWallet(name: string, state: PortfolioState): Wallet {
 }
 
 // Parse a stored multi-wallet book (v2 shape) defensively; null if absent/empty.
-function parseWalletsRaw(raw: string | null): WalletsState | null {
+function parseWalletsRaw(raw: string | null, lang: Lang): WalletsState | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<WalletsState>;
@@ -325,7 +327,7 @@ function parseWalletsRaw(raw: string | null): WalletsState | null {
       .filter((w): w is Wallet => !!w && typeof w.id === "string")
       .map((w) => ({
         id: w.id,
-        name: w.name || "ארנק",
+        name: w.name || t("pc.fallbackWalletName", lang),
         createdAt: w.createdAt || new Date().toISOString(),
         ...normalizeState(w),
       }));
@@ -339,12 +341,12 @@ function parseWalletsRaw(raw: string | null): WalletsState | null {
   }
 }
 
-// Wrap a legacy single-portfolio blob into a one-wallet book named "ראשי".
-function migrateLegacySingle(raw: string | null): WalletsState | null {
+// Wrap a legacy single-portfolio blob into a one-wallet book with the default name.
+function migrateLegacySingle(raw: string | null, lang: Lang): WalletsState | null {
   if (!raw) return null;
   try {
     const initial = normalizeState(JSON.parse(raw) as Partial<PortfolioState>);
-    const main = makeWallet("ראשי", initial);
+    const main = makeWallet(t("pc.defaultWalletName", lang), initial);
     return { wallets: [main], activeWalletId: main.id };
   } catch {
     return null;
@@ -359,20 +361,20 @@ function migrateLegacySingle(raw: string | null): WalletsState | null {
  * carries over to the first account; a cleanup effect then clears it so later
  * new accounts start fresh.
  */
-function loadWallets(walletsKey: string, legacyKey: string): WalletsState {
-  const scoped = parseWalletsRaw(localStorage.getItem(walletsKey));
+function loadWallets(walletsKey: string, legacyKey: string, lang: Lang): WalletsState {
+  const scoped = parseWalletsRaw(localStorage.getItem(walletsKey), lang);
   if (scoped) return scoped;
 
-  const scopedLegacy = migrateLegacySingle(localStorage.getItem(legacyKey));
+  const scopedLegacy = migrateLegacySingle(localStorage.getItem(legacyKey), lang);
   if (scopedLegacy) return scopedLegacy;
 
-  const adoptedV2 = parseWalletsRaw(localStorage.getItem(WALLETS_KEY));
+  const adoptedV2 = parseWalletsRaw(localStorage.getItem(WALLETS_KEY), lang);
   if (adoptedV2) return adoptedV2;
 
-  const adoptedSingle = migrateLegacySingle(localStorage.getItem(STORAGE_KEY));
+  const adoptedSingle = migrateLegacySingle(localStorage.getItem(STORAGE_KEY), lang);
   if (adoptedSingle) return adoptedSingle;
 
-  const main = makeWallet("ראשי", freshState());
+  const main = makeWallet(t("pc.defaultWalletName", lang), freshState());
   return { wallets: [main], activeWalletId: main.id };
 }
 
@@ -403,6 +405,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   // the authed app, so `user.id` is present; remounting on account change loads
   // the right account's book.
   const { user } = useUser();
+  const { lang } = useLanguage();
   const userId = user?.id ?? "anon";
   const walletsKey = `${WALLETS_KEY}::${userId}`;
   const legacyKey = `${STORAGE_KEY}::${userId}`;
@@ -415,10 +418,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const serverBook = sync.getServerData("wallets");
   const [book, setBook] = useState<WalletsState>(() => {
     if (serverBook !== null) {
-      const parsed = parseWalletsRaw(JSON.stringify(serverBook));
+      const parsed = parseWalletsRaw(JSON.stringify(serverBook), lang);
       if (parsed) return parsed;
     }
-    return loadWallets(walletsKey, legacyKey);
+    return loadWallets(walletsKey, legacyKey, lang);
   });
 
   const activeWallet =
@@ -491,8 +494,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   const createWallet = useCallback((name: string) => {
     const trimmed = name.trim();
-    if (!trimmed) return "יש להזין שם ארנק";
-    if (trimmed.length > 40) return "שם הארנק ארוך מדי";
+    if (!trimmed) return t("pc.nameRequired", lang);
+    if (trimmed.length > 40) return t("pc.nameTooLong", lang);
     const wallet = makeWallet(trimmed, freshState());
     setBook((prev) => ({
       wallets: [...prev.wallets, wallet],
@@ -502,28 +505,28 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     // Settings (leverage, stakes, etc.) stay untouched; only the master arms are switched off.
     window.dispatchEvent(new CustomEvent("wallet-created", { detail: { walletId: wallet.id } }));
     toast({
-      title: "ארנק חדש נפתח",
-      description: "כל הבוטים הוחזו אוטומטית — הגדרות המינוף והסטייק נשמרו. הדליק הבוט שבו ייטב החזיר אותם לפעולה.",
+      title: t("pc.newWalletTitle", lang),
+      description: t("pc.newWalletDesc", lang),
     });
     return null;
-  }, []);
+  }, [lang]);
 
   const renameWallet = useCallback((id: string, name: string) => {
     const trimmed = name.trim();
-    if (!trimmed) return "יש להזין שם ארנק";
-    if (trimmed.length > 40) return "שם הארנק ארוך מדי";
+    if (!trimmed) return t("pc.nameRequired", lang);
+    if (trimmed.length > 40) return t("pc.nameTooLong", lang);
     setBook((prev) => ({
       ...prev,
       wallets: prev.wallets.map((w) => (w.id === id ? { ...w, name: trimmed } : w)),
     }));
     return null;
-  }, []);
+  }, [lang]);
 
   const deleteWallet = useCallback((id: string) => {
     let error: string | null = null;
     setBook((prev) => {
       if (prev.wallets.length <= 1) {
-        error = "לא ניתן למחוק את הארנק האחרון";
+        error = t("pc.cannotDeleteLast", lang);
         return prev;
       }
       const wallets = prev.wallets.filter((w) => w.id !== id);
@@ -532,7 +535,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       return { wallets, activeWalletId };
     });
     return error;
-  }, []);
+  }, [lang]);
 
   const addFunds = useCallback((amountUsd: number) => {
     if (!Number.isFinite(amountUsd) || amountUsd <= 0) return "Enter a positive amount";

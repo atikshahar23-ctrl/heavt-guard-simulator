@@ -21,13 +21,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { useAutoTrader } from "@/contexts/autotrader-context";
 import { useLanguage } from "@/contexts/language-context";
-import { t } from "@/lib/i18n";
+import { t, type Lang } from "@/lib/i18n";
 
 /* ─────────────────────────── Matrix Rain Canvas ─────────────────────────── */
-const MATRIX_CHARS =
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ₿ETHSOLBNBXRP⚡↑↓×%$#אבגדהוזחטיכלמנסעפצקרשת";
+const MATRIX_CHARS_BASE =
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ₿ETHSOLBNBXRP⚡↑↓×%$#";
+const MATRIX_CHARS_HE = "אבגדהוזחטיכלמנסעפצקרשת";
 
-function MatrixRain() {
+function MatrixRain({ lang }: { lang: Lang }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ function MatrixRain() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const chars = lang === "he" ? MATRIX_CHARS_BASE + MATRIX_CHARS_HE : MATRIX_CHARS_BASE;
 
     let animId: number;
     let cols = 0;
@@ -62,7 +64,7 @@ function MatrixRain() {
       ctx.font = `${fontSize}px 'Space Mono', monospace`;
 
       for (let i = 0; i < cols; i++) {
-        const ch = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+        const ch = chars[Math.floor(Math.random() * chars.length)];
         const y = drops[i] * fontSize;
 
         const head = drops[i] > 4;
@@ -88,7 +90,7 @@ function MatrixRain() {
       cancelAnimationFrame(animId);
       ro.disconnect();
     };
-  }, []);
+  }, [lang]);
 
   return (
     <canvas
@@ -301,7 +303,7 @@ export default function Dashboard() {
 
       {/* ── Matrix rain lives behind everything, clipped to page container ── */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <MatrixRain />
+        <MatrixRain lang={lang} />
         <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/60" />
       </div>
 

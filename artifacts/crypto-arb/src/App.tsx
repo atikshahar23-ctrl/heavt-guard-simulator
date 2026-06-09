@@ -33,6 +33,7 @@ const Tools = lazy(() => import("@/pages/tools"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
 const Landing = lazy(() => import("@/pages/landing"));
 const Leaderboard = lazy(() => import("@/pages/leaderboard"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
 import Layout from "@/components/layout";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { CalendarAlerter } from "@/components/calendar-alerter";
@@ -237,6 +238,7 @@ function Router() {
         <Route path="/tools" component={Tools} />
         <Route path="/research" component={Research} />
         <Route path="/calendar" component={CalendarPage} />
+        <Route path="/settings" component={SettingsPage} />
         {/* REQUIRED — "/*?" is the only wouter syntax that matches both bare
             and OAuth sub-paths like /sign-in/sso-callback */}
         <Route path="/sign-in/*?">
@@ -342,6 +344,13 @@ function AppGate() {
 function App() {
   if (typeof document !== "undefined") {
     document.documentElement.classList.add("dark");
+    try {
+      if (localStorage.getItem("hg.reduceMotion") === "1") {
+        document.documentElement.classList.add("reduce-motion");
+      }
+    } catch {
+      /* localStorage unavailable */
+    }
   }
 
   const [, setLocation] = useLocation();

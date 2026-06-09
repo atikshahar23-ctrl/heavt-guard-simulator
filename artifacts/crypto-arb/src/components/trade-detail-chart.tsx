@@ -16,6 +16,8 @@ import { useGetStockKlines, getGetStockKlinesQueryKey } from "@workspace/api-cli
 import { israelTickMarkFormatter, israelTimeFormatter } from "../lib/timezone";
 import type { ClosedTrade } from "@/contexts/portfolio-context";
 import { PolymarketProbabilityChart } from "./polymarket-probability-chart";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 const SYMBOL_MAP: Record<string, string> = {
   BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT", BNB: "BNBUSDT",
@@ -96,6 +98,7 @@ interface Props {
 }
 
 export function TradeDetailChart({ trade }: Props) {
+  const { lang, dir } = useLanguage();
   const isStock = trade.type === "STOCK";
   const isCrypto = trade.type === "BINANCE";
   const isPoly = trade.type === "POLYMARKET";
@@ -194,14 +197,14 @@ export function TradeDetailChart({ trade }: Props) {
       series.createPriceLine({
         price: trade.entryPrice as number,
         color: "#38bdf8", lineWidth: 1, lineStyle: LineStyle.Dashed,
-        axisLabelVisible: true, title: "כניסה",
+        axisLabelVisible: true, title: t("tdc.entry", lang),
       });
     }
     if (Number.isFinite(trade.exitPrice)) {
       series.createPriceLine({
         price: trade.exitPrice as number,
         color: won ? "#22c55e" : "#ef4444", lineWidth: 1, lineStyle: LineStyle.Dashed,
-        axisLabelVisible: true, title: "יציאה",
+        axisLabelVisible: true, title: t("tdc.exit", lang),
       });
     }
 
@@ -213,7 +216,7 @@ export function TradeDetailChart({ trade }: Props) {
         time: entrySnap as Time,
         position: trade.direction === "SHORT" || trade.direction === "NO" ? "aboveBar" : "belowBar",
         color: "#38bdf8", shape: trade.direction === "SHORT" || trade.direction === "NO" ? "arrowDown" : "arrowUp",
-        text: "כניסה",
+        text: t("tdc.entry", lang),
       });
     }
     if (exitSnap !== null && exitSnap !== entrySnap) {
@@ -221,7 +224,7 @@ export function TradeDetailChart({ trade }: Props) {
         time: exitSnap as Time,
         position: "aboveBar",
         color: won ? "#22c55e" : "#ef4444", shape: "circle",
-        text: "יציאה",
+        text: t("tdc.exit", lang),
       });
     }
     markers.sort((a, b) => (a.time as number) - (b.time as number));
@@ -259,7 +262,7 @@ export function TradeDetailChart({ trade }: Props) {
       chartRef.current = null;
       seriesRef.current = null;
     };
-  }, [candles, isPoly, openedMs, closedMs, spanMs, trade.entryPrice, trade.exitPrice, trade.direction, trade.pnl]);
+  }, [candles, isPoly, openedMs, closedMs, spanMs, trade.entryPrice, trade.exitPrice, trade.direction, trade.pnl, lang]);
 
   // Polymarket — render a probability chart from the CLOB price-history API.
   if (isPoly) {
@@ -285,9 +288,9 @@ export function TradeDetailChart({ trade }: Props) {
           />
         ) : null}
         {/* Compact entry/exit summary strip */}
-        <div className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3" dir="rtl">
+        <div className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3" dir={dir}>
           <div className="text-center">
-            <div className="text-[10px] text-muted-foreground">כניסה</div>
+            <div className="text-[10px] text-muted-foreground">{t("tdc.entry", lang)}</div>
             <div className="font-mono text-base font-black text-sky-400">{(entry * 100).toFixed(1)}%</div>
           </div>
           <div className="flex-1 h-1.5 rounded-full bg-secondary/60 relative overflow-hidden">
@@ -297,7 +300,7 @@ export function TradeDetailChart({ trade }: Props) {
             />
           </div>
           <div className="text-center">
-            <div className="text-[10px] text-muted-foreground">יציאה</div>
+            <div className="text-[10px] text-muted-foreground">{t("tdc.exit", lang)}</div>
             <div className="font-mono text-base font-black" style={{ color: won ? "#22c55e" : "#ef4444" }}>
               {(exit * 100).toFixed(1)}%
             </div>
@@ -311,13 +314,13 @@ export function TradeDetailChart({ trade }: Props) {
     <div className="relative w-full" style={{ height: 280 }}>
       <div ref={containerRef} className="w-full h-full rounded-lg border bg-card overflow-hidden" />
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" dir="rtl">
-          טוען גרף…
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" dir={dir}>
+          {t("tdc.loading", lang)}
         </div>
       )}
       {err && !loading && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" dir="rtl">
-          הגרף לא זמין כרגע.
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" dir={dir}>
+          {t("tdc.unavailable", lang)}
         </div>
       )}
     </div>

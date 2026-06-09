@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { recommendLevels } from "@/lib/recommend-levels";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 const STOCK_CATEGORY_LABEL: Record<string, string> = {
   TECH: "Technology",
@@ -398,6 +400,7 @@ function StockActionLabel({ action }: { action: StockRecommendation['action'] })
 
 function StockQuickExecute({ rec }: { rec: StockRecommendation }) {
   const { cash, openStockPosition, activeWalletName } = usePortfolio();
+  const { lang } = useLanguage();
   const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -406,7 +409,7 @@ function StockQuickExecute({ rec }: { rec: StockRecommendation }) {
   function run() {
     const direction = rec.action === 'SELL' ? 'SHORT' : 'LONG';
     const amount = Math.min(2000, Math.max(0, cash * 0.1));
-    if (amount < 1) { setErr('אין מספיק מזומן'); return; }
+    if (amount < 1) { setErr(t("markets.noCash", lang)); return; }
     const { sl, tp } = recommendLevels(rec.price, direction, { slPct: 0.03, tpPct: 0.06 });
     const e = openStockPosition(
       { symbol: rec.symbol, name: rec.name, direction, entryPrice: rec.price, slPrice: sl, tpPrice: tp, source: 'Quick Trade' },
@@ -424,9 +427,9 @@ function StockQuickExecute({ rec }: { rec: StockRecommendation }) {
         onClick={run}
         className="w-full flex items-center justify-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-2 rounded border border-primary/40 bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
       >
-        <Zap className="h-3 w-3" /> מסחר מהיר
+        <Zap className="h-3 w-3" /> {t("markets.quickTrade", lang)}
       </button>
-      {done && <p className="flex items-center justify-center gap-1 text-[9px] font-mono text-emerald-400"><Check className="h-2.5 w-2.5" />בוצע {done}</p>}
+      {done && <p className="flex items-center justify-center gap-1 text-[9px] font-mono text-emerald-400"><Check className="h-2.5 w-2.5" />{t("markets.done", lang)} {done}</p>}
       {err && <p className="text-[9px] font-mono text-red-400 text-center">{err}</p>}
     </div>
   );

@@ -14,6 +14,8 @@ import { applyTAOverlays, type TAHandle, autoAnalyze, type AnalysisResult } from
 import { israelTickMarkFormatter, israelTimeFormatter } from "../lib/timezone";
 import { TradingViewAdvancedChart } from "./tradingview-advanced-chart";
 import type { BinancePosition } from "@/contexts/portfolio-context";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 const INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1D"] as const;
 type Interval = typeof INTERVALS[number];
@@ -61,6 +63,7 @@ interface Props {
 type PriceLineHandles = { entry: IPriceLine; sl?: IPriceLine; tp?: IPriceLine };
 
 export function CandlestickChart({ symbol, positions, currentPrice, onClosePosition }: Props) {
+  const { lang } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -342,16 +345,16 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
         <div className="flex items-center gap-0.5 mr-2 rounded bg-secondary/30 p-0.5">
           <button
             onClick={() => setMode("live")}
-            title="גרף חי משולב עם הדמו"
+            title={t("cc.liveTitle", lang)}
             className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-colors ${
               mode === "live" ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            חי
+            {t("cc.live", lang)}
           </button>
           <button
             onClick={() => setMode("pro")}
-            title="מצב מקצועי — כלי ציור, אינדיקטורים וניתוח טכני אוטומטי"
+            title={t("cc.proTitle", lang)}
             className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-colors ${
               mode === "pro" ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
@@ -363,7 +366,7 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
           <>
             <button
               onClick={() => setTa((v) => !v)}
-              title="ניתוח טכני: EMA, תמיכה/התנגדות, איתות קנייה/מכירה"
+              title={t("cc.taTitle", lang)}
               className={`px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors ${
                 ta ? "bg-primary/25 text-primary" : "text-muted-foreground hover:text-foreground"
               }`}
@@ -380,10 +383,10 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
                   setShowAnalysis(true);
                 }
               }}
-              title="ניתוח אוטומטי מוקש: מאגד מגמה חזוקה מכל האינדיקטורים"
+              title={t("cc.analyzeTitle", lang)}
               className="px-2 py-0.5 mr-1 text-[10px] font-mono font-bold rounded transition-colors bg-primary/15 text-primary hover:bg-primary/25"
             >
-              ניתח
+              {t("cc.analyze", lang)}
             </button>
             {INTERVALS.map((iv) => (
               <button
@@ -438,7 +441,7 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
                       <button
                         onClick={() => onClosePosition(pos.id, mark)}
                         className="flex-shrink-0 rounded p-0.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/15 transition-all"
-                        title="סגור פוזיציה"
+                        title={t("cc.closePosition", lang)}
                       >
                         <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M1 1l10 10M11 1L1 11" />

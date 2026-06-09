@@ -46,7 +46,7 @@ export default function BriefingPage() {
   });
 
   const now = new Date();
-  const calNotes = getMarketNotes(now);
+  const calNotes = getMarketNotes(now, lang);
 
   const coins = (overview ?? []) as CoinTicker[];
   const scalp = (signals ?? []) as ScalpSignal[];
@@ -138,7 +138,7 @@ export default function BriefingPage() {
             <Newspaper className="h-6 w-6 text-primary" />
             <h1 className="text-xl md:text-2xl font-black tracking-tight">{t("briefing.title", lang)}</h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">{formatHebrewDate(now)} · {t("briefing.markets", lang)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{formatHebrewDate(now, lang)} · {t("briefing.markets", lang)}</p>
         </div>
       </div>
 

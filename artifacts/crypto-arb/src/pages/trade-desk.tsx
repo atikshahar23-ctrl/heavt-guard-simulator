@@ -16,6 +16,8 @@ import { CryptoIcon } from "@/components/crypto-icon";
 import { StockIcon } from "@/components/stock-icon";
 import { Badge } from "@/components/ui/badge";
 import { useRefresh } from "@/contexts/refresh-context";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 /* ─── helpers ─── */
 const fmtUsd = (n: number) =>
@@ -218,6 +220,7 @@ function PolyCard({
   allMarkets: { conditionId: string; yesPrice: number; noPrice: number }[];
   onClose: () => void;
 }) {
+  const { lang } = useLanguage();
   const [showChart, setShowChart] = useState(false);
   const live = allMarkets.find((m) => m.conditionId === pos.conditionId);
   const currentPrice = live ? (pos.side === "YES" ? live.yesPrice : live.noPrice) : pos.entryPrice;
@@ -255,7 +258,7 @@ function PolyCard({
             <button
               onClick={() => setShowChart((v) => !v)}
               className={`p-1.5 rounded border transition-all ${showChart ? "border-primary/40 bg-primary/10 text-primary" : "border-transparent text-muted-foreground hover:text-primary hover:border-primary/30"}`}
-              title={showChart ? "הסתר גרף" : "הצג גרף הסתברות"}
+              title={showChart ? t("markets.hideChart", lang) : t("markets.showProbChart", lang)}
             >
               <LineChart className="h-3.5 w-3.5" />
             </button>
@@ -271,7 +274,7 @@ function PolyCard({
       </div>
       {showChart && (
         <div className="px-3 pb-3">
-          <div className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1.5">גרף הסתברות</div>
+          <div className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1.5">{t("markets.probChart", lang)}</div>
           <PolymarketProbabilityChart
             conditionId={pos.conditionId}
             tokenId={pos.tokenId}
@@ -329,6 +332,7 @@ function SectionHeader({
 /* ════════════════════════════ PAGE ══════════════════════════════════ */
 export default function TradeDesk() {
   const { intervalFor } = useRefresh();
+  const { lang, dir } = useLanguage();
   const {
     binancePositions, closeBinancePosition,
     stockPositions, closeStockPosition,
@@ -434,8 +438,8 @@ export default function TradeDesk() {
           <h1 className="text-2xl font-black tracking-tight" style={{ textShadow: "0 0 24px hsl(207 30% 70% / 0.35)" }}>
             Trade Desk
           </h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5" dir="rtl">
-            כל העסקאות הפעילות · קריפטו · מניות · Polymarket
+          <p className="text-xs text-muted-foreground font-mono mt-0.5" dir={dir}>
+            {t("markets.allActivePositions", lang)}
           </p>
         </div>
         <Link href="/simulator" className="flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-primary transition-colors self-start mt-1">
@@ -499,7 +503,7 @@ export default function TradeDesk() {
           <Layers className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm font-mono text-muted-foreground">// NO OPEN POSITIONS</p>
           <p className="text-xs text-muted-foreground/60 font-mono mt-1">
-            פתח עסקה מה-Simulator, Scalp Signals או Momentum Radar
+            {t("markets.openFromHint", lang)}
           </p>
           <div className="flex justify-center gap-3 mt-4">
             <Link href="/simulator" className="text-xs font-mono text-primary hover:underline">Simulator →</Link>

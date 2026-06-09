@@ -9,6 +9,7 @@ import {
   type SeriesMarker,
   type Time,
 } from "lightweight-charts";
+import { t, type Lang } from "./i18n";
 
 export interface Candle {
   time: number;
@@ -352,7 +353,7 @@ export interface AnalysisResult {
 }
 
 /** Composite auto-analysis of a candle array. Returns a unified signal. */
-export function autoAnalyze(candles: Candle[], lastPrice?: number): AnalysisResult {
+export function autoAnalyze(candles: Candle[], lastPrice?: number, lang: Lang = "he"): AnalysisResult {
   if (candles.length < 50) {
     return { verdict: "NEUTRAL", confidence: 0, indicators: [], summary: "Not enough data" };
   }
@@ -457,10 +458,14 @@ export function autoAnalyze(candles: Candle[], lastPrice?: number): AnalysisResu
   const tp = verdict === "LONG" ? entry + atrDist * 2 : verdict === "SHORT" ? entry - atrDist * 2 : undefined;
 
   const summary = verdict === "LONG"
-    ? `מגמה חזוקה לאחזק יציאה לאורך (אינדיקטורים ${indicators.filter((i) => i.signal === "BUY").length}/${indicators.length} בוחרים)`
+    ? t("analysis.summaryLong", lang)
+        .replace("{n}", String(indicators.filter((i) => i.signal === "BUY").length))
+        .replace("{total}", String(indicators.length))
     : verdict === "SHORT"
-      ? `מגמה חזוקה לאחזק יציאה לשוטר (אינדיקטורים ${indicators.filter((i) => i.signal === "SELL").length}/${indicators.length} בוחרים)`
-      : `אין מגמה ברורה כרגע — האינדיקטורים מתנגדים`;
+      ? t("analysis.summaryShort", lang)
+          .replace("{n}", String(indicators.filter((i) => i.signal === "SELL").length))
+          .replace("{total}", String(indicators.length))
+      : t("analysis.summaryNeutral", lang);
 
   return { verdict, confidence, indicators, summary, entry, sl, tp };
 }

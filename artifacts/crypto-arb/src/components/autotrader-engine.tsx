@@ -16,6 +16,8 @@ import { useFavorites } from "@/contexts/favorites-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { pushSquadMessage, clearSquadMessages, squadIso } from "@/lib/squad-comms";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
+import { t as tr } from "@/lib/i18n";
 
 /** Compact signed USD string for squad chatter (e.g. "+$12" / "-$4"). */
 function fmtUsd(n: number): string {
@@ -110,6 +112,7 @@ export function AutoTraderEngine() {
   } = usePortfolio();
   const { settings, update, getAssetCaution, recordAssetResult, publishAlpha } = useAutoTrader();
   const { isFavorite } = useFavorites();
+  const { lang } = useLanguage();
   // Boost mode: while the deadline is in the future every bot trades at maximum
   // cadence — tiny cooldowns, faster polling and fast profit-banking.
   const boostActive = settings.boostUntil > Date.now();
@@ -304,19 +307,19 @@ export function AutoTraderEngine() {
       const src = t.source ?? "";
       if (!src.startsWith("Scalp Squad")) continue;
       const member = squadMemberBySource(src);
-      const name = member?.name ?? "הצוות";
+      const name = member?.name ?? tr("ate.squadName", lang);
       const sym = t.symbol ?? "";
       pushSquadMessage({
         memberId: member?.id ?? "squad",
         memberName: name,
         kind: "exit",
-        text: `${name} סגר ${squadIso(sym)} ${t.pnl >= 0 ? "ברווח" : "בהפסד"} ${squadIso(fmtUsd(t.pnl))}`,
+        text: `${name} ${tr("ate.closedProfit", lang)} ${squadIso(sym)} ${t.pnl >= 0 ? tr("ate.profit", lang) : tr("ate.closedLoss", lang)} ${squadIso(fmtUsd(t.pnl))}`,
       });
       pushSquadMessage({
         memberId: "squad",
-        memberName: "תיאום",
+        memberName: tr("ate.coordination", lang),
         kind: "info",
-        text: `הון פנוי שוחרר מ-${squadIso(sym)} — מגויס מחדש לסטאפ הבא`,
+        text: `${tr("ate.freed", lang)}-${squadIso(sym)} — ${tr("ate.nextSetup", lang)}`,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -409,8 +412,8 @@ export function AutoTraderEngine() {
             peakRef.current.delete(pos.id);
             toast({
               variant: "success",
-              title: `סגירה חכמה · ${isRunner ? "ריצת רווח" : "סקאלפ מהיר"} ${pos.asset}`,
-              description: `${pos.direction} +${gainPct.toFixed(2)}% (שיא +${peakGainPct.toFixed(2)}%)`,
+              title: `${tr("ate.smartClose", lang)} · ${isRunner ? tr("ate.profitRun", lang) : tr("ate.quickScalp", lang)} ${pos.asset}`,
+              description: `${pos.direction} +${gainPct.toFixed(2)}% (${tr("ate.peak", lang)} +${peakGainPct.toFixed(2)}%)`,
             });
           }
           continue;
@@ -422,8 +425,8 @@ export function AutoTraderEngine() {
           peakRef.current.delete(pos.id);
           toast({
             variant: "success",
-            title: `סגירה חכמה · מִחזוּר ${pos.asset}`,
-            description: `${pos.direction} +${gainPct.toFixed(2)}% אחרי ${Math.round(ageMs / 1000)} ש'`,
+            title: `${tr("ate.smartClose", lang)} · ${tr("ate.recycle", lang)} ${pos.asset}`,
+            description: `${pos.direction} +${gainPct.toFixed(2)}% ${tr("ate.after", lang)} ${Math.round(ageMs / 1000)} ${tr("ate.secAbbr", lang)}`,
           });
           continue;
         }
@@ -437,8 +440,8 @@ export function AutoTraderEngine() {
           peakRef.current.delete(pos.id);
           toast({
             variant: "destructive",
-            title: `סגירה חכמה · קציצת הפסד ${pos.asset}`,
-            description: `${pos.direction} ${gainPct.toFixed(2)}% אחרי ${Math.round(ageMs / 1000)} ש' · אין SL מוגדר`,
+            title: `${tr("ate.smartClose", lang)} · ${tr("ate.lossCut", lang)} ${pos.asset}`,
+            description: `${pos.direction} ${gainPct.toFixed(2)}% ${tr("ate.after", lang)} ${Math.round(ageMs / 1000)} ${tr("ate.secAbbr", lang)} · ${tr("ate.noSlSet", lang)}`,
           });
         }
       }
@@ -644,12 +647,14 @@ export function AutoTraderEngine() {
       now - lastBackupRef.current > 45000
     ) {
       lastBackupRef.current = now;
-      const dirHe = alphaState.direction === "LONG" ? "לונג" : "שורט";
+      const dirHe = alphaState.direction === "LONG" ? tr("ate.dirLong", lang) : tr("ate.dirShort", lang);
       pushSquadMessage({
         memberId: "squad",
-        memberName: "תיאום",
+        memberName: tr("ate.coordination", lang),
         kind: "backup",
-        text: `קונצנזוס ${squadIso(dirHe)} חזק (${squadIso(alphaState.confluence + "%")}) — הצוות מתכנס לכיוון, גיבוי מוכן`,
+        text: tr("ate.backupCall", lang)
+          .replace("{dir}", squadIso(dirHe))
+          .replace("{conf}", squadIso(alphaState.confluence + "%")),
       });
     }
 
@@ -693,15 +698,16 @@ export function AutoTraderEngine() {
       availableCash -= margin;
       autoOpen += 1;
       if (member) {
-        const dirHe = c.direction === "LONG" ? "לונג" : "שורט";
+        const dirHe = c.direction === "LONG" ? tr("ate.dirLong", lang) : tr("ate.dirShort", lang);
         const isBackup = (squadHeldByAsset.get(c.asset)?.size ?? 0) > 0;
         pushSquadMessage({
           memberId: member.id,
           memberName: member.name,
           kind: isBackup ? "backup" : "entry",
-          text: isBackup
-            ? `${member.name} מצטרף לגיבוי ${squadIso(dirHe)} על ${squadIso(c.asset)} — קונצנזוס גבוה`
-            : `${member.name} פתח ${squadIso(dirHe)} על ${squadIso(c.asset)}`,
+          text: (isBackup ? tr("ate.squadBackup", lang) : tr("ate.squadEntry", lang))
+            .replace("{name}", member.name)
+            .replace("{dir}", squadIso(dirHe))
+            .replace("{asset}", squadIso(c.asset)),
         });
       }
       toast({

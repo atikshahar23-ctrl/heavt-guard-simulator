@@ -17,6 +17,8 @@ import {
   getGetPolymarketPriceHistoryQueryKey,
 } from "@workspace/api-client-react";
 import { israelTickMarkFormatter, israelTimeFormatter } from "../lib/timezone";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 interface Props {
   conditionId: string;
@@ -57,6 +59,7 @@ export function PolymarketProbabilityChart({
   openPosition = false,
   height = 200,
 }: Props) {
+  const { lang, dir } = useLanguage();
   const uid = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -161,7 +164,7 @@ export function PolymarketProbabilityChart({
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: `כניסה ${((entryPrice as number) * 100).toFixed(1)}%`,
+        title: `${t("tdc.entry", lang)} ${((entryPrice as number) * 100).toFixed(1)}%`,
       });
     }
 
@@ -173,7 +176,7 @@ export function PolymarketProbabilityChart({
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: `יציאה ${((exitPrice as number) * 100).toFixed(1)}%`,
+        title: `${t("tdc.exit", lang)} ${((exitPrice as number) * 100).toFixed(1)}%`,
       });
     }
 
@@ -186,7 +189,7 @@ export function PolymarketProbabilityChart({
           position: "belowBar",
           color: "#38bdf8",
           shape: "arrowUp",
-          text: "כניסה",
+          text: t("tdc.entry", lang),
         });
       }
     }
@@ -200,7 +203,7 @@ export function PolymarketProbabilityChart({
           position: "aboveBar",
           color: won ? "#22c55e" : "#ef4444",
           shape: "circle",
-          text: "יציאה",
+          text: t("tdc.exit", lang),
         });
       }
     }
@@ -234,7 +237,7 @@ export function PolymarketProbabilityChart({
         /* noop */
       }
     };
-  }, [data, entryTs, entryPrice, exitTs, exitPrice, openPosition]);
+  }, [data, entryTs, entryPrice, exitTs, exitPrice, openPosition, lang]);
 
   if (isLoading) {
     return (
@@ -242,8 +245,8 @@ export function PolymarketProbabilityChart({
         className="rounded-lg border border-border/40 bg-[hsl(0_0%_4%)] flex items-center justify-center"
         style={{ height }}
       >
-        <span className="text-xs font-mono text-muted-foreground animate-pulse" dir="rtl">
-          טוען גרף הסתברות…
+        <span className="text-xs font-mono text-muted-foreground animate-pulse" dir={dir}>
+          {t("pp.loadingProb", lang)}
         </span>
       </div>
     );
@@ -255,8 +258,8 @@ export function PolymarketProbabilityChart({
         className="rounded-lg border border-border/40 bg-[hsl(0_0%_4%)] flex items-center justify-center"
         style={{ height }}
       >
-        <span className="text-xs font-mono text-muted-foreground/60" dir="rtl">
-          אין נתוני היסטוריה זמינים
+        <span className="text-xs font-mono text-muted-foreground/60" dir={dir}>
+          {t("pp.noHistory", lang)}
         </span>
       </div>
     );

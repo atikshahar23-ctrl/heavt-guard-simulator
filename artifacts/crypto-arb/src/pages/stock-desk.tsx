@@ -18,28 +18,16 @@ import { usePortfolio } from "@/contexts/portfolio-context";
 import { useRefresh } from "@/contexts/refresh-context";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { getMarketNotes, formatHebrewDate } from "@/lib/market-calendar";
+import { useLanguage } from "@/contexts/language-context";
+import { t, type Lang } from "@/lib/i18n";
 
 /* ─── Labels & helpers ─── */
 
-const CATEGORY_LABEL_HE: Record<string, string> = {
-  TECH: "טכנולוגיה",
-  ENERGY: "אנרגיה",
-  RESOURCES: "חומרי גלם",
-  LARGE_CAP: "שווי שוק גדול",
-  INDEX: "מדדים / קרנות סל",
-};
+const KNOWN_CATEGORIES = ["TECH", "ENERGY", "RESOURCES", "LARGE_CAP", "INDEX"];
 
-const ACTION_HE: Record<StockRecommendation["action"], string> = {
-  BUY: "קנייה",
-  SELL: "מכירה",
-  HOLD: "המתנה",
-};
-
-const CONFIDENCE_HE: Record<StockRecommendation["confidence"], string> = {
-  HIGH: "ביטחון גבוה",
-  MEDIUM: "ביטחון בינוני",
-  LOW: "ביטחון נמוך",
-};
+function categoryLabel(cat: string, lang: Lang): string {
+  return KNOWN_CATEGORIES.includes(cat) ? t(`markets.stockCat.${cat}`, lang) : cat;
+}
 
 // Indices / ETFs to surface as the top market strip, in display order.
 const INDEX_ORDER = ["SPY", "QQQ", "DIA", "IWM", "GLD", "USO"];
@@ -61,18 +49,27 @@ function fmtCompact(n: number | null) {
   return String(n);
 }
 
-/** Build a fully-Hebrew, rule-based rationale from the structured signal fields. */
-function hebrewRationale(rec: StockRecommendation): string {
+/** Build a rule-based rationale from the structured signal fields. */
+function rationale(rec: StockRecommendation, lang: Lang): string {
   const mom = rec.momentum5dPercent;
-  const day = rec.changePercent;
-  const range = Math.round(rec.rangePositionPercent);
+  const day = pct(rec.changePercent);
+  const range = String(Math.round(rec.rangePositionPercent));
   if (rec.action === "BUY") {
-    return `מומנטום חיובי — עלייה של ${mom.toFixed(1)}% ב-5 ימי מסחר, ${pct(day)} היום, ונסחרת ב-${range}% מטווח החודש. הסוכן מזהה תנאים להמשך כלפי מעלה.`;
+    return t("markets.rationale.buy", lang)
+      .replace("{mom}", mom.toFixed(1))
+      .replace("{day}", day)
+      .replace("{range}", range);
   }
   if (rec.action === "SELL") {
-    return `לחץ מכירות — ירידה של ${Math.abs(mom).toFixed(1)}% ב-5 ימים, ${pct(day)} היום, ${range}% מטווח החודש. הסוכן מזהה חולשה; שקול הימנעות או הקטנת חשיפה.`;
+    return t("markets.rationale.sell", lang)
+      .replace("{mom}", Math.abs(mom).toFixed(1))
+      .replace("{day}", day)
+      .replace("{range}", range);
   }
-  return `דשדוש — תנועה של ${pct(mom, 1)} ב-5 ימים ו-${pct(day)} היום (${range}% מהטווח). אין יתרון ברור; המתנה לאיתות חזק יותר.`;
+  return t("markets.rationale.hold", lang)
+    .replace("{mom}", pct(mom, 1))
+    .replace("{day}", day)
+    .replace("{range}", range);
 }
 
 /** Educational entry / target / stop levels (NOT advice). HOLD → no levels. */
@@ -125,7 +122,7 @@ function fmtClock(d: Date) {
 }
 
 function DaySummaryBand({
-  now, breadth, gainers, losers, sectors, buyCount, sellCount, fg, loading,
+  now, breadth, gainers, losers, sectors, buyCount, sellCount, fg, loading, lang,
 }: {
   now: Date;
   breadth: { adv: number; dec: number; avg: number; total: number };
@@ -136,44 +133,49 @@ function DaySummaryBand({
   sellCount: number;
   fg: { value: number; classification: string } | undefined;
   loading: boolean;
+  lang: Lang;
 }) {
   const time = fmtClock(now);
   const tone = breadth.avg > 0.25 ? "up" : breadth.avg < -0.25 ? "down" : "flat";
-  const toneColor = tone === "up" ? "text-emerald-400" : tone === "down" ? "text-red-400" : "text-primary";
-  const toneWord = tone === "up" ? "נוטה כלפי מעלה" : tone === "down" ? "נוטה כלפי מטה" : "מעורב ומדשדש";
+  const toneWord = t(`markets.day.tone.${tone}`, lang);
   const top = gainers[0];
   const bot = losers[0];
   const bestSector = sectors.length ? [...sectors].sort((a, b) => b.avg - a.avg)[0] : null;
   const borderTone = tone === "up" ? "border-emerald-500/30" : tone === "down" ? "border-red-500/30" : "border-primary/30";
 
+  const [rangePre, rangePost] = t("markets.day.rangeLabel", lang).split("{time}");
+
+  let summary = t("markets.day.summaryMain", lang)
+    .replace("{time}", time)
+    .replace("{tone}", toneWord)
+    .replace("{total}", String(breadth.total))
+    .replace("{adv}", `${breadth.adv} ${t("markets.day.advancing", lang)}`)
+    .replace("{dec}", `${breadth.dec} ${t("markets.day.declining", lang)}`)
+    .replace("{avg}", pct(breadth.avg));
+  if (top) summary += t("markets.day.topMover", lang).replace("{sym}", top.symbol).replace("{chg}", pct(top.changePercent));
+  if (bot) summary += t("markets.day.worstMover", lang).replace("{sym}", bot.symbol).replace("{chg}", pct(bot.changePercent));
+  if (bestSector) summary += t("markets.day.bestSector", lang).replace("{sector}", categoryLabel(bestSector.cat, lang)).replace("{chg}", pct(bestSector.avg));
+  if (fg) summary += t("markets.day.fearGreed", lang).replace("{val}", String(fg.value)).replace("{cls}", fg.classification);
+  summary += t("markets.day.agentMarks", lang)
+    .replace("{buy}", `${buyCount} ${t("markets.day.buys", lang)}`)
+    .replace("{sell}", `${sellCount} ${t("markets.day.sells", lang)}`);
+
   return (
     <section className={`rounded-xl border ${borderTone} bg-gradient-to-l from-primary/[0.06] to-transparent p-4`}>
       <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-black flex items-center gap-1.5">
-          <CalendarClock className="h-4 w-4 text-primary" /> סיכום המסחר היום
+          <CalendarClock className="h-4 w-4 text-primary" /> {t("markets.day.heading", lang)}
         </h2>
         <span className="text-[10px] font-mono text-muted-foreground">
-          מחצות (00:00) עד <span className="text-foreground font-bold">{time}</span> · {formatHebrewDate(now)}
+          {rangePre}<span className="text-foreground font-bold">{time}</span>{(rangePost ?? "").replace("{date}", formatHebrewDate(now, lang))}
         </span>
       </div>
       {loading ? (
-        <p className="text-[12px] text-muted-foreground">טוען סיכום…</p>
+        <p className="text-[12px] text-muted-foreground">{t("markets.day.loading", lang)}</p>
       ) : (
         <>
-          <p className="text-[12.5px] leading-relaxed text-foreground/90">
-            נכון ל-<b>{time}</b>, מסחר היום <span className={`font-bold ${toneColor}`}>{toneWord}</span>.{" "}
-            מתוך {breadth.total} מניות במעקב,{" "}
-            <span className="text-emerald-400 font-bold">{breadth.adv} עולות</span> מול{" "}
-            <span className="text-red-400 font-bold">{breadth.dec} יורדות</span>, בשינוי יומי ממוצע של{" "}
-            <span className={`font-bold ${breadth.avg >= 0 ? "text-emerald-400" : "text-red-400"}`}>{pct(breadth.avg)}</span>.{" "}
-            {top && <>המובילה <b>{top.symbol}</b> <span className="text-emerald-400">{pct(top.changePercent)}</span>; </>}
-            {bot && <>החלשה <b>{bot.symbol}</b> <span className="text-red-400">{pct(bot.changePercent)}</span>. </>}
-            {bestSector && <>המגזר החזק: <b>{CATEGORY_LABEL_HE[bestSector.cat] ?? bestSector.cat}</b> ({pct(bestSector.avg)}). </>}
-            {fg && <>מדד פחד/חמדנות: <b>{fg.value}</b> ({fg.classification}). </>}
-            הסוכן מסמן <span className="text-emerald-400 font-bold">{buyCount} קניות</span> מול{" "}
-            <span className="text-red-400 font-bold">{sellCount} מכירות</span>.
-          </p>
-          <p className="mt-1.5 text-[10px] text-muted-foreground/70">חינוכי בלבד · הנתונים משקפים שינוי יומי מול הסגירה הקודמת, מתעדכן לאורך יום המסחר.</p>
+          <p className="text-[12.5px] leading-relaxed text-foreground/90">{summary}</p>
+          <p className="mt-1.5 text-[10px] text-muted-foreground/70">{t("markets.day.eduNote", lang)}</p>
         </>
       )}
     </section>
@@ -182,7 +184,7 @@ function DaySummaryBand({
 
 /* ─── Agent recommendation row ─── */
 
-function ConfidencePill({ confidence }: { confidence: StockRecommendation["confidence"] }) {
+function ConfidencePill({ confidence, lang }: { confidence: StockRecommendation["confidence"]; lang: Lang }) {
   const styles: Record<StockRecommendation["confidence"], string> = {
     HIGH: "bg-primary/20 text-primary border-primary/30",
     MEDIUM: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -191,7 +193,7 @@ function ConfidencePill({ confidence }: { confidence: StockRecommendation["confi
   return (
     <span className={`inline-flex items-center gap-1 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full border ${styles[confidence]}`}>
       {confidence === "HIGH" && <Zap className="h-2.5 w-2.5" />}
-      {CONFIDENCE_HE[confidence]}
+      {t(`markets.conf.${confidence}`, lang)}
     </span>
   );
 }
@@ -201,6 +203,7 @@ function AgentRow({ rec, quote, onOpen }: {
   quote: StockQuote | undefined;
   onOpen: (q: StockQuote) => void;
 }) {
+  const { lang } = useLanguage();
   const { cash, openStockPosition, activeWalletName } = usePortfolio();
   const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -217,7 +220,7 @@ function AgentRow({ rec, quote, onOpen }: {
   function quickTrade() {
     if (!levels) return;
     const amount = Math.min(2000, Math.max(0, cash * 0.1));
-    if (amount < 1) { setErr("אין מספיק מזומן"); return; }
+    if (amount < 1) { setErr(t("markets.noCash", lang)); return; }
     const e = openStockPosition(
       {
         symbol: rec.symbol, name: rec.name, direction: levels.direction,
@@ -246,32 +249,32 @@ function AgentRow({ rec, quote, onOpen }: {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono font-bold text-sm">{rec.symbol}</span>
             <span className="text-xs text-muted-foreground truncate max-w-[140px]">{rec.name}</span>
-            <span className={`text-xs font-black ${actionColor}`}>{ACTION_HE[rec.action]}</span>
-            <ConfidencePill confidence={rec.confidence} />
+            <span className={`text-xs font-black ${actionColor}`}>{t(`markets.action.${rec.action}`, lang)}</span>
+            <ConfidencePill confidence={rec.confidence} lang={lang} />
             <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground">
-              {CATEGORY_LABEL_HE[rec.category] ?? rec.category}
+              {categoryLabel(rec.category, lang)}
             </span>
           </div>
 
-          <p className="mt-1.5 text-[11px] text-foreground/80 leading-relaxed">{hebrewRationale(rec)}</p>
+          <p className="mt-1.5 text-[11px] text-foreground/80 leading-relaxed">{rationale(rec, lang)}</p>
 
           {/* Metrics */}
           <div className="mt-2 flex items-center gap-3 flex-wrap text-[10px] font-mono">
-            <span className="text-muted-foreground">מחיר <b className="text-foreground">${fmtPrice(rec.price)}</b></span>
-            <span className={rec.changePercent >= 0 ? "text-emerald-400" : "text-red-400"}>היום {pct(rec.changePercent)}</span>
-            <span className={momUp ? "text-emerald-400/80" : "text-red-400/80"}>5 ימים {pct(rec.momentum5dPercent, 1)}</span>
-            <span className="text-muted-foreground">טווח {Math.round(rec.rangePositionPercent)}%</span>
+            <span className="text-muted-foreground">{t("markets.label.price", lang)} <b className="text-foreground">${fmtPrice(rec.price)}</b></span>
+            <span className={rec.changePercent >= 0 ? "text-emerald-400" : "text-red-400"}>{t("markets.label.today", lang)} {pct(rec.changePercent)}</span>
+            <span className={momUp ? "text-emerald-400/80" : "text-red-400/80"}>{t("markets.label.fiveDays", lang)} {pct(rec.momentum5dPercent, 1)}</span>
+            <span className="text-muted-foreground">{t("markets.label.range", lang)} {Math.round(rec.rangePositionPercent)}%</span>
             {quote?.shortInterest != null && (
-              <span className="text-amber-400/80" title="Synthetic short interest for educational purposes">שורט {fmtCompact(quote.shortInterest)} ({quote.shortPercentOfFloat?.toFixed(1)}%)</span>
+              <span className="text-amber-400/80" title="Synthetic short interest for educational purposes">{t("markets.label.short", lang)} {fmtCompact(quote.shortInterest)} ({quote.shortPercentOfFloat?.toFixed(1)}%)</span>
             )}
           </div>
 
           {/* Educational levels */}
           {levels && (
             <div className="mt-2 grid grid-cols-3 gap-1.5">
-              <LevelChip label="כניסה" value={`$${fmtPrice(levels.entry)}`} tone="flat" />
-              <LevelChip label="יעד" value={`$${fmtPrice(levels.target)}`} tone="up" />
-              <LevelChip label="סטופ" value={`$${fmtPrice(levels.stop)}`} tone="down" />
+              <LevelChip label={t("markets.level.entry", lang)} value={`$${fmtPrice(levels.entry)}`} tone="flat" />
+              <LevelChip label={t("markets.level.target", lang)} value={`$${fmtPrice(levels.target)}`} tone="up" />
+              <LevelChip label={t("markets.level.stop", lang)} value={`$${fmtPrice(levels.stop)}`} tone="down" />
             </div>
           )}
 
@@ -282,7 +285,7 @@ function AgentRow({ rec, quote, onOpen }: {
                 onClick={quickTrade}
                 className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1.5 rounded border border-primary/40 bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
               >
-                <Zap className="h-3 w-3" /> מסחר מהיר
+                <Zap className="h-3 w-3" /> {t("markets.quickTrade", lang)}
               </button>
             )}
             {quote && (
@@ -290,7 +293,7 @@ function AgentRow({ rec, quote, onOpen }: {
                 onClick={() => onOpen(quote)}
                 className="flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1.5 rounded border border-border text-foreground hover:border-primary/40 hover:text-primary transition-colors"
               >
-                <CandlestickChart className="h-3 w-3" /> גרף וסחר
+                <CandlestickChart className="h-3 w-3" /> {t("markets.chartAndTrade", lang)}
               </button>
             )}
             <a
@@ -301,7 +304,7 @@ function AgentRow({ rec, quote, onOpen }: {
             >
               TradingView <ExternalLink className="h-3 w-3" />
             </a>
-            {done && <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400"><Check className="h-3 w-3" /> בוצע {done}</span>}
+            {done && <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400"><Check className="h-3 w-3" /> {t("markets.done", lang)} {done}</span>}
             {err && <span className="text-[10px] font-mono text-red-400">{err}</span>}
           </div>
         </div>
@@ -350,6 +353,7 @@ function MoverRow({ q, onOpen }: { q: StockQuote; onOpen: (q: StockQuote) => voi
 type ActionFilter = "ALL" | "BUY" | "SELL";
 
 export default function StockDeskPage() {
+  const { lang, dir } = useLanguage();
   const { intervalFor } = useRefresh();
   const stocksInterval = intervalFor(30000, 30000);
   const recsInterval = intervalFor(60000, 60000);
@@ -369,7 +373,7 @@ export default function StockDeskPage() {
   });
 
   const now = new Date();
-  const calNotes = getMarketNotes(now);
+  const calNotes = getMarketNotes(now, lang);
   const fg = movers?.fearGreed;
 
   const stocksList = useMemo(() => (stocks ?? []) as StockQuote[], [stocks]);
@@ -443,22 +447,22 @@ export default function StockDeskPage() {
   }, [isFetching, intervalSeconds]);
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto" dir="rtl">
+    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto" dir={dir}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <LineChart className="h-6 w-6 text-primary" />
-            <h1 className="text-xl md:text-2xl font-black tracking-tight">חדר המסחר — מניות</h1>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight">{t("markets.deskTitle", lang)}</h1>
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">{formatHebrewDate(now)} · כל מה שצריך סוחר מניות במסך אחד — מדדים, סוכן המלצות, מובילים, מגזרים, חדשות ולוח אירועים.</p>
+          <p className="text-xs text-muted-foreground">{formatHebrewDate(now, lang)} · {t("markets.deskSubtitle", lang)}</p>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono bg-card px-3 py-1.5 rounded border border-border text-muted-foreground self-start">
           <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin text-primary" : ""}`} />
-          {isFetching ? "מעדכן..." : `${countdown}s`}
+          {isFetching ? t("markets.updating", lang) : `${countdown}s`}
         </div>
       </div>
 
@@ -473,14 +477,15 @@ export default function StockDeskPage() {
         sellCount={sellCount}
         fg={fg ?? undefined}
         loading={stocksLoading}
+        lang={lang}
       />
 
       {/* Disclaimer */}
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/[0.07] p-3 flex items-start gap-2">
         <ShieldAlert className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
         <p className="text-[11px] text-foreground/85 leading-relaxed">
-          <span className="font-bold text-amber-400">חינוכי בלבד — לא ייעוץ השקעות.</span>{" "}
-          הסוכן מסכם נתוני שוק ציבוריים ומחשב רמות כניסה/יעד/סטופ <span className="font-semibold">לתרגול בלבד</span>. אין כאן הבטחת תשואה, אחוזי הצלחה או המלצה לפעולה בכסף אמיתי.
+          <span className="font-bold text-amber-400">{t("markets.disclaimerLead", lang)}</span>{" "}
+          {t("markets.disclaimerBody1", lang)}<span className="font-semibold">{t("markets.disclaimerEmphasis", lang)}</span>{t("markets.disclaimerBody2", lang)}
         </p>
       </div>
 
@@ -488,8 +493,8 @@ export default function StockDeskPage() {
       <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
         <div className="flex items-center gap-2 mb-2">
           <Search className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-bold tracking-widest uppercase text-primary">חיפוש כל מניה בעולם</span>
-          <span className="text-[10px] text-muted-foreground">— חפש כל מניה, תעודת סל או מדד וסחר בו</span>
+          <span className="text-[11px] font-bold tracking-widest uppercase text-primary">{t("markets.searchWorldTitle", lang)}</span>
+          <span className="text-[10px] text-muted-foreground">{t("markets.searchWorldSub", lang)}</span>
         </div>
         <UniversalStockSearch />
       </div>
@@ -497,7 +502,7 @@ export default function StockDeskPage() {
       {/* Index strip */}
       <div>
         <h2 className="text-[11px] font-bold tracking-widest uppercase text-cyan-400/80 mb-2 flex items-center gap-1.5">
-          <Activity className="h-3.5 w-3.5" /> מדדים מובילים
+          <Activity className="h-3.5 w-3.5" /> {t("markets.topIndices", lang)}
         </h2>
         {stocksLoading ? (
           <div className="flex gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 flex-1 rounded-lg" />)}</div>
@@ -511,24 +516,24 @@ export default function StockDeskPage() {
       {/* Market pulse */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <PulseStat
-          icon={Activity} label="רוחב שוק"
+          icon={Activity} label={t("markets.breadth", lang)}
           value={`${breadth.adv} / ${breadth.dec}`}
-          sub="עולות / יורדות"
+          sub={t("markets.advDecSub", lang)}
           tone={breadth.adv >= breadth.dec ? "up" : "down"}
         />
         <PulseStat
-          icon={breadth.avg >= 0 ? TrendingUp : TrendingDown} label="שינוי ממוצע"
-          value={pct(breadth.avg)} sub={`על ${breadth.total} מניות`}
+          icon={breadth.avg >= 0 ? TrendingUp : TrendingDown} label={t("markets.avgChange", lang)}
+          value={pct(breadth.avg)} sub={t("markets.onNStocks", lang).replace("{n}", String(breadth.total))}
           tone={breadth.avg >= 0 ? "up" : "down"}
         />
         <PulseStat
-          icon={Gauge} label="פחד/חמדנות"
-          value={fg ? String(fg.value) : "—"} sub={fg?.classification ?? "טוען…"}
+          icon={Gauge} label={t("markets.fearGreedLabel", lang)}
+          value={fg ? String(fg.value) : "—"} sub={fg?.classification ?? t("markets.loadingShort", lang)}
           tone={(fg?.value ?? 50) >= 55 ? "up" : (fg?.value ?? 50) <= 45 ? "down" : "flat"}
         />
         <PulseStat
-          icon={Bot} label="איתותי הסוכן"
-          value={`${buyCount} / ${sellCount}`} sub="קנייה / מכירה"
+          icon={Bot} label={t("markets.agentSignals", lang)}
+          value={`${buyCount} / ${sellCount}`} sub={t("markets.buySellSub", lang)}
           tone={buyCount >= sellCount ? "up" : "down"}
         />
       </div>
@@ -539,16 +544,16 @@ export default function StockDeskPage() {
         <section className="rounded-xl border border-border bg-card/30 p-3 md:p-4">
           <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
             <h2 className="text-sm font-bold flex items-center gap-1.5">
-              <Bot className="h-4 w-4 text-primary" /> סוכן המניות
-              <span className="text-[10px] font-mono text-muted-foreground">— {recs.length} המלצות מדורגות</span>
+              <Bot className="h-4 w-4 text-primary" /> {t("markets.stockAgent", lang)}
+              <span className="text-[10px] font-mono text-muted-foreground">— {t("markets.rankedRecs", lang).replace("{n}", String(recs.length))}</span>
             </h2>
             <div className="flex items-center gap-1">
               <Filter className="h-3 w-3 text-muted-foreground" />
               <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-mono font-bold">
-                {([["ALL", "הכל"], ["BUY", "קנייה"], ["SELL", "מכירה"]] as const).map(([k, lbl]) => (
+                {([["ALL", t("markets.filterAll", lang)], ["BUY", t("markets.action.BUY", lang)], ["SELL", t("markets.action.SELL", lang)]] as const).map(([k, lbl]) => (
                   <button
                     key={k}
-                    onClick={() => setFilter(k)}
+                    onClick={() => setFilter(k as ActionFilter)}
                     className={`px-2.5 py-1 transition-colors ${filter === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
                   >
                     {lbl}
@@ -561,7 +566,7 @@ export default function StockDeskPage() {
           {recsLoading ? (
             <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}</div>
           ) : filteredRecs.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">אין המלצות בקטגוריה זו כרגע.</div>
+            <div className="text-center py-12 text-muted-foreground text-sm">{t("markets.noRecsCategory", lang)}</div>
           ) : (
             <div className="space-y-2 max-h-[760px] overflow-y-auto pl-1 -ml-1">
               {filteredRecs.map((rec) => (
@@ -575,16 +580,16 @@ export default function StockDeskPage() {
         <div className="space-y-4">
           {/* Sectors */}
           <section className="rounded-xl border border-border bg-card/30 p-3 md:p-4">
-            <h2 className="text-sm font-bold flex items-center gap-1.5 mb-2.5"><Layers className="h-4 w-4 text-primary" /> מגזרים</h2>
+            <h2 className="text-sm font-bold flex items-center gap-1.5 mb-2.5"><Layers className="h-4 w-4 text-primary" /> {t("markets.sectors", lang)}</h2>
             <div className="space-y-2">
-              {sectors.length === 0 && <p className="text-[11px] text-muted-foreground">טוען…</p>}
+              {sectors.length === 0 && <p className="text-[11px] text-muted-foreground">{t("markets.loadingShort", lang)}</p>}
               {sectors.map((s) => {
                 const up = s.avg >= 0;
                 const width = Math.min(100, Math.abs(s.avg) * 25 + 6);
                 return (
                   <div key={s.cat}>
                     <div className="flex items-center justify-between text-[11px] mb-0.5">
-                      <span className="font-medium">{CATEGORY_LABEL_HE[s.cat] ?? s.cat}</span>
+                      <span className="font-medium">{categoryLabel(s.cat, lang)}</span>
                       <span className={`font-mono font-bold ${up ? "text-emerald-400" : "text-red-400"}`}>{pct(s.avg)}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden flex" dir="ltr">
@@ -599,16 +604,16 @@ export default function StockDeskPage() {
           {/* Movers */}
           <section className="rounded-xl border border-border bg-card/30 p-3 md:p-4 space-y-3">
             <div>
-              <h2 className="text-xs font-bold flex items-center gap-1.5 mb-2 text-emerald-400"><ArrowUpRight className="h-3.5 w-3.5" /> המובילות</h2>
+              <h2 className="text-xs font-bold flex items-center gap-1.5 mb-2 text-emerald-400"><ArrowUpRight className="h-3.5 w-3.5" /> {t("markets.topGainers", lang)}</h2>
               <div className="space-y-1.5">
-                {gainers.length === 0 && <p className="text-[11px] text-muted-foreground">טוען…</p>}
+                {gainers.length === 0 && <p className="text-[11px] text-muted-foreground">{t("markets.loadingShort", lang)}</p>}
                 {gainers.map((q) => <MoverRow key={q.symbol} q={q} onOpen={setSelected} />)}
               </div>
             </div>
             <div>
-              <h2 className="text-xs font-bold flex items-center gap-1.5 mb-2 text-red-400"><ArrowDownRight className="h-3.5 w-3.5" /> המפסידות</h2>
+              <h2 className="text-xs font-bold flex items-center gap-1.5 mb-2 text-red-400"><ArrowDownRight className="h-3.5 w-3.5" /> {t("markets.topLosers", lang)}</h2>
               <div className="space-y-1.5">
-                {losers.length === 0 && <p className="text-[11px] text-muted-foreground">טוען…</p>}
+                {losers.length === 0 && <p className="text-[11px] text-muted-foreground">{t("markets.loadingShort", lang)}</p>}
                 {losers.map((q) => <MoverRow key={q.symbol} q={q} onOpen={setSelected} />)}
               </div>
             </div>
@@ -616,9 +621,9 @@ export default function StockDeskPage() {
 
           {/* Calendar */}
           <section className="rounded-xl border border-border bg-card/30 p-3 md:p-4">
-            <h2 className="text-sm font-bold flex items-center gap-1.5 mb-2.5"><CalendarClock className="h-4 w-4 text-primary" /> לוח אירועים</h2>
+            <h2 className="text-sm font-bold flex items-center gap-1.5 mb-2.5"><CalendarClock className="h-4 w-4 text-primary" /> {t("markets.eventBoard", lang)}</h2>
             {calNotes.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground">אין אירועי מסחר מיוחדים היום — יום מסחר רגיל.</p>
+              <p className="text-[11px] text-muted-foreground">{t("markets.noEvents", lang)}</p>
             ) : (
               <div className="space-y-1.5">
                 {calNotes.map((n, i) => (
@@ -636,7 +641,7 @@ export default function StockDeskPage() {
       {/* Headlines */}
       {movers?.news && movers.news.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-bold flex items-center gap-1.5"><Newspaper className="h-4 w-4 text-primary" /> כותרות שמזיזות שוק</h2>
+          <h2 className="text-sm font-bold flex items-center gap-1.5"><Newspaper className="h-4 w-4 text-primary" /> {t("markets.marketHeadlines", lang)}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
             {movers.news.slice(0, 9).map((n, i) => (
               <a key={i} href={n.url} target="_blank" rel="noopener noreferrer" className="rounded-md border border-border/60 bg-card/40 p-2.5 hover:border-primary/40 transition-colors">
@@ -649,7 +654,7 @@ export default function StockDeskPage() {
       )}
 
       <p className="text-center text-[10px] text-muted-foreground/70 pt-2">
-        הדמיה חינוכית בלבד · ללא כסף אמיתי · ללא ייעוץ או הבטחת תשואות
+        {t("markets.eduFooter", lang)}
       </p>
 
       {selected && <StockDetailPanel stock={selected} onClose={() => setSelected(null)} />}

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { STARTING_BALANCE } from "@/contexts/portfolio-context";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 export type OnboardingFocus = "crypto" | "stocks" | "all";
 
@@ -11,29 +13,31 @@ const balanceLabel = new Intl.NumberFormat("en-US", {
 
 const FOCUS_OPTIONS: {
   id: OnboardingFocus;
-  title: string;
-  desc: string;
+  titleKey: string;
+  descKey: string;
   icon: string;
 }[] = [
   {
     id: "crypto",
-    title: "קריפטו",
-    desc: "ביטקוין, מטבעות מובילים, סקאלפ ומומנטום בזמן אמת.",
+    titleKey: "ob.focus.crypto.title",
+    descKey: "ob.focus.crypto.desc",
     icon: "₿",
   },
   {
     id: "stocks",
-    title: "מניות",
-    desc: "מניות מובילות, כסף חכם וכותרות שוק ההון.",
+    titleKey: "ob.focus.stocks.title",
+    descKey: "ob.focus.stocks.desc",
     icon: "📈",
   },
   {
     id: "all",
-    title: "הכול",
-    desc: "תמונת שוק מלאה — קריפטו, מניות ושווקי תחזיות יחד.",
+    titleKey: "ob.focus.all.title",
+    descKey: "ob.focus.all.desc",
     icon: "✦",
   },
 ];
+
+const FEATURE_KEYS = ["ob.feature.scanner", "ob.feature.simulator", "ob.feature.bots"];
 
 const TOTAL_STEPS = 3;
 
@@ -44,13 +48,14 @@ export function OnboardingWizard({
 }) {
   const [step, setStep] = useState(0);
   const [focus, setFocus] = useState<OnboardingFocus>("all");
+  const { lang } = useLanguage();
 
   const next = () => setStep((s) => Math.min(TOTAL_STEPS - 1, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   return (
     <div
-      dir="rtl"
+      dir={lang === "he" ? "rtl" : "ltr"}
       className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-background/95 px-5 py-10 backdrop-blur-sm"
     >
       {/* Gold ambient aura */}
@@ -76,16 +81,16 @@ export function OnboardingWizard({
         {step === 0 && (
           <div className="flex flex-col">
             <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.35em] text-primary/70">
-              ברוכים הבאים
+              {t("ob.welcome", lang)}
             </p>
             <h2
               className="mt-2 text-center text-2xl font-semibold tracking-wide text-foreground md:text-3xl"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
-              במה נתמקד?
+              {t("ob.focusQuestion", lang)}
             </h2>
             <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">
-              נכוונן עבורכם את לוח המחוונים. תמיד אפשר לשנות אחר כך.
+              {t("ob.focusSubtitle", lang)}
             </p>
 
             <div className="mt-6 grid gap-3">
@@ -94,7 +99,7 @@ export function OnboardingWizard({
                   key={o.id}
                   type="button"
                   onClick={() => setFocus(o.id)}
-                  className={`flex items-center gap-4 rounded-xl border p-4 text-right transition-all ${
+                  className={`flex items-center gap-4 rounded-xl border p-4 ${lang === "he" ? "text-right" : "text-left"} transition-all ${
                     focus === o.id
                       ? "border-primary/60 bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]"
                       : "border-border bg-white/[0.02] hover:border-primary/30 hover:bg-white/[0.04]"
@@ -105,10 +110,10 @@ export function OnboardingWizard({
                   </span>
                   <span className="flex-1">
                     <span className="block font-semibold text-foreground">
-                      {o.title}
+                      {t(o.titleKey, lang)}
                     </span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                      {o.desc}
+                      {t(o.descKey, lang)}
                     </span>
                   </span>
                   <span
@@ -127,13 +132,13 @@ export function OnboardingWizard({
         {step === 1 && (
           <div className="flex flex-col items-center text-center">
             <p className="font-mono text-[0.6rem] uppercase tracking-[0.35em] text-primary/70">
-              תיק תרגול
+              {t("ob.practicePortfolio", lang)}
             </p>
             <h2
               className="mt-2 text-2xl font-semibold tracking-wide text-foreground md:text-3xl"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
-              יתרת הפתיחה שלכם
+              {t("ob.startingBalance", lang)}
             </h2>
             <div className="mt-6 flex h-32 w-full items-center justify-center rounded-xl border border-primary/25 bg-gradient-to-b from-primary/10 to-transparent">
               <span
@@ -144,8 +149,7 @@ export function OnboardingWizard({
               </span>
             </div>
             <p className="mx-auto mt-5 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              כסף וירטואלי לתרגול בלבד. כל הפעילות היא הדמיה חינוכית — אין כסף
-              אמיתי, אין הבטחות לרווח ואין ייעוץ פיננסי.
+              {t("ob.virtualMoney", lang)}
             </p>
           </div>
         )}
@@ -159,23 +163,19 @@ export function OnboardingWizard({
               className="mt-4 text-2xl font-semibold tracking-wide text-foreground md:text-3xl"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
-              הכול מוכן
+              {t("ob.allReady", lang)}
             </h2>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              לוח המחוונים, הסימולטור והבוטים ממתינים לכם. בואו נתחיל לתרגל.
+              {t("ob.dashboardReady", lang)}
             </p>
-            <ul className="mt-6 w-full space-y-2 text-right">
-              {[
-                "סורק שוק חי — קריפטו, מניות ושווקי תחזיות",
-                "סימולטור מסחר עם תיקים מרובים",
-                "מרכז פיקוד בוטים לתרגול אוטומטי",
-              ].map((line) => (
+            <ul className={`mt-6 w-full space-y-2 ${lang === "he" ? "text-right" : "text-left"}`}>
+              {FEATURE_KEYS.map((key) => (
                 <li
-                  key={line}
+                  key={key}
                   className="flex items-center gap-3 rounded-lg border border-border bg-white/[0.02] px-4 py-2.5 text-sm text-foreground"
                 >
                   <span className="text-primary">◆</span>
-                  {line}
+                  {t(key, lang)}
                 </li>
               ))}
             </ul>
@@ -190,7 +190,7 @@ export function OnboardingWizard({
               onClick={back}
               className="rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
-              חזרה
+              {t("ob.back", lang)}
             </button>
           ) : (
             <span />
@@ -202,7 +202,7 @@ export function OnboardingWizard({
               onClick={next}
               className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.6)] transition-[filter] hover:brightness-110"
             >
-              המשך
+              {t("ob.continue", lang)}
             </button>
           ) : (
             <button
@@ -210,7 +210,7 @@ export function OnboardingWizard({
               onClick={() => onComplete(focus)}
               className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.6)] transition-[filter] hover:brightness-110"
             >
-              כניסה למערכת
+              {t("ob.login", lang)}
             </button>
           )}
         </div>

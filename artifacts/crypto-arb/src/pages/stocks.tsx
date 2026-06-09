@@ -12,6 +12,8 @@ import {
 import { StockDetailPanel } from "@/components/stock-detail-panel";
 import { UniversalStockSearch } from "@/components/universal-stock-search";
 import { StockIcon } from "@/components/stock-icon";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 type Outlook = { tone: "bull" | "bear" | "neutral"; verdict: string; detail: string };
 
@@ -195,6 +197,7 @@ export default function StocksPage() {
   const [countdown, setCountdown] = useState(intervalSeconds);
   const [selected, setSelected] = useState<StockQuote | null>(null);
   const { isFavorite } = useFavorites();
+  const { lang } = useLanguage();
 
   const { data: stocks, isLoading, isFetching } = useGetStocks({
     query: { queryKey: getGetStocksQueryKey(), refetchInterval: stocksInterval },
@@ -273,8 +276,8 @@ export default function StocksPage() {
       {/* Universal market search — chart & trade ANY real-market symbol */}
       <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3 md:p-4">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[11px] font-bold tracking-widest uppercase text-primary">כל שוק המניות</span>
-          <span className="text-[10px] text-muted-foreground">— חפש כל מניה, תעודת סל או מדד בעולם וסחר בו</span>
+          <span className="text-[11px] font-bold tracking-widest uppercase text-primary">{t("markets.stocksAllTitle", lang)}</span>
+          <span className="text-[10px] text-muted-foreground">{t("markets.stocksAllSub", lang)}</span>
         </div>
         <UniversalStockSearch />
       </div>

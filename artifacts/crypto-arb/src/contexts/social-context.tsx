@@ -15,6 +15,8 @@ import {
 } from "@workspace/api-client-react";
 import { usePortfolio } from "./portfolio-context";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 const REF_STORAGE_KEY = "arb_ref_code";
 /** Only treat a stashed referral code as a genuine new sign-up within this window. */
@@ -48,6 +50,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const portfolio = usePortfolio();
   const { addFunds } = portfolio;
+  const { lang } = useLanguage();
 
   // Latest snapshot read by the interval reporter without re-subscribing.
   const reportRef = useRef<{ name: string; value: number }>({
@@ -152,11 +155,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         if (res.redeemed && res.bonus > 0) {
           await drainCredits();
           toast({
-            title: "בונוס הזמנה התקבל",
-            description: `נוספו $${res.bonus.toLocaleString()} לארנק הפעיל שלך (דמו לימודי).`,
+            title: t("social.referralBonusTitle", lang),
+            description: t("social.referralBonusDesc", lang).replace(
+              "{n}",
+              `$${res.bonus.toLocaleString()}`,
+            ),
           });
         } else if (res.reason) {
-          toast({ title: "קוד הזמנה", description: res.reason });
+          toast({ title: t("social.referralCodeTitle", lang), description: res.reason });
         }
       } catch {
         // Network/transient error — keep the stash for a later attempt.
@@ -165,7 +171,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, drainCredits]);
+  }, [user, drainCredits, lang]);
 
   return (
     <SocialContext.Provider value={{ drainCredits }}>

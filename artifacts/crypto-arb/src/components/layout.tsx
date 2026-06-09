@@ -8,7 +8,7 @@ import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages,
+  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
@@ -59,7 +59,7 @@ function AuthSection() {
           className={`flex-1 flex items-center justify-center gap-1 rounded px-2 py-1.5 text-[10px] font-bold font-mono transition-colors ${
             lang === "he" ? "bg-primary/20 text-primary border border-primary/30" : "bg-secondary/40 text-muted-foreground hover:text-foreground"
           }`}
-          title="עברית"
+          title={t("nav.languageHe", lang)}
         >
           HE
         </button>
@@ -68,7 +68,7 @@ function AuthSection() {
           className={`flex-1 flex items-center justify-center gap-1 rounded px-2 py-1.5 text-[10px] font-bold font-mono transition-colors ${
             lang === "en" ? "bg-primary/20 text-primary border border-primary/30" : "bg-secondary/40 text-muted-foreground hover:text-foreground"
           }`}
-          title="English"
+          title={t("nav.languageEn", lang)}
         >
           EN
         </button>
@@ -132,7 +132,7 @@ function AuthSection() {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { lang } = useLanguage();
+  const { lang, dir } = useLanguage();
   const { data: health, isLoading } = useHealthCheck({
     query: {
       queryKey: getHealthCheckQueryKey(),
@@ -191,6 +191,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/insights", label: t("nav.insights", lang), icon: BarChart3 },
         { href: "/tools", label: t("nav.tools", lang), icon: Calculator },
         { href: "/history", label: t("nav.history", lang), icon: History },
+        { href: "/settings", label: t("nav.settings", lang), icon: SettingsIcon },
       ],
     },
   ];
@@ -224,7 +225,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {groups.map((group) => (
           <div key={group.title}>
             <div className="px-3 pb-2 short:pb-1">
-              <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55" dir="rtl">{group.title}</span>
+              <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55" dir={dir}>{group.title}</span>
             </div>
             <div className="space-y-0.5">
               {group.links.map((link) => {

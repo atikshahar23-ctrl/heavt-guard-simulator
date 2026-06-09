@@ -6,8 +6,10 @@ import {
 } from "lucide-react";
 import {
   getMarketNotes, formatHebrewDate, formatClock, type MarketNoteKind, type MarketNote,
-  getCalendarMonth, HEB_MONTH_NAMES, HEB_WEEKDAY_SHORT, type CalendarDay,
+  getCalendarMonth, monthNames, weekdayShort, type CalendarDay,
 } from "@/lib/market-calendar";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 
 const KIND_COLOR: Record<MarketNoteKind, string> = {
   holiday: "0 72% 60%",
@@ -17,13 +19,7 @@ const KIND_COLOR: Record<MarketNoteKind, string> = {
   info: "152 50% 50%",
 };
 
-const KIND_LABEL: Record<MarketNoteKind, string> = {
-  holiday: "חג",
-  macro: "FOMC/NFP",
-  expiry: "תפוגה",
-  weekend: "סוף שבוע",
-  info: "סוף חודש",
-};
+const KIND_ORDER: MarketNoteKind[] = ["holiday", "macro", "expiry", "weekend", "info"];
 
 const DOT_PRIORITY: Record<MarketNoteKind, number> = {
   holiday: 5,
@@ -45,6 +41,7 @@ function sortedNotes(notes: MarketNote[]): MarketNote[] {
  * Educational calendar only — not live data and not advice.
  */
 export function MarketClock() {
+  const { lang, dir } = useLanguage();
   const [now, setNow] = useState(() => new Date());
   const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -64,7 +61,7 @@ export function MarketClock() {
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  const notes = getMarketNotes(now);
+  const notes = getMarketNotes(now, lang);
   const top = notes[0];
   const cells = getCalendarMonth(viewYear, viewMonth);
 
@@ -87,11 +84,11 @@ export function MarketClock() {
   const selectedNotes = useMemo(() => {
     if (!selected) return null;
     const d = new Date(selected.year, selected.month, selected.day);
-    return { date: d, notes: sortedNotes(getMarketNotes(d)) };
-  }, [selected]);
+    return { date: d, notes: sortedNotes(getMarketNotes(d, lang)) };
+  }, [selected, lang]);
 
   return (
-    <div className="w-full flex flex-col items-center gap-1 relative" dir="rtl">
+    <div className="w-full flex flex-col items-center gap-1 relative" dir={dir}>
       <div className="flex items-center gap-1.5">
         <CalendarClock className="h-3 w-3 text-primary/80" />
         <span
@@ -112,7 +109,7 @@ export function MarketClock() {
           setOpen(true);
         }}
       >
-        {formatHebrewDate(now)}
+        {formatHebrewDate(now, lang)}
       </button>
       {top && (
         <div
@@ -133,7 +130,7 @@ export function MarketClock() {
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setOpen(false)}
-          dir="rtl"
+          dir={dir}
         >
           <div
             className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border/70 bg-card shadow-2xl"
@@ -146,14 +143,14 @@ export function MarketClock() {
                 <button
                   className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
                   onClick={() => setViewYear((y) => y - 1)}
-                  title="שנה קודמת"
+                  title={t("mc.prevYear", lang)}
                 >
                   <ChevronsRight className="h-4 w-4 text-primary" />
                 </button>
                 <button
                   className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
                   onClick={prevMonth}
-                  title="חודש קודם"
+                  title={t("mc.prevMonth", lang)}
                 >
                   <ChevronRight className="h-4 w-4 text-primary" />
                 </button>
@@ -161,13 +158,13 @@ export function MarketClock() {
 
               <div className="flex items-center gap-2">
                 <span className="text-base font-black text-primary tabular-nums min-w-[140px] text-center">
-                  {HEB_MONTH_NAMES[viewMonth]} {viewYear}
+                  {monthNames(lang)[viewMonth]} {viewYear}
                 </span>
                 <button
                   className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition-colors"
                   onClick={goToday}
                 >
-                  היום
+                  {t("mc.today", lang)}
                 </button>
               </div>
 
@@ -175,21 +172,21 @@ export function MarketClock() {
                 <button
                   className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
                   onClick={nextMonth}
-                  title="חודש הבא"
+                  title={t("mc.nextMonth", lang)}
                 >
                   <ChevronLeft className="h-4 w-4 text-primary" />
                 </button>
                 <button
                   className="rounded-lg p-1.5 hover:bg-primary/10 transition-colors"
                   onClick={() => setViewYear((y) => y + 1)}
-                  title="שנה הבאה"
+                  title={t("mc.nextYear", lang)}
                 >
                   <ChevronsLeft className="h-4 w-4 text-primary" />
                 </button>
                 <button
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors mr-1"
                   onClick={() => setOpen(false)}
-                  title="סגירה"
+                  title={t("mc.close", lang)}
                 >
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
@@ -199,7 +196,7 @@ export function MarketClock() {
             <div className="p-4">
               {/* Weekday header */}
               <div className="grid grid-cols-7 gap-1 mb-1">
-                {HEB_WEEKDAY_SHORT.map((w) => (
+                {weekdayShort(lang).map((w) => (
                   <div key={w} className="text-center text-[10px] font-bold text-muted-foreground uppercase py-1">{w}</div>
                 ))}
               </div>
@@ -252,10 +249,10 @@ export function MarketClock() {
 
               {/* Legend */}
               <div className="mt-3 flex flex-wrap gap-2.5 border-t border-border/40 pt-3">
-                {(Object.keys(KIND_LABEL) as MarketNoteKind[]).map((k) => (
+                {KIND_ORDER.map((k) => (
                   <div key={k} className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full" style={{ background: `hsl(${KIND_COLOR[k]})` }} />
-                    <span className="text-[9px] text-muted-foreground">{KIND_LABEL[k]}</span>
+                    <span className="text-[9px] text-muted-foreground">{t(`mc.kind.${k}`, lang)}</span>
                   </div>
                 ))}
               </div>
@@ -264,10 +261,10 @@ export function MarketClock() {
               {selectedNotes && (
                 <div className="mt-3 rounded-xl border border-border/50 bg-secondary/20 p-3">
                   <div className="text-xs font-bold text-primary mb-2">
-                    {formatHebrewDate(selectedNotes.date)}
+                    {formatHebrewDate(selectedNotes.date, lang)}
                   </div>
                   {selectedNotes.notes.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground">אין אירועים מיוחדים ביום זה — מסחר רגיל.</div>
+                    <div className="text-[11px] text-muted-foreground">{t("mc.noEvents", lang)}</div>
                   ) : (
                     <div className="space-y-1.5">
                       {selectedNotes.notes.map((n, i) => (
@@ -285,7 +282,7 @@ export function MarketClock() {
               )}
 
               <div className="mt-3 text-center text-[8.5px] text-muted-foreground/70">
-                לוח חינוכי בלבד — תאריכים ידועים מראש, לא נתונים חיים ולא ייעוץ פיננסי.
+                {t("mc.footer", lang)}
               </div>
             </div>
           </div>

@@ -7,14 +7,20 @@ import type { ClosedTrade } from "@/contexts/portfolio-context";
 import { TradeDetailChart } from "@/components/trade-detail-chart";
 import { CryptoIcon } from "@/components/crypto-icon";
 import { StockIcon } from "@/components/stock-icon";
+import { useLanguage } from "@/contexts/language-context";
+import { t, type Lang } from "@/lib/i18n";
 
-const TYPE_LABEL: Record<ClosedTrade["type"], string> = {
-  BINANCE: "פיוצ'רס קריפטו",
-  STOCK: "מניות",
-  POLYMARKET: "שוק חיזוי",
-  FUNDING: "מימון דלתא-נייטרל",
-  OPTION: "אופציות",
+const TYPE_LABEL_KEY: Record<ClosedTrade["type"], string> = {
+  BINANCE: "td.typeBinance",
+  STOCK: "td.typeStock",
+  POLYMARKET: "td.typePolymarket",
+  FUNDING: "td.typeFunding",
+  OPTION: "td.typeOption",
 };
+
+function typeLabel(type: ClosedTrade["type"], lang: Lang): string {
+  return t(TYPE_LABEL_KEY[type], lang);
+}
 
 const BOT_SOURCE_LABEL: Record<string, string> = {
   "Dip Buyer": "Dip Buyer",
@@ -27,27 +33,27 @@ const BOT_SOURCE_LABEL: Record<string, string> = {
   "Quick Trade": "Quick Trade",
 };
 
-function directionLabel(d: ClosedTrade["direction"]): string {
+function directionLabel(d: ClosedTrade["direction"], lang: Lang): string {
   switch (d) {
-    case "LONG": return "לונג (LONG)";
-    case "SHORT": return "שורט (SHORT)";
-    case "YES": return "כן (YES)";
-    case "NO": return "לא (NO)";
+    case "LONG": return t("td.dirLong", lang);
+    case "SHORT": return t("td.dirShort", lang);
+    case "YES": return t("td.dirYes", lang);
+    case "NO": return t("td.dirNo", lang);
     default: return "—";
   }
 }
 
-function exitInfo(t: ClosedTrade): { label: string; color: string } {
-  if (t.exit === "TP") return { label: "יעד רווח (TP)", color: "#22c55e" };
-  if (t.exit === "SL") return { label: "סטופ לוס (SL)", color: "#ef4444" };
-  if (t.exit === "LIQ") return { label: "יציאת חירום (LIQ)", color: "#f59e0b" };
-  return { label: "סגירה ידנית", color: "#a1a1aa" };
+function exitInfo(trade: ClosedTrade, lang: Lang): { label: string; color: string } {
+  if (trade.exit === "TP") return { label: t("td.exitTp", lang), color: "#22c55e" };
+  if (trade.exit === "SL") return { label: t("td.exitSl", lang), color: "#ef4444" };
+  if (trade.exit === "LIQ") return { label: t("td.exitLiq", lang), color: "#f59e0b" };
+  return { label: t("td.exitManual", lang), color: "#a1a1aa" };
 }
 
-function botLabel(t: ClosedTrade): string {
-  if (t.source && BOT_SOURCE_LABEL[t.source]) return BOT_SOURCE_LABEL[t.source];
-  if (t.source) return t.source;
-  return t.auto ? "אוטו-טריידר" : "ידני";
+function botLabel(trade: ClosedTrade, lang: Lang): string {
+  if (trade.source && BOT_SOURCE_LABEL[trade.source]) return BOT_SOURCE_LABEL[trade.source];
+  if (trade.source) return trade.source;
+  return trade.auto ? t("td.botAuto", lang) : t("td.botManual", lang);
 }
 
 function fmtUsd(n: number, dp = 2): string {
@@ -61,31 +67,31 @@ function fmtPrice(p: number): string {
   return p.toPrecision(3);
 }
 
-function fmtDateTime(iso: string): string {
+function fmtDateTime(iso: string, lang: Lang): string {
   const d = new Date(iso);
-  return d.toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(lang === "en" ? "en-US" : "he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-function holdingDuration(t: ClosedTrade): string | null {
-  if (!t.openedAt) return null;
-  const ms = new Date(t.closedAt).getTime() - new Date(t.openedAt).getTime();
+function holdingDuration(trade: ClosedTrade, lang: Lang): string | null {
+  if (!trade.openedAt) return null;
+  const ms = new Date(trade.closedAt).getTime() - new Date(trade.openedAt).getTime();
   if (!(ms > 0)) return null;
   const m = Math.floor(ms / 60000);
-  if (m < 60) return `${m} דקות`;
+  if (m < 60) return `${m} ${t("td.durMinutes", lang)}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ש׳ ${m % 60} ד׳`;
-  return `${Math.floor(h / 24)} ימים ${h % 24} ש׳`;
+  if (h < 24) return `${h} ${t("td.durHr", lang)} ${m % 60} ${t("td.durMinAbbr", lang)}`;
+  return `${Math.floor(h / 24)} ${t("td.durDays", lang)} ${h % 24} ${t("td.durHr", lang)}`;
 }
 
-const SOURCE_REASON: Record<string, string> = {
-  "Dip Buyer": "הבוט זיהה ירידה חדה במחיר וקנה את ה״דיפ״ בציפייה לתיקון כלפי מעלה",
-  "Breakout Hunter": "הבוט זיהה פריצה של התנגדות עם מומנטום וביקש לרכוב על התנועה",
-  "Blue-Chip DCA": "רכישה מדורגת (DCA) של נכס איכותי לטווח ארוך, ללא תזמון שוק",
-  "Scalp signal": "סיגנל סקאלפ זיהה התכנסות של RSI/EMA/ATR לכיוון ברור בטווח קצר",
-  "Momentum surge": "סורק המומנטום זיהה זינוק בנפח ובקצב העלייה (RVol/ROC)",
-  "Smart-Money": "הסוכן החכם זיהה הצטברות סיגנלים טכניים ומשפיענים לאותו כיוון",
-  "Smart-Money (technical + influencer)": "הסוכן החכם שילב איתות טכני עם סנטימנט משפיענים לאותו כיוון",
-  "Quick Trade": "כניסה מהירה ידנית מתוך מסך ההימורים/הסיגנלים",
+const SOURCE_REASON_KEY: Record<string, string> = {
+  "Dip Buyer": "td.reasonDipBuyer",
+  "Breakout Hunter": "td.reasonBreakoutHunter",
+  "Blue-Chip DCA": "td.reasonBlueChipDca",
+  "Scalp signal": "td.reasonScalpSignal",
+  "Momentum surge": "td.reasonMomentumSurge",
+  "Smart-Money": "td.reasonSmartMoney",
+  "Smart-Money (technical + influencer)": "td.reasonSmartMoneyTech",
+  "Quick Trade": "td.reasonQuickTrade",
 };
 
 function fmtRR(rr: number): string {
@@ -100,72 +106,72 @@ interface TradeAnalysis {
   lessonTone: "good" | "bad" | "neutral";
 }
 
-/** Build a Hebrew narrative breakdown of one closed trade from its stored fields. */
-function buildAnalysis(t: ClosedTrade): TradeAnalysis {
-  const won = t.pnl >= 0;
-  const lev = t.leverage ?? 1;
+/** Build a narrative breakdown of one closed trade from its stored fields. */
+function buildAnalysis(trade: ClosedTrade, lang: Lang): TradeAnalysis {
+  const won = trade.pnl >= 0;
+  const lev = trade.leverage ?? 1;
   const dirWord =
-    t.direction === "LONG" ? "עלייה (לונג)" :
-    t.direction === "SHORT" ? "ירידה (שורט)" :
-    t.direction === "YES" ? "כן (YES)" :
-    t.direction === "NO" ? "לא (NO)" : "כיוון";
+    trade.direction === "LONG" ? t("td.dirwordLong", lang) :
+    trade.direction === "SHORT" ? t("td.dirwordShort", lang) :
+    trade.direction === "YES" ? t("td.dirwordYes", lang) :
+    trade.direction === "NO" ? t("td.dirwordNo", lang) : t("td.dirwordDefault", lang);
 
   // ── Why we entered ──
   let why: string;
-  if (t.source && SOURCE_REASON[t.source]) why = SOURCE_REASON[t.source];
-  else if (t.auto) why = "האוטו-טריידר זיהה סטאפ שעמד בקריטריונים של הצי ופתח את הפוזיציה אוטומטית";
-  else why = "החלטת כניסה ידנית של הסוחר";
-  why += `. הכיוון שנבחר: ${dirWord}${lev > 1 ? `, במינוף ${lev}x` : ""}.`;
+  if (trade.source && SOURCE_REASON_KEY[trade.source]) why = t(SOURCE_REASON_KEY[trade.source], lang);
+  else if (trade.auto) why = t("td.whyAuto", lang);
+  else why = t("td.whyManual", lang);
+  why += `. ${t("td.whyDirectionChosen", lang)}: ${dirWord}${lev > 1 ? `, ${t("td.whyLeverage", lang)} ${lev}x` : ""}.`;
 
   // ── The plan (targets) ──
   const plan: string[] = [];
-  if (Number.isFinite(t.entryPrice)) plan.push(`מחיר כניסה מתוכנן: $${fmtPrice(t.entryPrice as number)}`);
-  if (t.tpPrice != null) plan.push(`יעד רווח (TP): $${fmtPrice(t.tpPrice)}`);
-  if (t.slPrice != null) plan.push(`סטופ לוס (SL): $${fmtPrice(t.slPrice)}`);
-  if (t.tpPrice != null && t.slPrice != null && Number.isFinite(t.entryPrice)) {
-    const entry = t.entryPrice as number;
-    const risk = Math.abs(entry - t.slPrice);
-    const reward = Math.abs(t.tpPrice - entry);
-    if (risk > 0) plan.push(`יחס סיכון/סיכוי מתוכנן: ${fmtRR(reward / risk)}`);
+  if (Number.isFinite(trade.entryPrice)) plan.push(`${t("td.planEntry", lang)}: $${fmtPrice(trade.entryPrice as number)}`);
+  if (trade.tpPrice != null) plan.push(`${t("td.planTp", lang)}: $${fmtPrice(trade.tpPrice)}`);
+  if (trade.slPrice != null) plan.push(`${t("td.planSl", lang)}: $${fmtPrice(trade.slPrice)}`);
+  if (trade.tpPrice != null && trade.slPrice != null && Number.isFinite(trade.entryPrice)) {
+    const entry = trade.entryPrice as number;
+    const risk = Math.abs(entry - trade.slPrice);
+    const reward = Math.abs(trade.tpPrice - entry);
+    if (risk > 0) plan.push(`${t("td.planRr", lang)}: ${fmtRR(reward / risk)}`);
   }
-  if (plan.length === 0) plan.push("לא נשמרה תוכנית מובנית של יעד/סטופ לעסקה זו (עסקה ישנה או כניסה ידנית).");
+  if (plan.length === 0) plan.push(t("td.planNone", lang));
 
   // ── What happened ──
   const outcome: string[] = [];
-  const ex = exitInfo(t);
-  outcome.push(`סיבת היציאה: ${ex.label}`);
-  if (t.exitPrice != null) outcome.push(`מחיר יציאה בפועל: $${fmtPrice(t.exitPrice)}`);
-  const pct = t.cost > 0 ? (t.pnl / t.cost) * 100 : 0;
-  const feeStr = (t.fees ?? 0) > 0 ? ` · עמלות: $${fmtUsd(t.fees!)}` : "";
-  outcome.push(`תוצאה: ${won ? "+" : ""}$${fmtUsd(t.pnl)} (${won ? "+" : ""}${pct.toFixed(2)}% על המרג׳ין)${feeStr}`);
-  const dur = holdingDuration(t);
-  if (dur) outcome.push(`משך החזקה: ${dur}`);
+  const ex = exitInfo(trade, lang);
+  outcome.push(`${t("td.outcomeExitReason", lang)}: ${ex.label}`);
+  if (trade.exitPrice != null) outcome.push(`${t("td.outcomeExitPrice", lang)}: $${fmtPrice(trade.exitPrice)}`);
+  const pct = trade.cost > 0 ? (trade.pnl / trade.cost) * 100 : 0;
+  const feeStr = (trade.fees ?? 0) > 0 ? ` · ${t("td.outcomeFees", lang)}: $${fmtUsd(trade.fees!)}` : "";
+  outcome.push(`${t("td.outcomeResult", lang)}: ${won ? "+" : ""}$${fmtUsd(trade.pnl)} (${won ? "+" : ""}${pct.toFixed(2)}% ${t("td.outcomeOnMargin", lang)})${feeStr}`);
+  const dur = holdingDuration(trade, lang);
+  if (dur) outcome.push(`${t("td.rowHolding", lang)}: ${dur}`);
 
   // ── Lesson ──
   let lesson: string;
   let lessonTone: "good" | "bad" | "neutral" = "neutral";
-  if (t.exit === "TP") { lesson = "העסקה הגיעה ליעד הרווח לפי התוכנית — ביצוע ממושמע של אסטרטגיית היציאה. כך נראית עסקה ״לפי הספר״."; lessonTone = "good"; }
-  else if (t.exit === "SL") { lesson = "העסקה נקטעה בסטופ לפי התוכנית — ההפסד הוגבל מראש וזה בדיוק תפקיד הסטופ. ניהול סיכון נכון, גם כשמפסידים."; lessonTone = "bad"; }
-  else if (t.exit === "LIQ") { lesson = "יציאת חירום של מנהל הסיכונים (לפני סיכון מסוכן) — בדוק אם המינוף היה גבוה מדי או הסטופ רחוק מדי."; lessonTone = "bad"; }
-  else if (won) { lesson = "נסגרה ידנית ברווח — שקול אם כדאי היה לתת לרווח לרוץ עד היעד, או שהסגירה המוקדמת נכונה לסטאפ הזה."; lessonTone = "good"; }
-  else { lesson = "נסגרה ידנית בהפסד לפני הסטופ — שים לב לסגירות רגשיות; לרוב עדיף לתת לתוכנית (SL/TP) לעבוד."; lessonTone = "bad"; }
+  if (trade.exit === "TP") { lesson = t("td.lessonTp", lang); lessonTone = "good"; }
+  else if (trade.exit === "SL") { lesson = t("td.lessonSl", lang); lessonTone = "bad"; }
+  else if (trade.exit === "LIQ") { lesson = t("td.lessonLiq", lang); lessonTone = "bad"; }
+  else if (won) { lesson = t("td.lessonWonManual", lang); lessonTone = "good"; }
+  else { lesson = t("td.lessonLostManual", lang); lessonTone = "bad"; }
 
   return { why, plan, outcome, lesson, lessonTone };
 }
 
-function AnalysisBlock({ trade }: { trade: ClosedTrade }) {
-  const a = buildAnalysis(trade);
+function AnalysisBlock({ trade, lang }: { trade: ClosedTrade; lang: Lang }) {
+  const a = buildAnalysis(trade, lang);
   const lessonColor = a.lessonTone === "good" ? "#22c55e" : a.lessonTone === "bad" ? "#ef4444" : "#a1a1aa";
   return (
     <div className="space-y-2.5">
       <div className="flex items-center gap-1.5">
         <Brain className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-bold tracking-tight">ניתוח מלא של העסקה</h3>
+        <h3 className="text-sm font-bold tracking-tight">{t("td.analysisTitle", lang)}</h3>
       </div>
 
       <div className="rounded-lg border bg-card/60 p-3 space-y-1">
         <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-          <Lightbulb className="h-3 w-3" /> למה נכנסנו
+          <Lightbulb className="h-3 w-3" /> {t("td.analysisWhy", lang)}
         </div>
         <p className="text-xs text-foreground/85 leading-relaxed">{a.why}</p>
       </div>
@@ -173,7 +179,7 @@ function AnalysisBlock({ trade }: { trade: ClosedTrade }) {
       <div className="grid sm:grid-cols-2 gap-2.5">
         <div className="rounded-lg border bg-card/60 p-3 space-y-1.5">
           <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            <ClipboardList className="h-3 w-3" /> התוכנית והיעדים
+            <ClipboardList className="h-3 w-3" /> {t("td.analysisPlan", lang)}
           </div>
           <ul className="space-y-0.5">
             {a.plan.map((line, i) => (
@@ -186,7 +192,7 @@ function AnalysisBlock({ trade }: { trade: ClosedTrade }) {
 
         <div className="rounded-lg border bg-card/60 p-3 space-y-1.5">
           <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            <Flag className="h-3 w-3" /> מה קרה בסוף
+            <Flag className="h-3 w-3" /> {t("td.analysisOutcome", lang)}
           </div>
           <ul className="space-y-0.5">
             {a.outcome.map((line, i) => (
@@ -200,7 +206,7 @@ function AnalysisBlock({ trade }: { trade: ClosedTrade }) {
 
       <div className="rounded-lg border p-3 space-y-1" style={{ borderColor: `${lessonColor}40`, background: `${lessonColor}0d` }}>
         <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider" style={{ color: lessonColor }}>
-          <Brain className="h-3 w-3" /> מסקנה ולקח
+          <Brain className="h-3 w-3" /> {t("td.analysisLesson", lang)}
         </div>
         <p className="text-xs text-foreground/90 leading-relaxed">{a.lesson}</p>
       </div>
@@ -223,6 +229,7 @@ interface Props {
 }
 
 export function TradeDetailModal({ trade, onClose }: Props) {
+  const { lang, dir } = useLanguage();
   useEffect(() => {
     if (!trade) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -236,21 +243,21 @@ export function TradeDetailModal({ trade, onClose }: Props) {
 
   const won = trade.pnl >= 0;
   const pct = trade.cost > 0 ? (trade.pnl / trade.cost) * 100 : 0;
-  const ex = exitInfo(trade);
-  const dur = holdingDuration(trade);
+  const ex = exitInfo(trade, lang);
+  const dur = holdingDuration(trade, lang);
   const hasStructured = Number.isFinite(trade.entryPrice);
   const leverage = trade.leverage ?? 1;
 
   const qtyLabel =
-    trade.type === "STOCK" ? `${(trade.qty ?? 0).toFixed(2)} מניות`
-      : trade.type === "POLYMARKET" ? `${(trade.qty ?? 0).toFixed(2)} יחידות`
-        : `$${fmtUsd(trade.qty ?? 0, 0)} נומינלי`;
+    trade.type === "STOCK" ? `${(trade.qty ?? 0).toFixed(2)} ${t("td.qtyShares", lang)}`
+      : trade.type === "POLYMARKET" ? `${(trade.qty ?? 0).toFixed(2)} ${t("td.qtyUnits", lang)}`
+        : `$${fmtUsd(trade.qty ?? 0, 0)} ${t("td.qtyNotional", lang)}`;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto"
       onClick={onClose}
-      dir="rtl"
+      dir={dir}
     >
       <div
         className="w-full max-w-2xl rounded-xl border border-border bg-background shadow-2xl my-auto"
@@ -264,9 +271,9 @@ export function TradeDetailModal({ trade, onClose }: Props) {
             {trade.type === "POLYMARKET" && <Target className="h-5 w-5 text-primary" />}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-mono font-black text-base">{trade.symbol ?? TYPE_LABEL[trade.type]}</span>
+                <span className="font-mono font-black text-base">{trade.symbol ?? typeLabel(trade.type, lang)}</span>
                 <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/60 text-foreground/80">
-                  {TYPE_LABEL[trade.type]}
+                  {typeLabel(trade.type, lang)}
                 </span>
                 {trade.direction && (
                   <span
@@ -290,7 +297,7 @@ export function TradeDetailModal({ trade, onClose }: Props) {
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors" title="סגור">
+          <button onClick={onClose} className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors" title={t("td.closeBtn", lang)}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -300,7 +307,7 @@ export function TradeDetailModal({ trade, onClose }: Props) {
           <div className="rounded-lg border p-3 flex items-center justify-between" style={{ borderColor: won ? "#22c55e40" : "#ef444440", background: won ? "#22c55e0d" : "#ef44440d" }}>
             <div className="flex items-center gap-2">
               {won ? <TrendingUp className="h-5 w-5 text-emerald-400" /> : <TrendingDown className="h-5 w-5 text-red-400" />}
-              <span className="text-xs font-mono text-muted-foreground">רווח/הפסד</span>
+              <span className="text-xs font-mono text-muted-foreground">{t("td.pnlLabel", lang)}</span>
             </div>
             <div className="text-right">
               <div className="font-mono text-xl font-black" style={{ color: won ? "#22c55e" : "#ef4444" }}>
@@ -323,44 +330,44 @@ export function TradeDetailModal({ trade, onClose }: Props) {
           {/* Detail grid */}
           {hasStructured ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <DetailRow label="מחיר כניסה" value={`$${fmtPrice(trade.entryPrice as number)}`} />
-              <DetailRow label="מחיר יציאה" value={`$${fmtPrice(trade.exitPrice ?? (trade.entryPrice as number))}`} />
-              <DetailRow label="כיוון" value={directionLabel(trade.direction)} />
-              <DetailRow label="מינוף" value={leverage > 1 ? `${leverage}x` : "ללא"} />
-              <DetailRow label="גודל פוזיציה" value={qtyLabel} />
-              <DetailRow label="מרג'ין / עלות" value={`$${fmtUsd(trade.cost)}`} />
-              <DetailRow label="סיבת יציאה" value={ex.label} color={ex.color} />
-              <DetailRow label="מקור / בוט" value={botLabel(trade)} />
-              <DetailRow label="משך החזקה" value={dur ?? "—"} />
-              <DetailRow label="נפתחה" value={trade.openedAt ? fmtDateTime(trade.openedAt) : "—"} />
-              <DetailRow label="נסגרה" value={fmtDateTime(trade.closedAt)} />
-              <DetailRow label="תקבול" value={`$${fmtUsd(trade.proceeds)}`} />
+              <DetailRow label={t("td.rowEntryPrice", lang)} value={`$${fmtPrice(trade.entryPrice as number)}`} />
+              <DetailRow label={t("td.rowExitPrice", lang)} value={`$${fmtPrice(trade.exitPrice ?? (trade.entryPrice as number))}`} />
+              <DetailRow label={t("td.rowDirection", lang)} value={directionLabel(trade.direction, lang)} />
+              <DetailRow label={t("td.rowLeverage", lang)} value={leverage > 1 ? `${leverage}x` : t("td.rowNoLeverage", lang)} />
+              <DetailRow label={t("td.rowPositionSize", lang)} value={qtyLabel} />
+              <DetailRow label={t("td.rowMargin", lang)} value={`$${fmtUsd(trade.cost)}`} />
+              <DetailRow label={t("td.rowExitReason", lang)} value={ex.label} color={ex.color} />
+              <DetailRow label={t("td.rowSource", lang)} value={botLabel(trade, lang)} />
+              <DetailRow label={t("td.rowHolding", lang)} value={dur ?? "—"} />
+              <DetailRow label={t("td.rowOpened", lang)} value={trade.openedAt ? fmtDateTime(trade.openedAt, lang) : "—"} />
+              <DetailRow label={t("td.rowClosed", lang)} value={fmtDateTime(trade.closedAt, lang)} />
+              <DetailRow label={t("td.rowProceeds", lang)} value={`$${fmtUsd(trade.proceeds)}`} />
               {(trade.fees ?? 0) > 0 && (
-                <DetailRow label="עמלות מסחר" value={`$${fmtUsd(trade.fees!)}`} color="#f59e0b" />
+                <DetailRow label={t("td.rowFees", lang)} value={`$${fmtUsd(trade.fees!)}`} color="#f59e0b" />
               )}
             </div>
           ) : (
             // Legacy trade without structured fields — show description + basics.
             <div className="space-y-2">
               <div className="rounded-lg border bg-card/60 p-3">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground mb-1">פרטי העסקה</div>
+                <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground mb-1">{t("td.rowTradeDetails", lang)}</div>
                 <div className="font-mono text-xs text-foreground/90 break-words">{trade.description}</div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <DetailRow label="עלות" value={`$${fmtUsd(trade.cost)}`} />
-                <DetailRow label="סיבת יציאה" value={ex.label} color={ex.color} />
-                <DetailRow label="מקור / בוט" value={botLabel(trade)} />
-                {dur && <DetailRow label="משך החזקה" value={dur} />}
-                <DetailRow label="נסגרה" value={fmtDateTime(trade.closedAt)} />
+                <DetailRow label={t("td.rowCost", lang)} value={`$${fmtUsd(trade.cost)}`} />
+                <DetailRow label={t("td.rowExitReason", lang)} value={ex.label} color={ex.color} />
+                <DetailRow label={t("td.rowSource", lang)} value={botLabel(trade, lang)} />
+                {dur && <DetailRow label={t("td.rowHolding", lang)} value={dur} />}
+                <DetailRow label={t("td.rowClosed", lang)} value={fmtDateTime(trade.closedAt, lang)} />
               </div>
             </div>
           )}
 
           {/* Full per-trade analysis */}
-          <AnalysisBlock trade={trade} />
+          <AnalysisBlock trade={trade} lang={lang} />
 
           <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-            <Cpu className="h-3 w-3" /> הדמיה חינוכית בלבד — ללא כסף אמיתי וללא הבטחת תשואות.
+            <Cpu className="h-3 w-3" /> {t("td.disclaimer", lang)}
           </p>
         </div>
       </div>

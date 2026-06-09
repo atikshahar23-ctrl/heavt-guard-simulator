@@ -10,11 +10,11 @@ const NEWS_OPEN_KEY = "sidebar-news-open";
 function timeAgo(iso: string, lang: ReturnType<typeof useLanguage>["lang"]): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return lang === "en" ? "now" : "עכשיו";
-  if (mins < 60) return lang === "en" ? `${mins}m ago` : `לפני ${mins} ד׳`;
+  if (mins < 1) return t("markets.news.now", lang);
+  if (mins < 60) return t("markets.news.minAgo", lang).replace("{n}", String(mins));
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return lang === "en" ? `${hrs}h ago` : `לפני ${hrs} ש׳`;
-  return lang === "en" ? `${Math.floor(hrs / 24)}d ago` : `לפני ${Math.floor(hrs / 24)} ימים`;
+  if (hrs < 24) return t("markets.news.hrAgo", lang).replace("{n}", String(hrs));
+  return t("markets.news.dayAgo", lang).replace("{n}", String(Math.floor(hrs / 24)));
 }
 
 export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) {

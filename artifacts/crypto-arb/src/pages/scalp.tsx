@@ -37,39 +37,31 @@ function dirMeta(direction: ScalpSignal["direction"]) {
 /** Rule-based JARVIS explanation — pure, no AI, no network. */
 function explainScalpSignal(s: ScalpSignal, lang: Lang): string[] {
   const lines: string[] = [];
-  if (lang === "en") {
-    if (s.direction === "LONG") lines.push("📈 Buy signal — JARVIS detects short-term bullish conditions.");
-    else if (s.direction === "SHORT") lines.push("📉 Sell signal — JARVIS detects short-term selling pressure.");
-    else lines.push("⏸ No clear direction — JARVIS recommends waiting.");
 
-    if (s.rsi <= 30) lines.push(`RSI ${s.rsi} — Oversold: selling may be exhausted, buying pressure expected.`);
-    else if (s.rsi >= 70) lines.push(`RSI ${s.rsi} — Overbought: buying may be exhausted, selling pressure elevated.`);
-    else if (s.direction === "SHORT" && s.rsi >= 58) lines.push(`RSI ${s.rsi} — Approaching resistance level where rallies stall.`);
-    else lines.push(`RSI ${s.rsi} — Neutral zone, move can go either way.`);
+  if (s.direction === "LONG") lines.push(t("scalp.long.signal", lang));
+  else if (s.direction === "SHORT") lines.push(t("scalp.short.signal", lang));
+  else lines.push(t("scalp.neutral.signal", lang));
 
-    if (s.riskReward >= 2) lines.push(`R/R ${s.riskReward.toFixed(2)} — Excellent! Potential gain is ${s.riskReward.toFixed(1)}× the risk.`);
-    else if (s.riskReward >= 1.5) lines.push(`R/R ${s.riskReward.toFixed(2)} — Good. Professional-grade.`);
-    else if (s.riskReward > 0) lines.push(`R/R ${s.riskReward.toFixed(2)} — Relatively low. Take note.`);
+  let rsiKey: string;
+  if (s.rsi <= 30) rsiKey = "scalp.rsi.oversold";
+  else if (s.rsi >= 70) rsiKey = "scalp.rsi.overbought";
+  else if (s.direction === "SHORT" && s.rsi >= 58) rsiKey = "scalp.rsi.resistance";
+  else rsiKey = "scalp.rsi.neutral";
+  lines.push(`RSI ${s.rsi} — ${t(rsiKey, lang)}`);
 
-    const confEn = s.confidence === "HIGH" ? "High" : s.confidence === "MEDIUM" ? "Medium" : "Low";
-    lines.push(`Confidence ${confEn} (score ${s.score}) — ${s.confidence === "HIGH" ? "Most indicators agree." : s.confidence === "MEDIUM" ? "Some agree, be cautious." : "Partial support — riskier trade."}`);
-  } else {
-    if (s.direction === "LONG") lines.push("📈 סיגנל קנייה — JARVIS מזהה תנאים לעלייה בטווח הקצר.");
-    else if (s.direction === "SHORT") lines.push("📉 סיגנל מכירה — JARVIS מזהה לחץ מכירה בטווח הקצר.");
-    else lines.push("⏸ אין כיוון ברור כרגע — JARVIS ממליץ להמתין.");
+  const rrPrefix = t("scalp.rrPrefix", lang);
+  if (s.riskReward >= 2) lines.push(`${rrPrefix} ${s.riskReward.toFixed(2)} — ${t("scalp.rr.excellent", lang).replace("{n}", s.riskReward.toFixed(1))}`);
+  else if (s.riskReward >= 1.5) lines.push(`${rrPrefix} ${s.riskReward.toFixed(2)} — ${t("scalp.rr.good", lang)}`);
+  else if (s.riskReward > 0) lines.push(`${rrPrefix} ${s.riskReward.toFixed(2)} — ${t("scalp.rr.low", lang)}`);
 
-    if (s.rsi <= 30) lines.push(`RSI ${s.rsi} — Oversold: המטבע נמכר יתר על המידה, לחץ קנייה צפוי.`);
-    else if (s.rsi >= 70) lines.push(`RSI ${s.rsi} — Overbought: המטבע קנה יתר, לחץ מכירה מוגבר.`);
-    else if (s.direction === "SHORT" && s.rsi >= 58) lines.push(`RSI ${s.rsi} — מגיע לרמה שבה עליות נתקלות בהתנגדות.`);
-    else lines.push(`RSI ${s.rsi} — אזור ניטרלי, תנועה יכולה ללכת לשני הכיוונים.`);
+  const confKey = s.confidence === "HIGH" ? "high" : s.confidence === "MEDIUM" ? "medium" : "low";
+  lines.push(
+    t("scalp.confLine", lang)
+      .replace("{label}", t(`scalp.confLabel.${confKey}`, lang))
+      .replace("{n}", String(s.score))
+      .replace("{suffix}", t(`scalp.conf.${confKey}`, lang)),
+  );
 
-    if (s.riskReward >= 2) lines.push(`יחס סיכון/סיכוי ${s.riskReward.toFixed(2)} — מצוין! הרווח הפוטנציאלי גדול פי ${s.riskReward.toFixed(1)} מהסיכון.`);
-    else if (s.riskReward >= 1.5) lines.push(`יחס סיכון/סיכוי ${s.riskReward.toFixed(2)} — טוב. מקצועי.`);
-    else if (s.riskReward > 0) lines.push(`יחס סיכון/סיכוי ${s.riskReward.toFixed(2)} — נמוך יחסית. שים לב.`);
-
-    const confHe = s.confidence === "HIGH" ? "גבוה" : s.confidence === "MEDIUM" ? "בינוני" : "נמוך";
-    lines.push(`ביטחון ${confHe} (ציון ${s.score}) — ${s.confidence === "HIGH" ? "רוב האינדיקטורים מסכימים." : s.confidence === "MEDIUM" ? "חלקם מסכימים, זהירות." : "תמיכה חלקית — עסקה מסוכנת יותר."}`);
-  }
   for (const r of s.reasons) lines.push(`• ${r}`);
   return lines;
 }
@@ -180,7 +172,7 @@ function QuickInvest({ s }: { s: ScalpSignal }) {
 function SignalCard({ s }: { s: ScalpSignal }) {
   const { Icon, color, label } = dirMeta(s.direction);
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { lang } = useLanguage();
+  const { lang, dir } = useLanguage();
   const favId = `coin:${s.asset}`;
   const fav = isFavorite(favId);
   const [whyOpen, setWhyOpen] = useState(false);
@@ -269,7 +261,7 @@ function SignalCard({ s }: { s: ScalpSignal }) {
         ))}
       </ul>
 
-      {/* JARVIS "למה?" toggle */}
+      {/* JARVIS "Why?" toggle */}
       <button
         onClick={() => setWhyOpen((v) => !v)}
         className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded-md border border-dashed transition-colors text-[10px] font-mono"
@@ -281,7 +273,7 @@ function SignalCard({ s }: { s: ScalpSignal }) {
         aria-label="Toggle JARVIS explanation"
       >
         <MessageCircle className="h-3 w-3" />
-        🤖 JARVIS — למה?
+        {t("scalp.jarvisBtn", lang)}
         <ChevronDown className="h-3 w-3 transition-transform" style={{ transform: whyOpen ? "rotate(180deg)" : "none" }} />
       </button>
 
@@ -289,12 +281,12 @@ function SignalCard({ s }: { s: ScalpSignal }) {
       {whyOpen && (
         <div
           className="rounded-md p-3 space-y-1.5 border"
-          dir="rtl"
+          dir={dir}
           style={{ background: "hsl(43 74% 52% / 0.07)", borderColor: "hsl(43 74% 52% / 0.3)" }}
         >
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "hsl(43 74% 62%)" }}>ניתוח JARVIS</span>
-            <span className="text-[8px] text-muted-foreground/60 font-mono">(כלי חינוכי בלבד · אינו ייעוץ פיננסי)</span>
+            <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "hsl(43 74% 62%)" }}>{t("scalp.jarvisTitle", lang)}</span>
+            <span className="text-[8px] text-muted-foreground/60 font-mono">{t("scalp.jarvisDisclaimer", lang)}</span>
           </div>
           {explanation.map((line, i) => (
             <p key={i} className="text-[10px] leading-relaxed" style={{ color: i === 0 ? "hsl(43 74% 68%)" : "hsl(0 0% 75%)" }}>

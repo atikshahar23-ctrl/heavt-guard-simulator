@@ -438,6 +438,16 @@ textarea:focus-visible,
   }
 }
 
+/* Manual reduce-motion toggle (Settings → Appearance) */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* ── VIP auth entrance (Rolls-Royce-grade) ───────────────────────────── */
 @keyframes auth-twinkle {
   0%, 100% { opacity: 0.12; transform: scale(0.8); }
