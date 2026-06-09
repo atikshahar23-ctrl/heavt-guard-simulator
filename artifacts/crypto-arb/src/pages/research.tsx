@@ -328,7 +328,7 @@ export default function Research() {
                       </div>
                       <div className="text-xs text-muted-foreground truncate">{s.name}</div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-col items-end gap-1.5 shrink-0 sm:flex-row sm:items-center sm:gap-3">
                       {quote && (
                         <div className="text-right">
                           <div className="font-mono font-semibold">${fmtPrice(quote.price)}</div>

@@ -31,13 +31,16 @@ const Research = lazy(() => import("@/pages/research"));
 const Briefing = lazy(() => import("@/pages/briefing"));
 const Tools = lazy(() => import("@/pages/tools"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
+const Landing = lazy(() => import("@/pages/landing"));
 import Layout from "@/components/layout";
+import { OnboardingGate } from "@/components/onboarding-gate";
 import { CalendarAlerter } from "@/components/calendar-alerter";
 import { PortfolioProvider } from "@/contexts/portfolio-context";
 import { FavoritesProvider } from "@/contexts/favorites-context";
 import { AutoTraderProvider } from "@/contexts/autotrader-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
 import { LivePriceProvider } from "@/contexts/live-price-context";
+import { ServerSyncProvider } from "@/contexts/server-sync-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
 import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 import { FundingBotEngine } from "@/components/funding-bot-engine";
@@ -252,17 +255,21 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-// Signed-out users may only reach the auth screens; everything else funnels to
-// the sign-in page so the app is fully gated behind registration/login.
+// Signed-out users land on the marketing page by default and may reach the auth
+// screens; any unknown path falls back to the landing page. The full app stays
+// gated behind registration/login.
 function SignedOutRoutes() {
   return (
-    <Switch>
-      <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route path="/sign-in/*?" component={SignInPage} />
-      <Route>
-        <Redirect to="/sign-in" replace />
-      </Route>
-    </Switch>
+    <Suspense fallback={<PageFallback />}>
+      <Switch>
+        <Route path="/sign-up/*?" component={SignUpPage} />
+        <Route path="/sign-in/*?" component={SignInPage} />
+        <Route path="/" component={Landing} />
+        <Route>
+          <Redirect to="/" replace />
+        </Route>
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -273,6 +280,7 @@ function AuthedApp() {
   return (
     <RefreshProvider>
       <LivePriceProvider>
+      <ServerSyncProvider>
       <PortfolioProvider>
       <FavoritesProvider>
       <AutoTraderProvider>
@@ -282,12 +290,15 @@ function AuthedApp() {
         <FundingBotEngine />
         <OptionsBotEngine />
         <CalendarAlerter />
-        <Router />
+        <OnboardingGate>
+          <Router />
+        </OnboardingGate>
         <Toaster />
       </TooltipProvider>
       </AutoTraderProvider>
       </FavoritesProvider>
       </PortfolioProvider>
+      </ServerSyncProvider>
       </LivePriceProvider>
     </RefreshProvider>
   );

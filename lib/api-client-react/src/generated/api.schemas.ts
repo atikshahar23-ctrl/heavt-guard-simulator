@@ -13,6 +13,34 @@ export interface ErrorResponse {
   error: string;
 }
 
+/**
+ * Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.
+
+ */
+export interface UserStateData {}
+
+export interface UserStateEntry {
+  slot: string;
+  data: UserStateData;
+  version: number;
+  updatedAt: string;
+}
+
+export interface UserStateInput {
+  data: UserStateData;
+  /**
+     * Version this edit was based on (0 for a brand-new slot)
+     * @minimum 0
+     */
+  baseVersion: number;
+}
+
+export interface UserStateWriteResult {
+  slot: string;
+  version: number;
+  updatedAt: string;
+}
+
 export interface BinanceData {
   symbol: string;
   /** Short asset name e.g. BTC */

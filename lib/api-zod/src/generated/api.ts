@@ -619,3 +619,42 @@ export const BacktestFundingAssetResponse = zod.object({
 })
 
 
+/**
+ * Returns every saved state slot (wallets, autotrader, favorites, onboarding) for the authenticated Clerk user. Requires a signed-in session; returns 401 otherwise.
+
+ * @summary Get all persisted state slots for the signed-in user
+ */
+export const GetUserStateResponseItem = zod.object({
+  "slot": zod.string(),
+  "data": zod.unknown().describe('Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.\n'),
+  "version": zod.number(),
+  "updatedAt": zod.string()
+})
+export const GetUserStateResponse = zod.array(GetUserStateResponseItem)
+
+
+/**
+ * Saves the client-owned JSON blob for one slot. The server treats `data` as opaque. Pass `baseVersion` (the version this edit was based on, 0 for a brand-new slot); the write only applies when the stored version still matches, otherwise the current server snapshot is returned with 409.
+
+ * @summary Upsert a single state slot with optimistic concurrency
+ */
+export const PutUserStateParams = zod.object({
+  "slot": zod.enum(['wallets', 'autotrader', 'favorites', 'onboarding']).describe('Which state slot to write')
+})
+
+export const putUserStateBodyBaseVersionMin = 0;
+
+
+
+export const PutUserStateBody = zod.object({
+  "data": zod.unknown().describe('Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.\n'),
+  "baseVersion": zod.number().min(putUserStateBodyBaseVersionMin).describe('Version this edit was based on (0 for a brand-new slot)')
+})
+
+export const PutUserStateResponse = zod.object({
+  "slot": zod.string(),
+  "version": zod.number(),
+  "updatedAt": zod.string()
+})
+
+

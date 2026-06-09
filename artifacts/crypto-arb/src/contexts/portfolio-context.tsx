@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { useUser } from "@clerk/react";
+import { useServerSync } from "@/contexts/server-sync-context";
 import { toast } from "@/hooks/use-toast";
 import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES } from "@/lib/fees";
 import { optionPositionValue } from "@/lib/options-model";
@@ -280,6 +281,11 @@ interface PortfolioContextValue extends PortfolioState {
 const STORAGE_KEY = "arb_scan_portfolio";
 const WALLETS_KEY = "arb_scan_wallets_v2";
 
+// Cap each wallet's closed-trade log. Trades are prepended (newest first), so we
+// keep the most recent slice. Unbounded history would grow the persisted blob
+// past the server/keepalive transport limits over a long bot-trading session.
+const MAX_TRADE_HISTORY = 500;
+
 function freshState(): PortfolioState {
   return {
     cash: STARTING_BALANCE,
@@ -400,7 +406,20 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const userId = user?.id ?? "anon";
   const walletsKey = `${WALLETS_KEY}::${userId}`;
   const legacyKey = `${STORAGE_KEY}::${userId}`;
-  const [book, setBook] = useState<WalletsState>(() => loadWallets(walletsKey, legacyKey));
+
+  // Prefer the server snapshot (captured at hydration); fall back to the local
+  // cache when the server has no wallet book for this account yet. The blob is
+  // run through parseWalletsRaw so it gets the exact same validation/migration
+  // as locally-stored books.
+  const sync = useServerSync();
+  const serverBook = sync.getServerData("wallets");
+  const [book, setBook] = useState<WalletsState>(() => {
+    if (serverBook !== null) {
+      const parsed = parseWalletsRaw(JSON.stringify(serverBook));
+      if (parsed) return parsed;
+    }
+    return loadWallets(walletsKey, legacyKey);
+  });
 
   const activeWallet =
     book.wallets.find((w) => w.id === book.activeWalletId) ?? book.wallets[0];
@@ -424,7 +443,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           if (w.id !== prevBook.activeWalletId) return w;
           const prevPortfolio = portfolioOf(w);
           const next = typeof updater === "function" ? updater(prevPortfolio) : updater;
-          return { ...w, ...next };
+          // Centrally bound the closed-trade log (newest first) so the persisted
+          // wallet blob can't outgrow the server/keepalive transport limits.
+          const tradeHistory =
+            next.tradeHistory.length > MAX_TRADE_HISTORY
+              ? next.tradeHistory.slice(0, MAX_TRADE_HISTORY)
+              : next.tradeHistory;
+          return { ...w, ...next, tradeHistory };
         });
         return { ...prevBook, wallets };
       });
@@ -435,6 +460,18 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveWallets(walletsKey, book);
   }, [walletsKey, book]);
+
+  // Server sync: seed once if the server had no book, then push every change so
+  // the wallet survives across devices for this signed-in account.
+  const didServerSeed = useRef(false);
+  useEffect(() => {
+    if (!didServerSeed.current) {
+      didServerSeed.current = true;
+      if (sync.hydrationOk && serverBook === null) sync.save("wallets", book);
+      return;
+    }
+    sync.save("wallets", book);
+  }, [book]);
 
   // One-time cleanup: once this account's wallet is persisted under its scoped
   // key, drop any pre-auth un-scoped data so future new accounts on this device

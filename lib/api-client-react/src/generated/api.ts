@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -45,11 +49,14 @@ import type {
   StockCandle,
   StockQuote,
   StockRecommendation,
-  StockSearchResult
+  StockSearchResult,
+  UserStateEntry,
+  UserStateInput,
+  UserStateWriteResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -1845,4 +1852,157 @@ export function useBacktestFundingAsset<TData = Awaited<ReturnType<typeof backte
 
 
 
+
+export const getGetUserStateUrl = () => {
+
+
+
+
+  return `/api/user-state`
+}
+
+/**
+ * Returns every saved state slot (wallets, autotrader, favorites, onboarding) for the authenticated Clerk user. Requires a signed-in session; returns 401 otherwise.
+
+ * @summary Get all persisted state slots for the signed-in user
+ */
+export const getUserState = async ( options?: RequestInit): Promise<UserStateEntry[]> => {
+
+  return customFetch<UserStateEntry[]>(getGetUserStateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserStateQueryKey = () => {
+    return [
+    `/api/user-state`
+    ] as const;
+    }
+
+
+export const getGetUserStateQueryOptions = <TData = Awaited<ReturnType<typeof getUserState>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserStateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserState>>> = ({ signal }) => getUserState({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserStateQueryResult = NonNullable<Awaited<ReturnType<typeof getUserState>>>
+export type GetUserStateQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get all persisted state slots for the signed-in user
+ */
+
+export function useGetUserState<TData = Awaited<ReturnType<typeof getUserState>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserStateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPutUserStateUrl = (slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding',) => {
+
+
+
+
+  return `/api/user-state/${slot}`
+}
+
+/**
+ * Saves the client-owned JSON blob for one slot. The server treats `data` as opaque. Pass `baseVersion` (the version this edit was based on, 0 for a brand-new slot); the write only applies when the stored version still matches, otherwise the current server snapshot is returned with 409.
+
+ * @summary Upsert a single state slot with optimistic concurrency
+ */
+export const putUserState = async (slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding',
+    userStateInput: UserStateInput, options?: RequestInit): Promise<UserStateWriteResult> => {
+
+  return customFetch<UserStateWriteResult>(getPutUserStateUrl(slot),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      userStateInput,)
+  }
+);}
+
+
+
+
+export const getPutUserStateMutationOptions = <TError = ErrorType<ErrorResponse | UserStateEntry>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}, TContext> => {
+
+const mutationKey = ['putUserState'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putUserState>>, {slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}> = (props) => {
+          const {slot,data} = props ?? {};
+
+          return  putUserState(slot,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutUserStateMutationResult = NonNullable<Awaited<ReturnType<typeof putUserState>>>
+    export type PutUserStateMutationBody = BodyType<UserStateInput>
+    export type PutUserStateMutationError = ErrorType<ErrorResponse | UserStateEntry>
+
+    /**
+ * @summary Upsert a single state slot with optimistic concurrency
+ */
+export const usePutUserState = <TError = ErrorType<ErrorResponse | UserStateEntry>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof putUserState>>,
+        TError,
+        {slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>},
+        TContext
+      > => {
+      return useMutation(getPutUserStateMutationOptions(options));
+    }
 

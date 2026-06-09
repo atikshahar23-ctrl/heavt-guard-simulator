@@ -72,3 +72,7 @@ export * from './stockRecommendationCategory';
 export * from './stockRecommendationConfidence';
 export * from './stockSearchResult';
 export * from './trendingCoin';
+export * from './userStateData';
+export * from './userStateEntry';
+export * from './userStateInput';
+export * from './userStateWriteResult';

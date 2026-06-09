@@ -114,7 +114,7 @@ function QuickInvest({ c }: { c: MomentumCoin }) {
           <Wallet className="h-3 w-3" /> Ride LONG
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 space-y-3" align="end">
+      <PopoverContent className="w-[calc(100vw-2rem)] max-w-72 space-y-3" align="end">
         <div className="flex items-center justify-between">
           <span className="font-mono font-bold text-sm" style={{ color: accent }}>LONG {c.asset}</span>
           <span className="text-[10px] font-mono text-muted-foreground">Bal ${cash.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>

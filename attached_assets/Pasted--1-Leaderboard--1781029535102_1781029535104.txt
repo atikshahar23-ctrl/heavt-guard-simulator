@@ -1,0 +1,16 @@
+​1. טבלת מובילים (Leaderboard) - גיימיפיקציה תחרותית
+​אנשים אוהבים להתחרות. יצירת "טבלת אלופים" של הסוחרים הווירטואליים המובילים תגרום למשתמשים לחזור כל יום כדי לנסות לעקוף אחד את השני ולהגיע למקום הראשון.
+​העתק והדבק ל-Replit AI:
+​"Create a 'Top Traders' leaderboard page. Query the SQLite database to fetch the top 10 users with the highest virtual balance. Display this in a modern, dark-themed HTML table on a new page. Update the main navigation bar to include a link to this leaderboard."
+​2. בונוס התחברות יומי (Daily Login Reward) - שימור משתמשים (Retention)
+​כדי לוודא שהמשתמשים חוזרים לאפליקציה כל יום כדי לקרוא את המלצות המערכת, מציעים להם כסף וירטואלי במתנה על עצם הכניסה לאתר.
+​העתק והדבק ל-Replit AI:
+​"Add a 'Daily Login Reward' feature. When a user logs in, check the SQLite database to see if they have claimed their daily reward today. If not, show an attractive 'Claim $500 Daily Bonus' button on their dashboard. When clicked, update their balance in the database and record the timestamp of the claim."
+​3. מערכת הפניות / חבר מביא חבר (Referral System) - צמיחה ויראלית
+​רוצה שהמשתמשים ישווקו את האפליקציה בשבילך? תן להם קישור אישי. אם מישהו נרשם דרך הקישור שלהם, שניהם מקבלים בונוס לתיק הווירטואלי.
+​העתק והדבק ל-Replit AI:
+​"Implement a simple referral system. Give each logged-in user a unique referral link (e.g., /register?ref=username) displayed on their dashboard. If a new user registers using this link, automatically add a $2,000 paper-trading bonus to both the referrer and the new user's balance in the SQLite database."
+​4. פיד חדשות שוק בזמן אמת - ערך חינוכי
+​כדי שהמשתמשים יוכלו ללמוד לשלב בין הסיגנלים של JARVIS לבין מה שקורה בעולם האמיתי, אפשר לשאוב כותרות חדשות מאתרי קריפטו או פיננסים מובילים בחינם לגמרי (דרך RSS).
+​העתק והדבק ל-Replit AI:
+​"Add a 'Market News' section to the dashboard sidebar. Use Python to fetch a free RSS feed from a major crypto news site (like CoinTelegraph). Parse the feed and display the latest 5 headlines with links to the articles. Style the section cleanly to match the existing dark theme.

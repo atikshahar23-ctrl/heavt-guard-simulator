@@ -139,9 +139,9 @@ export default function BrowsePage() {
   const categories = ["ALL", "CRYPTO", "POLITICS", "SPORTS", "ECONOMY", "TECH", "OTHER"] as const;
 
   return (
-    <div className={`flex h-full ${showPanel ? 'divide-x divide-border' : ''}`}>
+    <div className={`flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden ${showPanel ? 'lg:divide-x lg:divide-border' : ''}`}>
       {/* Main table area */}
-      <div className={`flex flex-col min-w-0 ${showPanel ? 'w-1/2' : 'w-full'} overflow-hidden`}>
+      <div className={`flex flex-col min-w-0 ${showPanel ? 'w-full lg:w-1/2 h-[55vh] lg:h-full' : 'w-full h-full'} overflow-hidden`}>
         <div className="p-5 space-y-4 flex flex-col h-full overflow-hidden">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
@@ -180,12 +180,12 @@ export default function BrowsePage() {
                 </button>
               );
             })}
-            <div className="ml-auto relative">
+            <div className="relative w-full sm:ml-auto sm:w-auto">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search any market..."
-                className="pl-8 bg-secondary/30 h-8 text-xs w-52"
+                className="pl-8 bg-secondary/30 h-8 text-xs w-full sm:w-52"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -194,7 +194,7 @@ export default function BrowsePage() {
 
           {/* Table */}
           <div className="flex-1 overflow-auto rounded-md border border-border">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[640px] text-xs">
               <thead className="sticky top-0 z-10 bg-secondary/80 backdrop-blur-sm">
                 <tr>
                   <th className="text-left px-3 py-2 font-mono text-[10px] tracking-wider text-muted-foreground w-20">CAT</th>
@@ -254,7 +254,7 @@ export default function BrowsePage() {
                         <CategoryBadge category={m.category} />
                       </td>
                       <td className="px-3 py-2 font-medium text-foreground/80 leading-tight max-w-0">
-                        <div className="truncate max-w-[280px] group-hover:text-foreground" title={m.question}>
+                        <div className="truncate max-w-[160px] sm:max-w-[280px] group-hover:text-foreground" title={m.question}>
                           {m.question}
                         </div>
                       </td>
@@ -309,7 +309,7 @@ export default function BrowsePage() {
 
       {/* Embedded Polymarket panel */}
       {showPanel && (
-        <div className="w-1/2 flex flex-col bg-background">
+        <div className="w-full lg:w-1/2 h-[55vh] lg:h-full flex flex-col bg-background">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card/50 flex-shrink-0">
             <Globe className="h-4 w-4 text-primary flex-shrink-0" />
             <span className="text-xs font-mono text-muted-foreground truncate flex-1">{panelUrl}</span>

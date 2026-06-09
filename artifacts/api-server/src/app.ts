@@ -14,6 +14,21 @@ import {
 
 const app: Express = express();
 
+// CORS allowlist pinned to this deployment's own Replit domains. The previous
+// reflective config (origin: true + credentials: true) let ANY site make
+// credentialed requests and read the response — a CSRF / data-disclosure hole
+// now that cookie-authed write routes exist. The frontend is same-origin with
+// the API (path-routed through the Replit proxy), so same-origin requests carry
+// no Origin header and are always allowed; only cross-origin reads from unknown
+// sites are blocked.
+const corsAllowlist = new Set<string>();
+for (const domain of (process.env.REPLIT_DOMAINS ?? "").split(",")) {
+  const host = domain.trim();
+  if (host) corsAllowlist.add(`https://${host}`);
+}
+const devDomain = process.env.REPLIT_DEV_DOMAIN?.trim();
+if (devDomain) corsAllowlist.add(`https://${devDomain}`);
+
 // Trust exactly one reverse-proxy hop (the Replit edge proxy). This lets
 // Express correctly derive req.ip from X-Forwarded-For while refusing to trust
 // any additional hops that an attacker could inject.
@@ -42,8 +57,34 @@ app.use(
 // Clerk proxy must be BEFORE body parsers (it streams raw bytes).
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
-app.use(express.json());
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      // No Origin header → same-origin request, curl, or server-to-server. The
+      // browser only sends Origin on cross-origin (and non-GET) requests.
+      if (!origin || corsAllowlist.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      // Unknown cross-origin: deny CORS (no ACAO header) so the browser blocks
+      // the caller from reading the response. Don't throw — that 500s the route.
+      callback(null, false);
+    },
+  }),
+);
+
+// Body parsing. The authed /api/user-state routes carry larger client-owned
+// snapshots, so they opt OUT of the global 100kb JSON cap and use a route-scoped
+// 2mb parser instead (see routes/userState.ts). Every other route keeps the
+// small default cap to bound DoS surface.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/user-state")) {
+    next();
+    return;
+  }
+  express.json()(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 
 // Clerk auth middleware — resolves the publishable key from the incoming
@@ -58,7 +99,18 @@ app.use(
 );
 
 // Global admission control: 120 requests/minute per IP across all /api routes.
-app.use("/api", globalRateLimit);
+// /api/user-state is exempted: it is authed, cheap (a single indexed per-user
+// read/write), and already carries its own stricter per-user limiters. Keeping
+// it out of the shared per-IP budget stops a page-load burst against the
+// expensive fan-out routes from starving hydration. NOTE: req.path is relative
+// to the "/api" mount here, so it reads "/user-state", not "/api/user-state".
+app.use("/api", (req, res, next) => {
+  if (req.path.startsWith("/user-state")) {
+    next();
+    return;
+  }
+  globalRateLimit(req, res, next);
+});
 
 app.use("/api", router);
 

@@ -8,14 +8,18 @@ interface WindowEntry {
 /**
  * Simple fixed-window in-memory rate limiter.
  *
- * @param maxRequests  Maximum requests per window per IP
+ * @param maxRequests  Maximum requests per window per key
  * @param windowMs     Window duration in milliseconds
  * @param message      Error message returned on 429
+ * @param keyFn        Derives the bucket key from the request. Defaults to the
+ *                     client IP (resolved from the trusted proxy chain). Pass a
+ *                     custom function to bucket by authenticated user id, etc.
  */
 export function makeRateLimiter(
   maxRequests: number,
   windowMs: number,
   message = "Too many requests, please slow down.",
+  keyFn: (req: Request) => string = (req) => req.ip ?? "unknown",
 ) {
   const windows = new Map<string, WindowEntry>();
 
@@ -35,10 +39,11 @@ export function makeRateLimiter(
     res: Response,
     next: NextFunction,
   ): void {
-    // Use req.ip, which Express resolves from the trusted proxy chain when
-    // "trust proxy" is configured in app.ts. Never parse X-Forwarded-For
-    // manually — doing so lets any caller spoof their IP and bypass limits.
-    const ip = req.ip ?? "unknown";
+    // Use req.ip by default, which Express resolves from the trusted proxy
+    // chain when "trust proxy" is configured in app.ts. Never parse
+    // X-Forwarded-For manually — doing so lets any caller spoof their IP and
+    // bypass limits.
+    const ip = keyFn(req);
 
     const now = Date.now();
     let entry = windows.get(ip);

@@ -4,6 +4,7 @@ import cryptoRouter from "./crypto";
 import stocksRouter from "./stocks";
 import fundingRouter from "./funding";
 import polymarketRouter from "./polymarket";
+import userStateRouter from "./userState";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(cryptoRouter);
 router.use(stocksRouter);
 router.use(fundingRouter);
 router.use(polymarketRouter);
+router.use(userStateRouter);
 
 export default router;

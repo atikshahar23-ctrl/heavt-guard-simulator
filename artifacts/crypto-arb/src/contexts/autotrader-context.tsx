@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
 import { usePortfolio } from "@/contexts/portfolio-context";
+import { useServerSync } from "@/contexts/server-sync-context";
 
 export type ScalpConfidence = "LOW" | "MEDIUM" | "HIGH";
 
@@ -1010,7 +1011,15 @@ function loadSettings(): AutoTraderSettings {
 const AutoTraderContext = createContext<AutoTraderContextValue | null>(null);
 
 export function AutoTraderProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<AutoTraderSettings>(loadSettings);
+  // Prefer the server snapshot (captured at hydration); fall back to the local
+  // cache when the server has no bot settings for this account yet.
+  const sync = useServerSync();
+  const serverSettings = sync.getServerData("autotrader");
+  const [settings, setSettings] = useState<AutoTraderSettings>(() =>
+    serverSettings !== null
+      ? { ...DEFAULT_SETTINGS, ...(serverSettings as Partial<AutoTraderSettings>) }
+      : loadSettings(),
+  );
   // Ephemeral live fleet conviction — never persisted; the engine republishes it
   // from the current signal sources on every refresh.
   const [alpha, setAlpha] = useState<AlphaState>(NEUTRAL_ALPHA);
@@ -1051,6 +1060,20 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     } catch {}
+  }, [settings]);
+
+  // Server sync: seed once if the server had no settings, then push every change
+  // so bot configuration survives across devices for this signed-in account.
+  const didServerSeed = useRef(false);
+  useEffect(() => {
+    if (!didServerSeed.current) {
+      didServerSeed.current = true;
+      if (sync.hydrationOk && serverSettings === null) {
+        sync.save("autotrader", settings);
+      }
+      return;
+    }
+    sync.save("autotrader", settings);
   }, [settings]);
 
   const update = useCallback((patch: Partial<AutoTraderSettings>) => {

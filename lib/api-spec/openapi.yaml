@@ -674,6 +674,87 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /user-state:
+    get:
+      operationId: getUserState
+      tags: [user]
+      summary: Get all persisted state slots for the signed-in user
+      description: >
+        Returns every saved state slot (wallets, autotrader, favorites,
+        onboarding) for the authenticated Clerk user. Requires a signed-in
+        session; returns 401 otherwise.
+      responses:
+        "200":
+          description: All state slots for the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserStateEntry"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /user-state/{slot}:
+    put:
+      operationId: putUserState
+      tags: [user]
+      summary: Upsert a single state slot with optimistic concurrency
+      description: >
+        Saves the client-owned JSON blob for one slot. The server treats `data`
+        as opaque. Pass `baseVersion` (the version this edit was based on, 0 for
+        a brand-new slot); the write only applies when the stored version still
+        matches, otherwise the current server snapshot is returned with 409.
+      parameters:
+        - in: path
+          name: slot
+          required: true
+          schema:
+            type: string
+            enum: [wallets, autotrader, favorites, onboarding]
+          description: Which state slot to write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserStateInput"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStateWriteResult"
+        "400":
+          description: Invalid slot or body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Version conflict — returns the current server snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStateEntry"
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -691,6 +772,55 @@ components:
           type: string
       required:
         - error
+
+    UserStateData:
+      description: >
+        Opaque client-owned JSON state. The server never interprets the shape;
+        it is fully owned by the frontend contexts. May be an object or array.
+
+    UserStateEntry:
+      type: object
+      required:
+        - slot
+        - data
+        - version
+        - updatedAt
+      properties:
+        slot:
+          type: string
+        data:
+          $ref: "#/components/schemas/UserStateData"
+        version:
+          type: integer
+        updatedAt:
+          type: string
+
+    UserStateInput:
+      type: object
+      required:
+        - data
+        - baseVersion
+      properties:
+        data:
+          $ref: "#/components/schemas/UserStateData"
+        baseVersion:
+          type: integer
+          minimum: 0
+          description: Version this edit was based on (0 for a brand-new slot)
+
+    UserStateWriteResult:
+      type: object
+      required:
+        - slot
+        - version
+        - updatedAt
+      properties:
+        slot:
+          type: string
+        version:
+          type: integer
+        updatedAt:
+          type: string
 
     BinanceData:
       type: object

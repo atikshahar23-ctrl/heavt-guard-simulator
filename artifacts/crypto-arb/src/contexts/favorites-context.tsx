@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { useServerSync } from "./server-sync-context";
 
 export type FavoriteKind = "stock" | "coin" | "market";
 
@@ -34,15 +35,39 @@ function load(): FavoriteItem[] {
   }
 }
 
-export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const [favorites, setFavorites] = useState<FavoriteItem[]>(load);
+function coerceFavorites(data: unknown): FavoriteItem[] {
+  return Array.isArray(data) ? (data as FavoriteItem[]) : [];
+}
 
+export function FavoritesProvider({ children }: { children: ReactNode }) {
+  // Prefer the server snapshot (captured at hydration); fall back to the local
+  // cache when the server has no favorites for this account yet.
+  const sync = useServerSync();
+  const serverInit = sync.getServerData("favorites");
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() =>
+    serverInit !== null ? coerceFavorites(serverInit) : load(),
+  );
+
+  // Offline cache: keep mirroring every change to localStorage.
   useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
     } catch {
       /* ignore quota errors */
     }
+  }, [favorites]);
+
+  // Server sync: seed once if the server had nothing, then push every change.
+  const didServerSeed = useRef(false);
+  useEffect(() => {
+    if (!didServerSeed.current) {
+      didServerSeed.current = true;
+      if (sync.hydrationOk && serverInit === null) {
+        sync.save("favorites", favorites);
+      }
+      return;
+    }
+    sync.save("favorites", favorites);
   }, [favorites]);
 
   const isFavorite = useCallback(
