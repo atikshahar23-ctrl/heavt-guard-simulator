@@ -2,11 +2,13 @@ import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3, Crown, CalendarDays,
+  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
@@ -36,7 +38,9 @@ function PortfolioMiniBalance() {
 function AuthSection() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
+  const { lang, setLang, dir } = useLanguage();
   const [showMenu, setShowMenu] = useState(false);
+  const isRTL = dir === "rtl";
 
   if (!isLoaded) {
     return (
@@ -48,6 +52,28 @@ function AuthSection() {
 
   return (
     <div className="relative px-4 py-3 border-t border-border/70 shrink-0">
+      {/* Language Toggle — always visible */}
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          onClick={() => setLang("he")}
+          className={`flex-1 flex items-center justify-center gap-1 rounded px-2 py-1.5 text-[10px] font-bold font-mono transition-colors ${
+            lang === "he" ? "bg-primary/20 text-primary border border-primary/30" : "bg-secondary/40 text-muted-foreground hover:text-foreground"
+          }`}
+          title="עברית"
+        >
+          HE
+        </button>
+        <button
+          onClick={() => setLang("en")}
+          className={`flex-1 flex items-center justify-center gap-1 rounded px-2 py-1.5 text-[10px] font-bold font-mono transition-colors ${
+            lang === "en" ? "bg-primary/20 text-primary border border-primary/30" : "bg-secondary/40 text-muted-foreground hover:text-foreground"
+          }`}
+          title="English"
+        >
+          EN
+        </button>
+        <Languages className="h-3 w-3 text-muted-foreground" />
+      </div>
       <Show when="signed-out">
         <div className="flex items-center gap-2">
           <Link
@@ -55,14 +81,14 @@ function AuthSection() {
             className="flex-1 flex items-center justify-center gap-1.5 rounded px-3 py-2 text-[11px] font-bold font-mono bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
           >
             <LogIn className="h-3.5 w-3.5" />
-            התחבר
+            {t("nav.signIn", lang)}
           </Link>
           <Link
             href="/sign-up"
             className="flex-1 flex items-center justify-center gap-1.5 rounded px-3 py-2 text-[11px] font-bold font-mono bg-secondary/60 text-foreground hover:bg-secondary/80 transition-colors"
           >
             <User className="h-3.5 w-3.5" />
-            הרשמה
+            {t("nav.signUp", lang)}
           </Link>
         </div>
       </Show>
@@ -75,11 +101,11 @@ function AuthSection() {
             <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-black text-primary">
               {(user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0] ?? "U").toUpperCase()}
             </div>
-            <div className="flex-1 text-left min-w-0">
+            <div className={`flex-1 min-w-0 ${isRTL ? "text-right" : "text-left"}`}>
               <p className="truncate text-foreground text-[11px] font-medium">
                 {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "User"}
               </p>
-              <p className="text-[9px] text-muted-foreground">מחובר</p>
+              <p className="text-[9px] text-muted-foreground">{t("nav.connected", lang)}</p>
             </div>
             <LogOut className="h-3 w-3 text-muted-foreground" />
           </button>
@@ -93,7 +119,7 @@ function AuthSection() {
                 className="w-full flex items-center gap-2 rounded px-3 py-2 text-[11px] font-medium text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                התנתק
+                {t("nav.signOut", lang)}
               </button>
             </div>
           )}
@@ -106,6 +132,7 @@ function AuthSection() {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { lang } = useLanguage();
   const { data: health, isLoading } = useHealthCheck({
     query: {
       queryKey: getHealthCheckQueryKey(),
@@ -119,58 +146,59 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const groups: NavGroup[] = [
     {
-      title: "לשכה פרטית",
+      title: t("nav.privateOffice", lang),
       links: [
-        { href: "/", label: "לוח בקרה", icon: LayoutDashboard },
-        { href: "/advisor", label: "היועץ הראשי", icon: Compass },
-        { href: "/simulator", label: "תיק ההשקעות", icon: Trophy, extra: <PortfolioMiniBalance /> },
-        { href: "/leaderboard", label: "מיטב הסוחרים", icon: Crown },
+        { href: "/", label: t("nav.dashboard", lang), icon: LayoutDashboard },
+        { href: "/advisor", label: t("nav.advisor", lang), icon: Compass },
+        { href: "/simulator", label: t("nav.simulator", lang), icon: Trophy, extra: <PortfolioMiniBalance /> },
+        { href: "/leaderboard", label: t("nav.leaderboard", lang), icon: Crown },
       ],
     },
     {
-      title: "שווקים גלובליים",
+      title: t("nav.globalMarkets", lang),
       links: [
-        { href: "/markets", label: "קריפטו נזיל", icon: LineChart },
-        { href: "/stocks", label: "מניות ואופציות", icon: TrendingUp },
-        { href: "/stock-desk", label: "חדר מניות", icon: BarChart3 },
-        { href: "/browse", label: "סורק שוק חי", icon: Globe },
-        { href: "/binance", label: "בורסת ביננס", icon: CandlestickChart },
-        { href: "/movers", label: "תנודות שוק", icon: Activity },
+        { href: "/markets", label: t("nav.markets", lang), icon: LineChart },
+        { href: "/stocks", label: t("nav.stocks", lang), icon: TrendingUp },
+        { href: "/stock-desk", label: t("nav.stockDesk", lang), icon: BarChart3 },
+        { href: "/browse", label: t("nav.browse", lang), icon: Globe },
+        { href: "/binance", label: t("nav.binance", lang), icon: CandlestickChart },
+        { href: "/movers", label: t("nav.movers", lang), icon: Activity },
       ],
     },
     {
-      title: "אלגוריתמיקה",
+      title: t("nav.algorithmics", lang),
       links: [
-        { href: "/scalp", label: "סקאלפ מהיר", icon: Gauge },
-        { href: "/funding-arb", label: "ארביטראז' פאנדינג", icon: Coins },
-        { href: "/momentum", label: "מומנטום כבד", icon: Rocket },
-        { href: "/quickbets", label: "הימורים מהירים", icon: Timer },
-        { href: "/smart-money", label: "כסף חכם", icon: Megaphone },
+        { href: "/scalp", label: t("nav.scalp", lang), icon: Gauge },
+        { href: "/funding-arb", label: t("nav.fundingArb", lang), icon: Coins },
+        { href: "/momentum", label: t("nav.momentum", lang), icon: Rocket },
+        { href: "/quickbets", label: t("nav.quickbets", lang), icon: Timer },
+        { href: "/smart-money", label: t("nav.smartMoney", lang), icon: Megaphone },
       ],
     },
     {
-      title: "פעילות אוטומטית",
+      title: t("nav.autoActivity", lang),
       links: [
-        { href: "/bots", label: "מערך הבוטים", icon: Bot },
-        { href: "/trade-desk", label: "שולחן המסחר", icon: Zap },
+        { href: "/bots", label: t("nav.bots", lang), icon: Bot },
+        { href: "/trade-desk", label: t("nav.tradeDesk", lang), icon: Zap },
       ],
     },
     {
-      title: "מחקר וכלים",
+      title: t("nav.researchAndTools", lang),
       links: [
-        { href: "/briefing", label: "תדריך שוק", icon: Newspaper },
-        { href: "/calendar", label: "יומן אירועים", icon: CalendarDays },
-        { href: "/research", label: "חדר מחקר", icon: Search },
-        { href: "/insights", label: "ניתוח ותובנות", icon: BarChart3 },
-        { href: "/tools", label: "כלי סחר", icon: Calculator },
-        { href: "/history", label: "היסטוריית עסקאות", icon: History },
+        { href: "/briefing", label: t("nav.briefing", lang), icon: Newspaper },
+        { href: "/calendar", label: t("nav.calendar", lang), icon: CalendarDays },
+        { href: "/research", label: t("nav.research", lang), icon: Search },
+        { href: "/insights", label: t("nav.insights", lang), icon: BarChart3 },
+        { href: "/tools", label: t("nav.tools", lang), icon: Calculator },
+        { href: "/history", label: t("nav.history", lang), icon: History },
       ],
     },
   ];
 
   const hour = new Date().getHours();
-  const greeting =
-    hour < 5 ? "לילה טוב" : hour < 12 ? "בוקר טוב" : hour < 18 ? "צהריים טובים" : "ערב טוב";
+  const greetingKey =
+    hour < 5 ? "nav.greetingNight" : hour < 12 ? "nav.greetingMorning" : hour < 18 ? "nav.greetingNoon" : "nav.greetingEvening";
+  const greeting = t(greetingKey, lang);
 
   const SidebarContent = () => (
     <>
@@ -240,11 +268,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <div className="relative px-4 py-3 border-t border-border/70 shrink-0">
         <div className="flex items-center justify-between">
-          <span className="text-[9px] font-mono text-muted-foreground tracking-[0.15em] uppercase">API Status</span>
+          <span className="text-[9px] font-mono text-muted-foreground tracking-[0.15em] uppercase">{t("nav.apiStatus", lang)}</span>
           <div className="flex items-center gap-1.5">
             <span className={`h-1.5 w-1.5 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : health?.status === 'ok' ? 'bg-emerald-500' : 'bg-red-500'}`} />
             <span className={`text-[9px] font-mono font-bold tracking-wider ${health?.status === 'ok' ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-              {isLoading ? 'CHK' : health?.status === 'ok' ? 'LIVE' : 'ERR'}
+              {isLoading ? t("nav.apiLoading", lang) : health?.status === 'ok' ? t("nav.apiLive", lang) : t("nav.apiError", lang)}
             </span>
           </div>
         </div>
@@ -308,13 +336,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="hidden md:flex shrink-0 items-center justify-between px-6 py-1.5 border-b border-[#cdbfa4]/10 bg-background/95 backdrop-blur-sm text-[10px] tracking-widest">
           <div className="flex items-center gap-3 text-muted-foreground">
             <Crown className="h-3 w-3 text-[#cdbfa4]" strokeWidth={1.5} />
-            <span className="text-[#cdbfa4]">{greeting} · לקוח פרטי</span>
+            <span className="text-[#cdbfa4]">{greeting} · {t("nav.privateClient", lang)}</span>
             <span className="opacity-30">|</span>
-            <span className="font-mono opacity-60">חיבור מוצפן בטוח</span>
+            <span className="font-mono opacity-60">{t("nav.encryptedConnection", lang)}</span>
           </div>
           <div className="flex items-center gap-2 border border-[#cdbfa4]/25 px-2.5 py-0.5 rounded bg-[#cdbfa4]/5">
             <span className="h-1.5 w-1.5 rounded-full bg-[#cdbfa4] jewel-dot" />
-            <span className="text-[#cdbfa4] font-semibold">OBSIDIAN TIER</span>
+            <span className="text-[#cdbfa4] font-semibold">{t("nav.obsidianTier", lang)}</span>
           </div>
         </div>
         {/* Live global price tape */}

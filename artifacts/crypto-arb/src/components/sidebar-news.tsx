@@ -1,21 +1,24 @@
 import { useGetMarketMovers, getGetMarketMoversQueryKey } from "@workspace/api-client-react";
 import type { NewsItem } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 import { Newspaper, ExternalLink, ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const NEWS_OPEN_KEY = "sidebar-news-open";
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, lang: ReturnType<typeof useLanguage>["lang"]): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "עכשיו";
-  if (mins < 60) return `לפני ${mins} ד׳`;
+  if (mins < 1) return lang === "en" ? "now" : "עכשיו";
+  if (mins < 60) return lang === "en" ? `${mins}m ago` : `לפני ${mins} ד׳`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `לפני ${hrs} ש׳`;
-  return `לפני ${Math.floor(hrs / 24)} ימים`;
+  if (hrs < 24) return lang === "en" ? `${hrs}h ago` : `לפני ${hrs} ש׳`;
+  return lang === "en" ? `${Math.floor(hrs / 24)}d ago` : `לפני ${Math.floor(hrs / 24)} ימים`;
 }
 
 export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) {
+  const { lang, dir } = useLanguage();
   const [open, setOpen] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(NEWS_OPEN_KEY) === "true";
@@ -35,24 +38,25 @@ export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) 
   });
 
   const news: NewsItem[] = (data?.news ?? []).slice(0, 5);
+  const isRTL = dir === "rtl";
 
   return (
-    <div className="px-1" dir="rtl">
+    <div className="px-1" dir={dir}>
       {collapsible ? (
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="w-full px-3 pb-2 flex items-center gap-2 text-right"
+          className={`w-full px-3 pb-2 flex items-center gap-2 ${isRTL ? "text-right" : "text-left"}`}
           aria-expanded={open}
         >
           <Newspaper className="h-3.5 w-3.5 text-[#cdbfa4]/70" strokeWidth={1.5} />
-          <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">חדשות שוק</span>
-          <ChevronDown className={`h-3.5 w-3.5 text-[#cdbfa4]/55 mr-auto transition-transform duration-200 ${open ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+          <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">{t("nav.marketNews", lang)}</span>
+          <ChevronDown className={`h-3.5 w-3.5 text-[#cdbfa4]/55 ${isRTL ? "mr-auto" : "ml-auto"} transition-transform duration-200 ${open ? 'rotate-180' : ''}`} strokeWidth={1.5} />
         </button>
       ) : (
         <div className="px-3 pb-2 flex items-center gap-2">
           <Newspaper className="h-3.5 w-3.5 text-[#cdbfa4]/70" strokeWidth={1.5} />
-          <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">חדשות שוק</span>
+          <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55">{t("nav.marketNews", lang)}</span>
         </div>
       )}
 
@@ -64,7 +68,7 @@ export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) 
             ))}
           </div>
         ) : news.length === 0 ? (
-          <p className="px-3 py-2 text-[10px] text-muted-foreground/60">אין כותרות זמינות כעת.</p>
+          <p className="px-3 py-2 text-[10px] text-muted-foreground/60">{t("nav.marketNewsEmpty", lang)}</p>
         ) : (
           news.map((n, i) => (
             <a
@@ -81,7 +85,7 @@ export function SidebarNews({ collapsible = false }: { collapsible?: boolean }) 
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="text-[8.5px] font-mono font-bold text-[#cdbfa4]/70 truncate">{n.source}</span>
-                  <span className="text-[8.5px] font-mono text-muted-foreground/50" dir="rtl">{timeAgo(n.publishedAt)}</span>
+                  <span className="text-[8.5px] font-mono text-muted-foreground/50" dir={dir}>{timeAgo(n.publishedAt, lang)}</span>
                 </div>
               </div>
               <ExternalLink className="h-2.5 w-2.5 mt-0.5 flex-shrink-0 text-muted-foreground/30 group-hover:text-[#cdbfa4]/70" />

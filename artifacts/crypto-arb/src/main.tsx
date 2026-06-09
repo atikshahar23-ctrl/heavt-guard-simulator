@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { LanguageProvider } from "./contexts/language-context";
 import "./index.css";
 
 // lightweight-charts disposal race ("Object is disposed").
@@ -58,4 +59,8 @@ if (NativeResizeObserver) {
   };
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <LanguageProvider>
+    <App />
+  </LanguageProvider>
+);
