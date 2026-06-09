@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Gift, Users, Copy, Check, Sparkles } from "lucide-react";
+import {
+  Gift,
+  Users,
+  Copy,
+  Check,
+  Sparkles,
+  Share2,
+  MessageCircle,
+  Send,
+} from "lucide-react";
 import {
   useGetDailyReward,
   getGetDailyRewardQueryKey,
@@ -87,6 +96,8 @@ function ReferralCard() {
 
   if (!data) return null;
 
+  const shareMessage = `הצטרפו אליי ל-ARB_SCAN — סימולטור מסחר חינמי (דמו לימודי). שנינו מקבלים $2,000 לתיק! ${data.link}`;
+
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(data.link);
@@ -100,6 +111,30 @@ function ReferralCard() {
       toast({ title: "שגיאה", description: "לא ניתן להעתיק את הקישור." });
     }
   };
+
+  const onNativeShare = async () => {
+    if (typeof navigator === "undefined" || !navigator.share) {
+      await onCopy();
+      return;
+    }
+    try {
+      await navigator.share({
+        title: "הזמנה ל-ARB_SCAN",
+        text: shareMessage,
+        url: data.link,
+      });
+    } catch {
+      // user dismissed the share sheet — no-op
+    }
+  };
+
+  const canNativeShare =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+  const telegramHref = `https://t.me/share/url?url=${encodeURIComponent(
+    data.link,
+  )}&text=${encodeURIComponent(shareMessage)}`;
 
   return (
     <div
@@ -129,6 +164,36 @@ function ReferralCard() {
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? "הועתק" : "העתק"}
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#25d366]/30 bg-[#25d366]/[0.08] px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-[#25d366] transition-colors hover:bg-[#25d366]/15"
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          וואטסאפ
+        </a>
+        <a
+          href={telegramHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#2aabee]/30 bg-[#2aabee]/[0.08] px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-[#2aabee] transition-colors hover:bg-[#2aabee]/15"
+        >
+          <Send className="h-3.5 w-3.5" />
+          טלגרם
+        </a>
+        {canNativeShare && (
+          <button
+            onClick={onNativeShare}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#9fb4c7]/25 bg-[#9fb4c7]/[0.06] px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-[#9fb4c7] transition-colors hover:bg-[#9fb4c7]/15"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            שתף
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[#cdbfa4]/80">
