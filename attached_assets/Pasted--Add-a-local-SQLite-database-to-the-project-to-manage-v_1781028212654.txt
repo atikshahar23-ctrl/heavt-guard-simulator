@@ -1,0 +1,13 @@
+​"Add a local SQLite database to the project to manage virtual user portfolios. When a new user is created, give them a starting paper-trading balance of $10,000. Create backend functions to update this balance (add profit or subtract loss) when a trade signal is closed. Please update the backend code and ensure the database file is created automatically if it doesn't exist."
+​2. יצירת מערכת התחברות (Authentication)
+​כדי שכל משתמש יראה את התיק שלו, צריך מערכת הרשמה פשוטה. נבקש מה-AI להשתמש בספריות חינמיות מובנות בהתאם לשפה שבה האתר כתוב (למשל Flask-Login לפייתון או מנגנון פשוט ב-Node.js).
+​העתק והדבק ל-Replit AI:
+​"Implement a simple and free user authentication system (Login/Register) using the SQLite database we just added. Users must log in to see the simulator dashboard and their personal demo balance. Ensure passwords are hashed and the session is stored securely. Update the frontend with a simple, dark-themed login page."
+​3. הוספת כפתורי "הסבר JARVIS" לממשק
+​זה יוסיף את כפתור ה"למה?" ליד כל סיגנל, ויפתח חלונית קופצת (Modal) עם הסבר, תוך שמירה על העיצוב הכהה.
+​העתק והדבק ל-Replit AI:
+​"Update the frontend UI where the trading signals are displayed. Next to each signal, add a 'JARVIS Analysis' or 'Why?' button. When clicked, it should open a clean, modern, dark-themed modal (using HTML/CSS/JS, no external libraries) displaying a short string explaining the reason for the signal. Provide a mock explanation string for now."
+​4. כפתור שיתוף ויראלי (Social Share)
+​נשתמש ביכולות המובנות של הדפדפן (Web Share API) – זה חינמי לחלוטין ולא דורש התחברות ל-API של פייסבוק או וואטסאפ.
+​העתק והדבק ל-Replit AI:
+​"Add a 'Share Profit 🚀' button next to closed winning trades on the frontend. Use the native browser 'navigator.share' API. When clicked, it should prompt the user to share a text like: 'I just made a virtual profit of $[Amount] on the Poly Market Simulator!'. Include a fallback to 'navigator.clipboard.writeText' to copy the text if the device doesn't support the share API."
