@@ -13,6 +13,83 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface ReportWalletInput {
+  /**
+     * Privacy-safe display name (never an email).
+     * @minLength 1
+     * @maxLength 40
+     */
+  displayName: string;
+  /** Active-wallet value (cash + open position value), in paper dollars. */
+  walletValue: number;
+}
+
+export interface SocialProfile {
+  displayName: string;
+  walletValue: number;
+  referralCode: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  walletValue: number;
+  isSelf: boolean;
+}
+
+export interface Leaderboard {
+  entries: LeaderboardEntry[];
+  /** The caller's own rank/value, present even when outside top 10. */
+  self?: LeaderboardEntry | null;
+}
+
+export interface DailyRewardStatus {
+  claimable: boolean;
+  /** Reward amount in paper dollars. */
+  amount: number;
+  /** Asia/Jerusalem day (YYYY-MM-DD) of the last claim. */
+  lastClaimDate?: string | null;
+}
+
+export interface DailyRewardClaim {
+  claimed: boolean;
+  alreadyClaimed: boolean;
+  amount: number;
+}
+
+export interface ReferralInfo {
+  code: string;
+  /** Full sign-up link carrying the referral code. */
+  link: string;
+  /** How many users this user has successfully referred. */
+  referralCount: number;
+}
+
+export interface RedeemReferralInput {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  code: string;
+}
+
+export interface RedeemReferralResult {
+  redeemed: boolean;
+  /** Bonus added to the caller's ledger (0 when not redeemed). */
+  bonus: number;
+  /** Why redemption was rejected, when redeemed=false. */
+  reason?: string | null;
+}
+
+export interface Credits {
+  unclaimedCredits: number;
+}
+
+export interface AckCreditsInput {
+  /** Amount of credits the client has applied to the wallet. */
+  amount: number;
+}
+
 /**
  * Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.
 

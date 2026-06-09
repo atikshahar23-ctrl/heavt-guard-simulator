@@ -123,6 +123,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/", label: "לוח בקרה", icon: LayoutDashboard },
         { href: "/advisor", label: "היועץ הראשי", icon: Compass },
         { href: "/simulator", label: "תיק ההשקעות", icon: Trophy, extra: <PortfolioMiniBalance /> },
+        { href: "/leaderboard", label: "מיטב הסוחרים", icon: Crown },
       ],
     },
     {

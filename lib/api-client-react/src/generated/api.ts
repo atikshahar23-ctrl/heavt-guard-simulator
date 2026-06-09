@@ -20,10 +20,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AckCreditsInput,
   BacktestFundingAssetParams,
   BinanceData,
   CheckFundingAssetParams,
   CoinTicker,
+  Credits,
+  DailyRewardClaim,
+  DailyRewardStatus,
   ErrorResponse,
   FundingAssetCheck,
   FundingBacktest,
@@ -39,13 +43,19 @@ import type {
   GetStockSearchParams,
   HealthStatus,
   InfluencerSignal,
+  Leaderboard,
   MarketMovers,
   MomentumCoin,
   PolymarketMarket,
   PolymarketPricePoint,
   Recommendation,
+  RedeemReferralInput,
+  RedeemReferralResult,
+  ReferralInfo,
+  ReportWalletInput,
   ScalpSignal,
   ScanResult,
+  SocialProfile,
   StockCandle,
   StockQuote,
   StockRecommendation,
@@ -2004,5 +2014,608 @@ export const usePutUserState = <TError = ErrorType<ErrorResponse | UserStateEntr
         TContext
       > => {
       return useMutation(getPutUserStateMutationOptions(options));
+    }
+
+export const getReportWalletUrl = () => {
+
+
+
+
+  return `/api/social/report`
+}
+
+/**
+ * Upserts the caller's profile row with their privacy-safe display name and latest active-wallet value (cash + open position value). The user is derived from the Clerk session — never from the body. Implausible values are ignored (sane server-side bounds); the display name is still saved.
+
+ * @summary Report the signed-in user's active-wallet value and display name
+ */
+export const reportWallet = async (reportWalletInput: ReportWalletInput, options?: RequestInit): Promise<SocialProfile> => {
+
+  return customFetch<SocialProfile>(getReportWalletUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportWalletInput,)
+  }
+);}
+
+
+
+
+export const getReportWalletMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportWallet>>, TError,{data: BodyType<ReportWalletInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportWallet>>, TError,{data: BodyType<ReportWalletInput>}, TContext> => {
+
+const mutationKey = ['reportWallet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportWallet>>, {data: BodyType<ReportWalletInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportWallet(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportWalletMutationResult = NonNullable<Awaited<ReturnType<typeof reportWallet>>>
+    export type ReportWalletMutationBody = BodyType<ReportWalletInput>
+    export type ReportWalletMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Report the signed-in user's active-wallet value and display name
+ */
+export const useReportWallet = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportWallet>>, TError,{data: BodyType<ReportWalletInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportWallet>>,
+        TError,
+        {data: BodyType<ReportWalletInput>},
+        TContext
+      > => {
+      return useMutation(getReportWalletMutationOptions(options));
+    }
+
+export const getGetLeaderboardUrl = () => {
+
+
+
+
+  return `/api/social/leaderboard`
+}
+
+/**
+ * Returns the top 10 users ranked by reported active-wallet value, with a privacy-safe display name, and the caller's own rank/value (even when outside the top 10).
+
+ * @summary Top traders leaderboard plus the caller's own rank
+ */
+export const getLeaderboard = async ( options?: RequestInit): Promise<Leaderboard> => {
+
+  return customFetch<Leaderboard>(getGetLeaderboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLeaderboardQueryKey = () => {
+    return [
+    `/api/social/leaderboard`
+    ] as const;
+    }
+
+
+export const getGetLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getLeaderboard>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLeaderboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeaderboard>>> = ({ signal }) => getLeaderboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getLeaderboard>>>
+export type GetLeaderboardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Top traders leaderboard plus the caller's own rank
+ */
+
+export function useGetLeaderboard<TData = Awaited<ReturnType<typeof getLeaderboard>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLeaderboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetDailyRewardUrl = () => {
+
+
+
+
+  return `/api/social/daily-reward`
+}
+
+/**
+ * Reports whether the daily login reward is claimable for the caller, based on the Asia/Jerusalem calendar day.
+
+ * @summary Daily-reward claim status
+ */
+export const getDailyReward = async ( options?: RequestInit): Promise<DailyRewardStatus> => {
+
+  return customFetch<DailyRewardStatus>(getGetDailyRewardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDailyRewardQueryKey = () => {
+    return [
+    `/api/social/daily-reward`
+    ] as const;
+    }
+
+
+export const getGetDailyRewardQueryOptions = <TData = Awaited<ReturnType<typeof getDailyReward>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyReward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDailyRewardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyReward>>> = ({ signal }) => getDailyReward({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDailyReward>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDailyRewardQueryResult = NonNullable<Awaited<ReturnType<typeof getDailyReward>>>
+export type GetDailyRewardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Daily-reward claim status
+ */
+
+export function useGetDailyReward<TData = Awaited<ReturnType<typeof getDailyReward>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyReward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDailyRewardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getClaimDailyRewardUrl = () => {
+
+
+
+
+  return `/api/social/daily-reward/claim`
+}
+
+/**
+ * Records today's claim (Asia/Jerusalem day) and adds the reward to the caller's unclaimed-credits ledger. A second claim on the same Israel day is rejected (returns claimed=false, alreadyClaimed=true).
+
+ * @summary Claim today's daily login reward
+ */
+export const claimDailyReward = async ( options?: RequestInit): Promise<DailyRewardClaim> => {
+
+  return customFetch<DailyRewardClaim>(getClaimDailyRewardUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getClaimDailyRewardMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimDailyReward>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimDailyReward>>, TError,void, TContext> => {
+
+const mutationKey = ['claimDailyReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimDailyReward>>, void> = () => {
+
+
+          return  claimDailyReward(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimDailyRewardMutationResult = NonNullable<Awaited<ReturnType<typeof claimDailyReward>>>
+
+    export type ClaimDailyRewardMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Claim today's daily login reward
+ */
+export const useClaimDailyReward = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimDailyReward>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimDailyReward>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClaimDailyRewardMutationOptions(options));
+    }
+
+export const getGetReferralUrl = () => {
+
+
+
+
+  return `/api/social/referral`
+}
+
+/**
+ * @summary The caller's referral code/link and referral count
+ */
+export const getReferral = async ( options?: RequestInit): Promise<ReferralInfo> => {
+
+  return customFetch<ReferralInfo>(getGetReferralUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReferralQueryKey = () => {
+    return [
+    `/api/social/referral`
+    ] as const;
+    }
+
+
+export const getGetReferralQueryOptions = <TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReferralQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReferral>>> = ({ signal }) => getReferral({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReferralQueryResult = NonNullable<Awaited<ReturnType<typeof getReferral>>>
+export type GetReferralQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary The caller's referral code/link and referral count
+ */
+
+export function useGetReferral<TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReferralQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRedeemReferralUrl = () => {
+
+
+
+
+  return `/api/social/referral/redeem`
+}
+
+/**
+ * Validates the referrer exists, it is not self-referral, and the caller hasn't already redeemed; then grants a one-time bonus to both the new user and the referrer (added to each unclaimed-credits ledger).
+
+ * @summary Redeem a referral code as a brand-new user
+ */
+export const redeemReferral = async (redeemReferralInput: RedeemReferralInput, options?: RequestInit): Promise<RedeemReferralResult> => {
+
+  return customFetch<RedeemReferralResult>(getRedeemReferralUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      redeemReferralInput,)
+  }
+);}
+
+
+
+
+export const getRedeemReferralMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<RedeemReferralInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<RedeemReferralInput>}, TContext> => {
+
+const mutationKey = ['redeemReferral'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemReferral>>, {data: BodyType<RedeemReferralInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  redeemReferral(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemReferralMutationResult = NonNullable<Awaited<ReturnType<typeof redeemReferral>>>
+    export type RedeemReferralMutationBody = BodyType<RedeemReferralInput>
+    export type RedeemReferralMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Redeem a referral code as a brand-new user
+ */
+export const useRedeemReferral = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<RedeemReferralInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemReferral>>,
+        TError,
+        {data: BodyType<RedeemReferralInput>},
+        TContext
+      > => {
+      return useMutation(getRedeemReferralMutationOptions(options));
+    }
+
+export const getGetCreditsUrl = () => {
+
+
+
+
+  return `/api/social/credits`
+}
+
+/**
+ * @summary The caller's current unclaimed-credit balance
+ */
+export const getCredits = async ( options?: RequestInit): Promise<Credits> => {
+
+  return customFetch<Credits>(getGetCreditsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCreditsQueryKey = () => {
+    return [
+    `/api/social/credits`
+    ] as const;
+    }
+
+
+export const getGetCreditsQueryOptions = <TData = Awaited<ReturnType<typeof getCredits>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCredits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCreditsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCredits>>> = ({ signal }) => getCredits({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCredits>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCreditsQueryResult = NonNullable<Awaited<ReturnType<typeof getCredits>>>
+export type GetCreditsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary The caller's current unclaimed-credit balance
+ */
+
+export function useGetCredits<TData = Awaited<ReturnType<typeof getCredits>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCredits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCreditsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAckCreditsUrl = () => {
+
+
+
+
+  return `/api/social/credits/ack`
+}
+
+/**
+ * After the client applies drained credits to the browser wallet it acks the exact amount; the server decrements the ledger by that amount (clamped at 0), so concurrently-earned credits are preserved.
+
+ * @summary Acknowledge applied credits (decrement the ledger)
+ */
+export const ackCredits = async (ackCreditsInput: AckCreditsInput, options?: RequestInit): Promise<Credits> => {
+
+  return customFetch<Credits>(getAckCreditsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      ackCreditsInput,)
+  }
+);}
+
+
+
+
+export const getAckCreditsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ackCredits>>, TError,{data: BodyType<AckCreditsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ackCredits>>, TError,{data: BodyType<AckCreditsInput>}, TContext> => {
+
+const mutationKey = ['ackCredits'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ackCredits>>, {data: BodyType<AckCreditsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  ackCredits(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AckCreditsMutationResult = NonNullable<Awaited<ReturnType<typeof ackCredits>>>
+    export type AckCreditsMutationBody = BodyType<AckCreditsInput>
+    export type AckCreditsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Acknowledge applied credits (decrement the ledger)
+ */
+export const useAckCredits = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ackCredits>>, TError,{data: BodyType<AckCreditsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof ackCredits>>,
+        TError,
+        {data: BodyType<AckCreditsInput>},
+        TContext
+      > => {
+      return useMutation(getAckCreditsMutationOptions(options));
     }
 

@@ -1,0 +1,150 @@
+import { useState } from "react";
+import { Gift, Users, Copy, Check, Sparkles } from "lucide-react";
+import {
+  useGetDailyReward,
+  getGetDailyRewardQueryKey,
+  useClaimDailyReward,
+  useGetReferral,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSocial } from "@/contexts/social-context";
+import { toast } from "@/hooks/use-toast";
+
+/** Daily login reward — claim once per Israel day; bonus lands as a deposit. */
+function DailyRewardCard() {
+  const queryClient = useQueryClient();
+  const { drainCredits } = useSocial();
+  const { data, isLoading } = useGetDailyReward({
+    query: { queryKey: getGetDailyRewardQueryKey(), refetchInterval: 5 * 60_000 },
+  });
+  const claim = useClaimDailyReward();
+
+  if (isLoading || !data) return null;
+
+  const amount = data.amount;
+  const claimable = data.claimable && !claim.isPending;
+
+  const onClaim = async () => {
+    try {
+      const res = await claim.mutateAsync();
+      await queryClient.invalidateQueries({
+        queryKey: getGetDailyRewardQueryKey(),
+      });
+      if (res.claimed) {
+        await drainCredits();
+        toast({
+          title: "התגמול היומי נוסף",
+          description: `נוספו $${amount.toLocaleString()} לארנק הפעיל (דמו לימודי).`,
+        });
+      } else {
+        toast({
+          title: "כבר נאסף היום",
+          description: "אפשר לאסוף שוב מחר.",
+        });
+      }
+    } catch {
+      toast({ title: "שגיאה", description: "לא ניתן לאסוף את התגמול כעת." });
+    }
+  };
+
+  return (
+    <div
+      dir="rtl"
+      className="relative flex items-center gap-3 overflow-hidden rounded-lg border border-[#cdbfa4]/30 bg-[#cdbfa4]/[0.05] p-4"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#cdbfa4]/40 bg-[#cdbfa4]/10 text-[#cdbfa4]">
+        <Gift className="h-5 w-5" strokeWidth={1.6} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-[#e6edf4]">
+          תגמול כניסה יומי · ${amount.toLocaleString()}
+        </div>
+        <div className="text-[11px] text-[#9fb4c7]/70">
+          {data.claimable
+            ? "התגמול ממתין לך — לחיצה אחת והוא בארנק."
+            : "נאסף היום. חזרו מחר לתגמול נוסף."}
+        </div>
+      </div>
+      <button
+        disabled={!claimable}
+        onClick={onClaim}
+        className={`shrink-0 rounded-md px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.12em] transition-all ${
+          claimable
+            ? "bg-gradient-to-r from-[#e7d9bd] via-[#cdbfa4] to-[#a98f63] text-[#0b0f14] hover:brightness-110"
+            : "cursor-not-allowed border border-[#9fb4c7]/20 bg-white/[0.02] text-[#9fb4c7]/40"
+        }`}
+      >
+        {claim.isPending ? "אוסף…" : data.claimable ? "אסוף" : "נאסף"}
+      </button>
+    </div>
+  );
+}
+
+/** Referral card — share link, both sides get a one-time bonus. */
+function ReferralCard() {
+  const { data } = useGetReferral();
+  const [copied, setCopied] = useState(false);
+
+  if (!data) return null;
+
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(data.link);
+      setCopied(true);
+      toast({
+        title: "הקישור הועתק",
+        description: "שתפו אותו וקבלו בונוס לכל הצטרפות.",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "שגיאה", description: "לא ניתן להעתיק את הקישור." });
+    }
+  };
+
+  return (
+    <div
+      dir="rtl"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-lg border border-[#9fb4c7]/25 bg-white/[0.02] p-4"
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#9fb4c7]/30 bg-[#9fb4c7]/10 text-[#9fb4c7]">
+          <Users className="h-4 w-4" strokeWidth={1.6} />
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-[#e6edf4]">הזמינו חברים</div>
+          <div className="text-[11px] text-[#9fb4c7]/70">
+            על כל הצטרפות — שניכם מקבלים $2,000 לתיק (דמו לימודי).
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1 truncate rounded-md border border-[#9fb4c7]/20 bg-black/30 px-3 py-2 font-mono text-[11px] text-[#9fb4c7]/85">
+          {data.link}
+        </div>
+        <button
+          onClick={onCopy}
+          className="flex shrink-0 items-center gap-1.5 rounded-md border border-[#9fb4c7]/25 bg-[#9fb4c7]/[0.06] px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#9fb4c7] transition-colors hover:bg-[#9fb4c7]/15"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "הועתק" : "העתק"}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[#cdbfa4]/80">
+        <Sparkles className="h-3 w-3" />
+        קוד: {data.code} · הזמנות מוצלחות: {data.referralCount}
+      </div>
+    </div>
+  );
+}
+
+/** Daily reward + referral, shown together near the top of the dashboard. */
+export function SocialBanners() {
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <DailyRewardCard />
+      <ReferralCard />
+    </div>
+  );
+}

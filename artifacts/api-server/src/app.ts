@@ -79,7 +79,12 @@ app.use(
 // 2mb parser instead (see routes/userState.ts). Every other route keeps the
 // small default cap to bound DoS surface.
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/user-state")) {
+  // /api/user-state carries larger snapshots; /api/social uses its own scoped
+  // parser for clean 400/413 JSON. Both opt out of the global parser.
+  if (
+    req.path.startsWith("/api/user-state") ||
+    req.path.startsWith("/api/social")
+  ) {
     next();
     return;
   }

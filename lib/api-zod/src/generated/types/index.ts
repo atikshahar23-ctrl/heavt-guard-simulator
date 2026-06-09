@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './ackCreditsInput';
 export * from './arbitrageSignal';
 export * from './arbitrageSignalSeverity';
 export * from './arbitrageSignalType';
@@ -13,6 +14,9 @@ export * from './backtestFundingAssetParams';
 export * from './binanceData';
 export * from './checkFundingAssetParams';
 export * from './coinTicker';
+export * from './credits';
+export * from './dailyRewardClaim';
+export * from './dailyRewardStatus';
 export * from './errorResponse';
 export * from './fearGreed';
 export * from './fundingAssetCheck';
@@ -47,6 +51,8 @@ export * from './healthStatus';
 export * from './influencerSignal';
 export * from './influencerSignalDirection';
 export * from './influencerSignalHorizon';
+export * from './leaderboard';
+export * from './leaderboardEntry';
 export * from './marketAnalysis';
 export * from './marketMovers';
 export * from './momentumCoin';
@@ -58,11 +64,16 @@ export * from './polymarketPricePoint';
 export * from './recommendation';
 export * from './recommendationAction';
 export * from './recommendationConfidence';
+export * from './redeemReferralInput';
+export * from './redeemReferralResult';
+export * from './referralInfo';
+export * from './reportWalletInput';
 export * from './scalpSignal';
 export * from './scalpSignalConfidence';
 export * from './scalpSignalDirection';
 export * from './scanResult';
 export * from './signalCounts';
+export * from './socialProfile';
 export * from './stockCandle';
 export * from './stockQuote';
 export * from './stockQuoteCategory';

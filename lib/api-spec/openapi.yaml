@@ -755,6 +755,218 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /social/report:
+    post:
+      operationId: reportWallet
+      tags: [social]
+      summary: Report the signed-in user's active-wallet value and display name
+      description: >
+        Upserts the caller's profile row with their privacy-safe display name and
+        latest active-wallet value (cash + open position value). The user is
+        derived from the Clerk session — never from the body. Implausible values
+        are ignored (sane server-side bounds); the display name is still saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportWalletInput"
+      responses:
+        "200":
+          description: Profile saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialProfile"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [social]
+      summary: Top traders leaderboard plus the caller's own rank
+      description: >
+        Returns the top 10 users ranked by reported active-wallet value, with a
+        privacy-safe display name, and the caller's own rank/value (even when
+        outside the top 10).
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Leaderboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/daily-reward:
+    get:
+      operationId: getDailyReward
+      tags: [social]
+      summary: Daily-reward claim status
+      description: >
+        Reports whether the daily login reward is claimable for the caller, based
+        on the Asia/Jerusalem calendar day.
+      responses:
+        "200":
+          description: Daily-reward status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyRewardStatus"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/daily-reward/claim:
+    post:
+      operationId: claimDailyReward
+      tags: [social]
+      summary: Claim today's daily login reward
+      description: >
+        Records today's claim (Asia/Jerusalem day) and adds the reward to the
+        caller's unclaimed-credits ledger. A second claim on the same Israel day
+        is rejected (returns claimed=false, alreadyClaimed=true).
+      responses:
+        "200":
+          description: Claim result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyRewardClaim"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/referral:
+    get:
+      operationId: getReferral
+      tags: [social]
+      summary: The caller's referral code/link and referral count
+      responses:
+        "200":
+          description: Referral info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralInfo"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/referral/redeem:
+    post:
+      operationId: redeemReferral
+      tags: [social]
+      summary: Redeem a referral code as a brand-new user
+      description: >
+        Validates the referrer exists, it is not self-referral, and the caller
+        hasn't already redeemed; then grants a one-time bonus to both the new
+        user and the referrer (added to each unclaimed-credits ledger).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemReferralInput"
+      responses:
+        "200":
+          description: Redemption result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemReferralResult"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/credits:
+    get:
+      operationId: getCredits
+      tags: [social]
+      summary: The caller's current unclaimed-credit balance
+      responses:
+        "200":
+          description: Unclaimed credits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credits"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/credits/ack:
+    post:
+      operationId: ackCredits
+      tags: [social]
+      summary: Acknowledge applied credits (decrement the ledger)
+      description: >
+        After the client applies drained credits to the browser wallet it acks
+        the exact amount; the server decrements the ledger by that amount
+        (clamped at 0), so concurrently-earned credits are preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AckCreditsInput"
+      responses:
+        "200":
+          description: Remaining credits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credits"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -772,6 +984,156 @@ components:
           type: string
       required:
         - error
+
+    ReportWalletInput:
+      type: object
+      required:
+        - displayName
+        - walletValue
+      properties:
+        displayName:
+          type: string
+          description: Privacy-safe display name (never an email).
+          minLength: 1
+          maxLength: 40
+        walletValue:
+          type: number
+          description: Active-wallet value (cash + open position value), in paper dollars.
+
+    SocialProfile:
+      type: object
+      required:
+        - displayName
+        - walletValue
+        - referralCode
+      properties:
+        displayName:
+          type: string
+        walletValue:
+          type: number
+        referralCode:
+          type: string
+
+    LeaderboardEntry:
+      type: object
+      required:
+        - rank
+        - displayName
+        - walletValue
+        - isSelf
+      properties:
+        rank:
+          type: integer
+        displayName:
+          type: string
+        walletValue:
+          type: number
+        isSelf:
+          type: boolean
+
+    Leaderboard:
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+        self:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/LeaderboardEntry"
+          description: The caller's own rank/value, present even when outside top 10.
+
+    DailyRewardStatus:
+      type: object
+      required:
+        - claimable
+        - amount
+      properties:
+        claimable:
+          type: boolean
+        amount:
+          type: number
+          description: Reward amount in paper dollars.
+        lastClaimDate:
+          type: string
+          nullable: true
+          description: Asia/Jerusalem day (YYYY-MM-DD) of the last claim.
+
+    DailyRewardClaim:
+      type: object
+      required:
+        - claimed
+        - alreadyClaimed
+        - amount
+      properties:
+        claimed:
+          type: boolean
+        alreadyClaimed:
+          type: boolean
+        amount:
+          type: number
+
+    ReferralInfo:
+      type: object
+      required:
+        - code
+        - link
+        - referralCount
+      properties:
+        code:
+          type: string
+        link:
+          type: string
+          description: Full sign-up link carrying the referral code.
+        referralCount:
+          type: integer
+          description: How many users this user has successfully referred.
+
+    RedeemReferralInput:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+
+    RedeemReferralResult:
+      type: object
+      required:
+        - redeemed
+        - bonus
+      properties:
+        redeemed:
+          type: boolean
+        bonus:
+          type: number
+          description: Bonus added to the caller's ledger (0 when not redeemed).
+        reason:
+          type: string
+          nullable: true
+          description: Why redemption was rejected, when redeemed=false.
+
+    Credits:
+      type: object
+      required:
+        - unclaimedCredits
+      properties:
+        unclaimedCredits:
+          type: number
+
+    AckCreditsInput:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          description: Amount of credits the client has applied to the wallet.
 
     UserStateData:
       description: >

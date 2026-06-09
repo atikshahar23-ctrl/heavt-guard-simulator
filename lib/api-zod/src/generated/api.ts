@@ -658,3 +658,121 @@ export const PutUserStateResponse = zod.object({
 })
 
 
+/**
+ * Upserts the caller's profile row with their privacy-safe display name and latest active-wallet value (cash + open position value). The user is derived from the Clerk session — never from the body. Implausible values are ignored (sane server-side bounds); the display name is still saved.
+
+ * @summary Report the signed-in user's active-wallet value and display name
+ */
+export const reportWalletBodyDisplayNameMax = 40;
+
+
+
+export const ReportWalletBody = zod.object({
+  "displayName": zod.string().min(1).max(reportWalletBodyDisplayNameMax).describe('Privacy-safe display name (never an email).'),
+  "walletValue": zod.number().describe('Active-wallet value (cash + open position value), in paper dollars.')
+})
+
+export const ReportWalletResponse = zod.object({
+  "displayName": zod.string(),
+  "walletValue": zod.number(),
+  "referralCode": zod.string()
+})
+
+
+/**
+ * Returns the top 10 users ranked by reported active-wallet value, with a privacy-safe display name, and the caller's own rank/value (even when outside the top 10).
+
+ * @summary Top traders leaderboard plus the caller's own rank
+ */
+export const GetLeaderboardResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "rank": zod.number(),
+  "displayName": zod.string(),
+  "walletValue": zod.number(),
+  "isSelf": zod.boolean()
+})),
+  "self": zod.object({
+  "rank": zod.number(),
+  "displayName": zod.string(),
+  "walletValue": zod.number(),
+  "isSelf": zod.boolean()
+}).nullish().describe('The caller\'s own rank\/value, present even when outside top 10.')
+})
+
+
+/**
+ * Reports whether the daily login reward is claimable for the caller, based on the Asia/Jerusalem calendar day.
+
+ * @summary Daily-reward claim status
+ */
+export const GetDailyRewardResponse = zod.object({
+  "claimable": zod.boolean(),
+  "amount": zod.number().describe('Reward amount in paper dollars.'),
+  "lastClaimDate": zod.string().nullish().describe('Asia\/Jerusalem day (YYYY-MM-DD) of the last claim.')
+})
+
+
+/**
+ * Records today's claim (Asia/Jerusalem day) and adds the reward to the caller's unclaimed-credits ledger. A second claim on the same Israel day is rejected (returns claimed=false, alreadyClaimed=true).
+
+ * @summary Claim today's daily login reward
+ */
+export const ClaimDailyRewardResponse = zod.object({
+  "claimed": zod.boolean(),
+  "alreadyClaimed": zod.boolean(),
+  "amount": zod.number()
+})
+
+
+/**
+ * @summary The caller's referral code/link and referral count
+ */
+export const GetReferralResponse = zod.object({
+  "code": zod.string(),
+  "link": zod.string().describe('Full sign-up link carrying the referral code.'),
+  "referralCount": zod.number().describe('How many users this user has successfully referred.')
+})
+
+
+/**
+ * Validates the referrer exists, it is not self-referral, and the caller hasn't already redeemed; then grants a one-time bonus to both the new user and the referrer (added to each unclaimed-credits ledger).
+
+ * @summary Redeem a referral code as a brand-new user
+ */
+export const redeemReferralBodyCodeMax = 64;
+
+
+
+export const RedeemReferralBody = zod.object({
+  "code": zod.string().min(1).max(redeemReferralBodyCodeMax)
+})
+
+export const RedeemReferralResponse = zod.object({
+  "redeemed": zod.boolean(),
+  "bonus": zod.number().describe('Bonus added to the caller\'s ledger (0 when not redeemed).'),
+  "reason": zod.string().nullish().describe('Why redemption was rejected, when redeemed=false.')
+})
+
+
+/**
+ * @summary The caller's current unclaimed-credit balance
+ */
+export const GetCreditsResponse = zod.object({
+  "unclaimedCredits": zod.number()
+})
+
+
+/**
+ * After the client applies drained credits to the browser wallet it acks the exact amount; the server decrements the ledger by that amount (clamped at 0), so concurrently-earned credits are preserved.
+
+ * @summary Acknowledge applied credits (decrement the ledger)
+ */
+export const AckCreditsBody = zod.object({
+  "amount": zod.number().describe('Amount of credits the client has applied to the wallet.')
+})
+
+export const AckCreditsResponse = zod.object({
+  "unclaimedCredits": zod.number()
+})
+
+

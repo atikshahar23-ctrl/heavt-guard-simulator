@@ -32,6 +32,7 @@ const Briefing = lazy(() => import("@/pages/briefing"));
 const Tools = lazy(() => import("@/pages/tools"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
 const Landing = lazy(() => import("@/pages/landing"));
+const Leaderboard = lazy(() => import("@/pages/leaderboard"));
 import Layout from "@/components/layout";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { CalendarAlerter } from "@/components/calendar-alerter";
@@ -41,6 +42,7 @@ import { AutoTraderProvider } from "@/contexts/autotrader-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
 import { LivePriceProvider } from "@/contexts/live-price-context";
 import { ServerSyncProvider } from "@/contexts/server-sync-context";
+import { SocialProvider } from "@/contexts/social-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
 import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 import { FundingBotEngine } from "@/components/funding-bot-engine";
@@ -49,6 +51,21 @@ import { OptionsBotEngine } from "@/components/options-bot-engine";
 const queryClient = new QueryClient();
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// Capture a referral code (?ref=CODE) at first load — before Clerk's routing
+// rewrites the URL — and stash it so we can redeem it once the new user has
+// signed in. The actual redemption (and "is this genuinely a new sign-up"
+// gating) happens in SocialProvider.
+(function captureReferralCode() {
+  try {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref && /^[A-Za-z0-9]{1,64}$/.test(ref)) {
+      localStorage.setItem("arb_ref_code", ref.toUpperCase());
+    }
+  } catch {
+    /* ignore — referral capture is best-effort */
+  }
+})();
 
 // REQUIRED — Clerk reads window.location.pathname directly, so the path
 // prop must include the base path prefix. In wouter, setLocation prepends
@@ -213,6 +230,7 @@ function Router() {
         <Route path="/stock-desk" component={StockDesk} />
         <Route path="/smart-money" component={SmartMoney} />
         <Route path="/simulator" component={Simulator} />
+        <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/bots" component={Bots} />
         <Route path="/advisor" component={MasterAdvisor} />
         <Route path="/briefing" component={Briefing} />
@@ -282,6 +300,7 @@ function AuthedApp() {
       <LivePriceProvider>
       <ServerSyncProvider>
       <PortfolioProvider>
+      <SocialProvider>
       <FavoritesProvider>
       <AutoTraderProvider>
       <TooltipProvider>
@@ -297,6 +316,7 @@ function AuthedApp() {
       </TooltipProvider>
       </AutoTraderProvider>
       </FavoritesProvider>
+      </SocialProvider>
       </PortfolioProvider>
       </ServerSyncProvider>
       </LivePriceProvider>

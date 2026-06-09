@@ -10,6 +10,7 @@ import {
   Bot, Layers, Activity, ShieldCheck, BarChart3, Cpu,
 } from "lucide-react";
 import { CryptoIcon } from "@/components/crypto-icon";
+import { SocialBanners } from "@/components/social-banners";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -338,6 +339,9 @@ export default function Dashboard() {
           </Tabs>
         </div>
       </div>
+
+      {/* ── Daily reward + referral ── */}
+      <SocialBanners />
 
       {/* ── System Overview Tiles ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
