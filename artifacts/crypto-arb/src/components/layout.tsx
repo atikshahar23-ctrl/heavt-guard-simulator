@@ -14,6 +14,7 @@ import { TopControls } from "@/components/top-controls";
 import { WalletSwitcher } from "@/components/wallet-switcher";
 import { EarthBackground } from "@/components/earth-background";
 import { TickerTape } from "@/components/ticker-tape";
+import { SidebarNews } from "@/components/sidebar-news";
 import logoUrl from "@/assets/logo-heavy-guard.png";
 
 type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; extra?: React.ReactNode };
@@ -226,6 +227,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         ))}
+
+        {/* Market News — desktop only, scrolls with nav so it never crowds links */}
+        <div className="hidden md:block pt-1 border-t border-border/40">
+          <SidebarNews />
+        </div>
       </nav>
 
       <div className="relative px-4 py-3 border-t border-border/70 shrink-0">
