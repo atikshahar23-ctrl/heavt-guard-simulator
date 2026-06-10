@@ -1872,7 +1872,7 @@ export const getGetUserStateUrl = () => {
 }
 
 /**
- * Returns every saved state slot (wallets, autotrader, favorites, onboarding) for the authenticated Clerk user. Requires a signed-in session; returns 401 otherwise.
+ * Returns every saved state slot (wallets, autotrader, favorites, onboarding, performance) for the authenticated Clerk user. Requires a signed-in session; returns 401 otherwise.
 
  * @summary Get all persisted state slots for the signed-in user
  */
@@ -1942,7 +1942,7 @@ export function useGetUserState<TData = Awaited<ReturnType<typeof getUserState>>
 
 
 
-export const getPutUserStateUrl = (slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding',) => {
+export const getPutUserStateUrl = (slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance',) => {
 
 
 
@@ -1955,7 +1955,7 @@ export const getPutUserStateUrl = (slot: 'wallets' | 'autotrader' | 'favorites' 
 
  * @summary Upsert a single state slot with optimistic concurrency
  */
-export const putUserState = async (slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding',
+export const putUserState = async (slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance',
     userStateInput: UserStateInput, options?: RequestInit): Promise<UserStateWriteResult> => {
 
   return customFetch<UserStateWriteResult>(getPutUserStateUrl(slot),
@@ -1972,8 +1972,8 @@ export const putUserState = async (slot: 'wallets' | 'autotrader' | 'favorites' 
 
 
 export const getPutUserStateMutationOptions = <TError = ErrorType<ErrorResponse | UserStateEntry>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance';data: BodyType<UserStateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance';data: BodyType<UserStateInput>}, TContext> => {
 
 const mutationKey = ['putUserState'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1985,7 +1985,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putUserState>>, {slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putUserState>>, {slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance';data: BodyType<UserStateInput>}> = (props) => {
           const {slot,data} = props ?? {};
 
           return  putUserState(slot,data,requestOptions)
@@ -2006,11 +2006,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  * @summary Upsert a single state slot with optimistic concurrency
  */
 export const usePutUserState = <TError = ErrorType<ErrorResponse | UserStateEntry>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUserState>>, TError,{slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance';data: BodyType<UserStateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof putUserState>>,
         TError,
-        {slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding';data: BodyType<UserStateInput>},
+        {slot: 'wallets' | 'autotrader' | 'favorites' | 'onboarding' | 'performance';data: BodyType<UserStateInput>},
         TContext
       > => {
       return useMutation(getPutUserStateMutationOptions(options));

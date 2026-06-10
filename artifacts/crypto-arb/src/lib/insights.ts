@@ -97,6 +97,22 @@ export interface BotAgg {
   curve: number[];
   /** Adaptive selectivity multiplier from the manager (1 = baseline). */
   edge: number;
+  /** Max drawdown (absolute USD) from peak equity for this bot's trades. */
+  maxDrawdown: number;
+  /** Average winning trade (USD); 0 if no wins. */
+  avgWin: number;
+  /** Average losing trade (USD); 0 if no losses. */
+  avgLoss: number;
+  /** Best single trade PnL (USD). */
+  maxWin: number;
+  /** Worst single trade PnL (USD). */
+  maxLoss: number;
+  /** Max consecutive wins. */
+  maxWinStreak: number;
+  /** Max consecutive losses. */
+  maxLossStreak: number;
+  /** Recovery factor = net / maxDrawdown (higher = better). */
+  recoveryFactor: number;
 }
 
 export interface CautionEntry {
@@ -227,6 +243,37 @@ export function computeBotAggs(tradeHistory: ClosedTrade[], botStats: Record<str
     const trades = tradeHistory.filter(b.match);
     const wins = trades.filter((t) => t.pnl > 0).length;
     const net = trades.reduce((a, t) => a + t.pnl, 0);
+    const avgWin = trades.length
+      ? trades.filter((t) => t.pnl > 0).reduce((a, t) => a + t.pnl, 0) / Math.max(1, wins)
+      : 0;
+    const losses = trades.filter((t) => t.pnl < 0);
+    const avgLoss = losses.length
+      ? losses.reduce((a, t) => a + t.pnl, 0) / losses.length
+      : 0;
+    const maxWin = trades.length ? Math.max(...trades.map((t) => t.pnl)) : 0;
+    const maxLoss = trades.length ? Math.min(...trades.map((t) => t.pnl)) : 0;
+
+    // Streaks (chronological order)
+    const chrono = [...trades].reverse();
+    let maxWinStreak = 0, maxLossStreak = 0;
+    let curWin = 0, curLoss = 0;
+    for (const t of chrono) {
+      if (t.pnl > 0) { curWin++; curLoss = 0; maxWinStreak = Math.max(maxWinStreak, curWin); }
+      else if (t.pnl < 0) { curLoss++; curWin = 0; maxLossStreak = Math.max(maxLossStreak, curLoss); }
+    }
+
+    // Drawdown from cumulative curve
+    const curve = curveOf(trades);
+    let maxDrawdown = 0;
+    let peak = 0;
+    for (const v of curve) {
+      if (v > peak) peak = v;
+      const dd = peak - v;
+      if (dd > maxDrawdown) maxDrawdown = dd;
+    }
+
+    const recoveryFactor = maxDrawdown > 0 ? net / maxDrawdown : net >= 0 ? 999 : -999;
+
     return {
       key: b.key,
       title: t(b.titleKey, lang),
@@ -236,8 +283,16 @@ export function computeBotAggs(tradeHistory: ClosedTrade[], botStats: Record<str
       net,
       avg: trades.length ? net / trades.length : 0,
       recentNet: recentNetOf(trades),
-      curve: curveOf(trades),
+      curve,
       edge: botStats[b.key]?.edge ?? 1,
+      maxDrawdown,
+      avgWin,
+      avgLoss,
+      maxWin,
+      maxLoss,
+      maxWinStreak,
+      maxLossStreak,
+      recoveryFactor,
     };
   }).filter((b) => b.trades > 0);
 }

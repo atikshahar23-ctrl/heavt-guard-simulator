@@ -19,9 +19,9 @@ import {
  * `user_state` table and one independent save loop here, so a wallets write can
  * never clobber a concurrent favorites/autotrader/onboarding write.
  */
-export type StateSlot = "wallets" | "autotrader" | "favorites" | "onboarding";
+export type StateSlot = "wallets" | "autotrader" | "favorites" | "onboarding" | "performance";
 
-const SLOTS: StateSlot[] = ["wallets", "autotrader", "favorites", "onboarding"];
+const SLOTS: StateSlot[] = ["wallets", "autotrader", "favorites", "onboarding", "performance"];
 
 interface ServerSyncValue {
   /**

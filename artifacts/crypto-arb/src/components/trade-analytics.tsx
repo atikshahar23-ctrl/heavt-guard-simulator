@@ -157,20 +157,27 @@ export function TradeAnalytics() {
     return { maxWin, maxLoss, curWin, curLoss };
   }, [tradeHistory]);
 
-  /* ── Drawdown ── */
+  /* ── Drawdown (percent + absolute USD) ── */
   const drawdown = useMemo(() => {
-    if (equity.length < 2) return { max: 0, current: 0, peak: 0 };
+    if (equity.length < 2) return { max: 0, current: 0, peak: 0, maxAbs: 0, currentAbs: 0 };
+    const base = totalDeposited || STARTING_BALANCE;
     let peak = 0;
     let maxDD = 0;
+    let maxAbs = 0;
     for (const v of equity) {
-      if (v > peak) peak = v;
-      const dd = peak > 0 ? ((peak - v) / peak) * 100 : 0;
+      const bal = base + v;
+      if (bal > peak) peak = bal;
+      const dd = peak > 0 ? ((peak - bal) / peak) * 100 : 0;
       if (dd > maxDD) maxDD = dd;
+      const abs = peak - bal;
+      if (abs > maxAbs) maxAbs = abs;
     }
     const last = equity[equity.length - 1];
-    const currentDD = peak > 0 ? ((peak - last) / peak) * 100 : 0;
-    return { max: maxDD, current: currentDD, peak };
-  }, [equity]);
+    const currentBal = base + last;
+    const currentDD = peak > 0 ? ((peak - currentBal) / peak) * 100 : 0;
+    const currentAbs = peak - currentBal;
+    return { max: maxDD, current: currentDD, peak, maxAbs, currentAbs };
+  }, [equity, totalDeposited]);
 
   /* ── Time-based ── */
   const timeStats = useMemo(() => {
@@ -361,8 +368,10 @@ export function TradeAnalytics() {
             <StatBar label={t("trade.taCurLossStreak", lang)} value={String(streaks.curLoss)} color={streaks.curLoss >= 2 ? "#ef4444" : "#a1a1aa"} />
             <div className="h-px bg-border/50" />
             <StatBar label={t("trade.taMaxDD", lang)} value={`${drawdown.max.toFixed(1)}%`} color={drawdown.max >= 20 ? "#ef4444" : "#a1a1aa"} />
+            <StatBar label={t("trade.taMaxDDAbs", lang)} value={hasData ? `-$${usd(drawdown.maxAbs)}` : "—"} color={drawdown.maxAbs >= 1000 ? "#ef4444" : "#a1a1aa"} />
             <StatBar label={t("trade.taCurDD", lang)} value={`${drawdown.current.toFixed(1)}%`} color={drawdown.current >= 10 ? "#ef4444" : "#a1a1aa"} />
-            <StatBar label={t("trade.taPeakEquity", lang)} value={hasData ? `$${usd(riskMetrics.avgCost)}` : "—"} />
+            <StatBar label={t("trade.taCurDDAbs", lang)} value={hasData ? `-$${usd(drawdown.currentAbs)}` : "—"} color={drawdown.currentAbs >= 500 ? "#ef4444" : "#a1a1aa"} />
+            <StatBar label={t("trade.taPeakEquity", lang)} value={hasData ? `$${usd(drawdown.peak)}` : "—"} />
             <StatBar label={t("trade.taRR", lang)} value={riskMetrics.rr > 0 ? `${riskMetrics.rr.toFixed(2)}:1` : "—"} color={riskMetrics.rr >= 1.5 ? "#22c55e" : "#a1a1aa"} />
           </div>
           {drawdown.max >= 20 && (

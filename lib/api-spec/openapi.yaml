@@ -681,7 +681,7 @@ paths:
       summary: Get all persisted state slots for the signed-in user
       description: >
         Returns every saved state slot (wallets, autotrader, favorites,
-        onboarding) for the authenticated Clerk user. Requires a signed-in
+        onboarding, performance) for the authenticated Clerk user. Requires a signed-in
         session; returns 401 otherwise.
       responses:
         "200":
@@ -715,7 +715,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [wallets, autotrader, favorites, onboarding]
+            enum: [wallets, autotrader, favorites, onboarding, performance]
           description: Which state slot to write
       requestBody:
         required: true

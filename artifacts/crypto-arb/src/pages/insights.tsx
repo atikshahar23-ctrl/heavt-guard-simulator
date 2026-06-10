@@ -1,14 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import {
   BarChart3, Brain, Bot, Layers, TrendingUp, TrendingDown,
   Activity, ShieldAlert, Sparkles, Trophy, Wallet, Target,
+  CloudCheck,
 } from "lucide-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { useAutoTrader } from "@/contexts/autotrader-context";
+import { useServerSync } from "@/contexts/server-sync-context";
 import { Sparkline } from "@/components/trade-analytics";
 import { buildInsights, type ClassAgg, type BotAgg, type SymbolAgg } from "@/lib/insights";
 import { useLanguage } from "@/contexts/language-context";
 import { t } from "@/lib/i18n";
+
+/** Lightweight snapshot of the performance insights for DB persistence. */
+interface PerformanceSnapshot {
+  timestamp: string;
+  totalTrades: number;
+  totalNet: number;
+  overallWinRate: number;
+  totalOpen: number;
+  botAggs: Array<Pick<BotAgg, "key" | "trades" | "wins" | "net" | "winRate" | "maxDrawdown" | "recoveryFactor">>;
+  classAggs: Array<Pick<ClassAgg, "key" | "trades" | "net" | "winRate">>;
+}
 
 function usd(n: number, dp = 2): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
@@ -124,6 +137,7 @@ function BotCard({ b }: { b: BotAgg }) {
         <div className="h-8 flex items-center justify-center text-[9px] font-mono text-muted-foreground/60">{t("insights.noChartData", lang)}</div>
       )}
 
+      {/* Core row */}
       <div className="grid grid-cols-3 gap-x-1 text-center border-t border-border/40 pt-1.5">
         <div>
           <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.trades", lang)}</div>
@@ -143,6 +157,47 @@ function BotCard({ b }: { b: BotAgg }) {
         </div>
       </div>
 
+      {/* Detail row: avg win / avg loss / max drawdown */}
+      <div className="grid grid-cols-3 gap-x-1 text-center border-t border-border/40 pt-1.5">
+        <div>
+          <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.avgWin", lang)}</div>
+          <div className="text-[11px] font-mono font-bold tabular-nums" style={{ color: "#22c55e" }}>
+            {b.avgWin > 0 ? "+" : ""}${usd(b.avgWin, 0)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.avgLoss", lang)}</div>
+          <div className="text-[11px] font-mono font-bold tabular-nums" style={{ color: "#ef4444" }}>
+            {b.avgLoss < 0 ? "-" : ""}${usd(Math.abs(b.avgLoss), 0)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.maxDD", lang)}</div>
+          <div className="text-[11px] font-mono font-bold tabular-nums" style={{ color: b.maxDrawdown > 500 ? "#ef4444" : "#a1a1aa" }}>
+            -${usd(b.maxDrawdown, 0)}
+          </div>
+        </div>
+      </div>
+
+      {/* Streaks row */}
+      <div className="grid grid-cols-3 gap-x-1 text-center border-t border-border/40 pt-1.5">
+        <div>
+          <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.winStreak", lang)}</div>
+          <div className="text-[11px] font-mono font-bold tabular-nums" style={{ color: "#22c55e" }}>{b.maxWinStreak}</div>
+        </div>
+        <div>
+          <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.lossStreak", lang)}</div>
+          <div className="text-[11px] font-mono font-bold tabular-nums" style={{ color: b.maxLossStreak >= 3 ? "#ef4444" : "#a1a1aa" }}>{b.maxLossStreak}</div>
+        </div>
+        <div>
+          <div className="text-[8px] text-muted-foreground font-mono uppercase leading-tight">{t("insights.stat.recovery", lang)}</div>
+          <div className="text-[11px] font-mono font-bold tabular-nums" style={{ color: b.recoveryFactor >= 1 ? "#22c55e" : "#ef4444" }}>
+            {b.recoveryFactor >= 999 ? "∞" : b.recoveryFactor.toFixed(1)}
+          </div>
+        </div>
+      </div>
+
+      {/* Selectivity bar */}
       <div className="flex items-center gap-2 border-t border-border/40 pt-1.5">
         <div className="flex-1 h-1.5 rounded-full bg-background/60 overflow-hidden">
           <div className="h-full rounded-full" style={{ width: `${Math.min(100, (b.edge / 2) * 100)}%`, background: noteColor }} />
@@ -178,6 +233,40 @@ export default function Insights() {
       ),
     [tradeHistory, binancePositions, stockPositions, polyPositions, fundingPositions, optionPositions, settings.assetStats, settings.botStats, lang],
   );
+
+  const sync = useServerSync();
+  const lastSaveRef = useRef(0);
+
+  // Persist a lightweight performance snapshot to the server every ~60s when data changes.
+  useEffect(() => {
+    if (data.totalTrades === 0) return;
+    const now = Date.now();
+    if (now - lastSaveRef.current < 60_000) return; // debounce
+    lastSaveRef.current = now;
+    const snapshot: PerformanceSnapshot = {
+      timestamp: new Date().toISOString(),
+      totalTrades: data.totalTrades,
+      totalNet: data.totalNet,
+      overallWinRate: data.overallWinRate,
+      totalOpen: data.totalOpen,
+      botAggs: data.botAggs.map((b) => ({
+        key: b.key,
+        trades: b.trades,
+        wins: b.wins,
+        net: b.net,
+        winRate: b.winRate,
+        maxDrawdown: b.maxDrawdown,
+        recoveryFactor: b.recoveryFactor,
+      })),
+      classAggs: data.classAggs.map((c) => ({
+        key: c.key,
+        trades: c.trades,
+        net: c.net,
+        winRate: c.winRate,
+      })),
+    };
+    sync.save("performance", snapshot);
+  }, [data, sync]);
 
   const activeClasses = data.classAggs.filter((c) => c.trades > 0 || c.openCount > 0);
 

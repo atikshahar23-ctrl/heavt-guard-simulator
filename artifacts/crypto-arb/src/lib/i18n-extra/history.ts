@@ -119,6 +119,12 @@ export const historyStrings: Record<string, Record<"he" | "en", string>> = {
   "insights.stat.trades": { he: "עסקאות", en: "Trades" },
   "insights.stat.success": { he: "הצלחה", en: "Win %" },
   "insights.stat.avg": { he: "ממוצע", en: "Avg" },
+  "insights.stat.avgWin": { he: "נצחון ממוצע", en: "Avg win" },
+  "insights.stat.avgLoss": { he: "הפסד ממוצע", en: "Avg loss" },
+  "insights.stat.maxDD": { he: "נפילה מקסימלית", en: "Max DD" },
+  "insights.stat.winStreak": { he: "רצף נצחונות", en: "Win streak" },
+  "insights.stat.lossStreak": { he: "רצף הפסדים", en: "Loss streak" },
+  "insights.stat.recovery": { he: "שיקום", en: "Recovery" },
 
   "insights.title": { he: "ניתוח ותובנות", en: "Analysis & Insights" },
   "insights.subtitle": {

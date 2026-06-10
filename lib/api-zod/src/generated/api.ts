@@ -620,7 +620,7 @@ export const BacktestFundingAssetResponse = zod.object({
 
 
 /**
- * Returns every saved state slot (wallets, autotrader, favorites, onboarding) for the authenticated Clerk user. Requires a signed-in session; returns 401 otherwise.
+ * Returns every saved state slot (wallets, autotrader, favorites, onboarding, performance) for the authenticated Clerk user. Requires a signed-in session; returns 401 otherwise.
 
  * @summary Get all persisted state slots for the signed-in user
  */
@@ -639,7 +639,7 @@ export const GetUserStateResponse = zod.array(GetUserStateResponseItem)
  * @summary Upsert a single state slot with optimistic concurrency
  */
 export const PutUserStateParams = zod.object({
-  "slot": zod.enum(['wallets', 'autotrader', 'favorites', 'onboarding']).describe('Which state slot to write')
+  "slot": zod.enum(['wallets', 'autotrader', 'favorites', 'onboarding', 'performance']).describe('Which state slot to write')
 })
 
 export const putUserStateBodyBaseVersionMin = 0;
