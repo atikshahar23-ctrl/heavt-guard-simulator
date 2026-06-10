@@ -4,7 +4,7 @@ import { useServerSync } from "@/contexts/server-sync-context";
 import { useLanguage } from "@/contexts/language-context";
 import { t, type Lang } from "@/lib/i18n";
 import { toast } from "@/hooks/use-toast";
-import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES } from "@/lib/fees";
+import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES, applySlippage } from "@/lib/fees";
 import { optionPositionValue } from "@/lib/options-model";
 
 export const STARTING_BALANCE = 10_000;
@@ -559,9 +559,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       // Account Manager cash reserve: enforced atomically against live cash so
       // concurrent same-tick opens across bots can't collectively breach it.
       if (stateRef.current.cash - totalOut < Math.max(0, minCashReserve)) return "Below cash reserve";
-      const shares = amountUsd / market.entryPrice;
+      // Apply realistic slippage for prediction-market orders.
+      const execPrice = applySlippage(market.entryPrice, amountUsd, market.side === "YES" ? "LONG" : "SHORT");
+      const shares = amountUsd / execPrice;
       const position: PolyPosition = {
         ...market,
+        entryPrice: execPrice,
         id: crypto.randomUUID(),
         shares,
         cost: amountUsd,
@@ -631,8 +634,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       // Account Manager cash reserve: enforced atomically against live cash so
       // concurrent same-tick opens across bots can't collectively breach it.
       if (stateRef.current.cash - totalOut < Math.max(0, minCashReserve)) return "Below cash reserve";
+      // Apply realistic slippage: larger orders get worse fills.
+      const execPrice = applySlippage(pos.entryPrice, pos.notional, pos.direction);
       const position: BinancePosition = {
         ...pos,
+        entryPrice: execPrice,
         id: crypto.randomUUID(),
         openedAt: new Date().toISOString(),
       };
@@ -889,8 +895,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       // Account Manager cash reserve: enforced atomically against live cash so
       // concurrent same-tick opens across bots can't collectively breach it.
       if (stateRef.current.cash - totalOut < Math.max(0, minCashReserve)) return "Below cash reserve";
+      // Apply realistic slippage: larger orders get worse fills.
+      const execPrice = applySlippage(stock.entryPrice, amountUsd * lev, stock.direction ?? "LONG");
       const position: StockPosition = {
         ...stock,
+        entryPrice: execPrice,
         id: crypto.randomUUID(),
         shares,
         leverage: lev,

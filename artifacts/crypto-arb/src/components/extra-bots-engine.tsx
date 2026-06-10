@@ -8,6 +8,7 @@ import { usePortfolio } from "@/contexts/portfolio-context";
 import { useAutoTrader, resolveSizing, cashReserveFloor, intensityProfile, type NewBotId } from "@/contexts/autotrader-context";
 import { useLivePrices } from "@/contexts/live-price-context";
 import { recommendLevels } from "@/lib/recommend-levels";
+import { checkPreTrade } from "@/lib/fees";
 import { toast } from "@/hooks/use-toast";
 
 /** Don't re-open the same asset within this window after an auto action. */
@@ -169,6 +170,8 @@ export function ExtraBotsEngine() {
       if (open >= dipMaxOpen) break;
       if (avail - dipStake < cashFloor) break;
       const price = cryptoPrice(c.asset) ?? c.price;
+      const pre = checkPreTrade(Math.abs(c.changePercent), 0, "LONG");
+      if (pre) continue;
       const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.03, tpPct: 0.06 });
       const err = openBinancePosition({
         asset: c.asset, direction: "LONG", notional: dipStake * lev,
@@ -216,6 +219,8 @@ export function ExtraBotsEngine() {
       if (open >= breakoutMaxOpen) break;
       if (avail - breakoutStake < cashFloor) break;
       const price = cryptoPrice(c.asset) ?? c.price;
+      const pre = checkPreTrade(Math.abs(c.changePercent), 0, "LONG");
+      if (pre) continue;
       const { sl, tp } = recommendLevels(price, "LONG", { slPct: 0.04, tpPct: 0.08 });
       const err = openBinancePosition({
         asset: c.asset, direction: "LONG", notional: breakoutStake * lev,

@@ -17,6 +17,7 @@ import { useLivePrices } from "@/contexts/live-price-context";
 import { pushSquadMessage, clearSquadMessages } from "@/lib/squad-comms";
 import { toast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
+import { checkPreTrade } from "@/lib/fees";
 import { useLanguage } from "@/contexts/language-context";
 
 /** Compact signed USD string for squad chatter (e.g. "+$12" / "-$4"). */
@@ -81,6 +82,8 @@ interface Candidate {
   score: number;
   source: string;
   label: string;
+  /** 24h change percent — used for pre-trade volatility filter. */
+  changePercent: number;
   /** Scalp confidence (only set for scalp-sourced candidates) — drives squad fit. */
   confidence?: ScalpConfidence;
 }
@@ -549,6 +552,7 @@ export function AutoTraderEngine() {
           score: s.score,
           source: "Scalp signal",
           label: `${s.confidence} scalp`,
+          changePercent: s.changePercent,
           confidence: s.confidence,
         });
       }
@@ -570,6 +574,7 @@ export function AutoTraderEngine() {
           score: m.score,
           source: "Momentum surge",
           label: `${m.stage.toLowerCase()} · ${m.rvol.toFixed(1)}× vol`,
+          changePercent: m.change24h,
         });
       }
     }
@@ -681,6 +686,8 @@ export function AutoTraderEngine() {
         c.source === "Scalp signal" ? squadAssign.get(c.asset) : undefined;
       const sourceKey = member ? getSquadMemberSourceKey(member.id) : undefined;
       const source = sourceKey ? t(sourceKey, lang) : c.source;
+      const pre = checkPreTrade(Math.abs(c.changePercent ?? 0), 0, c.direction);
+      if (pre) continue;
       const err = openBinancePosition({
         asset: c.asset,
         direction: c.direction,

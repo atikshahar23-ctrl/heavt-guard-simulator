@@ -60,3 +60,43 @@ export function fmtFee(n: number): string {
     maximumFractionDigits: 2,
   });
 }
+
+/**
+ * Apply realistic slippage to a mark price based on order size.
+ * Larger orders get worse fills (dynamic slippage scales with notional).
+ */
+export function applySlippage(
+  markPrice: number,
+  orderSize: number,
+  direction: "LONG" | "SHORT",
+  baseSlippage: number = 0.001,
+): number {
+  const dynamicSlippage = baseSlippage * (1 + orderSize / 100_000);
+  if (direction === "LONG") {
+    return markPrice * (1 + dynamicSlippage);
+  }
+  return markPrice * (1 - dynamicSlippage);
+}
+
+/**
+ * Pre-trade sanity filter: skip entries when conditions are too risky.
+ * Returns a reason string if blocked, or null if the trade may proceed.
+ */
+export function checkPreTrade(
+  volatilityPct: number, // 24h change as volatility proxy
+  spreadPct: number,     // bid/ask spread estimate
+  direction: "LONG" | "SHORT" | "NEUTRAL",
+  maxSpread: number = 0.0005,
+  maxVolatility: number = 5.0,
+): string | null {
+  if (spreadPct > maxSpread) {
+    return `Blocked: spread ${(spreadPct * 100).toFixed(2)}% exceeds max ${(maxSpread * 100).toFixed(2)}%`;
+  }
+  if (Math.abs(volatilityPct) > maxVolatility) {
+    return `Blocked: volatility ${Math.abs(volatilityPct).toFixed(1)}% exceeds max ${maxVolatility}%`;
+  }
+  if (direction === "NEUTRAL") {
+    return "Blocked: no clear trend";
+  }
+  return null;
+}

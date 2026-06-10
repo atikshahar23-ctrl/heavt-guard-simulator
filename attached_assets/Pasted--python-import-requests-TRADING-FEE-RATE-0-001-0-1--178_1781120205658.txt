@@ -1,0 +1,121 @@
+```python
+import requests
+
+# הגדרות שוק מציאותיות
+TRADING_FEE_RATE = 0.001  # עמלת מסחר של 0.1% (רגיל בבינאנס)
+
+def get_live_price(symbol="BTCUSDT"):
+    """
+    שואב את המחיר הנוכחי והאמיתי של המטבע ישירות מהבורסה (Binance)
+    ללא צורך ב-API KEY.
+    """
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+    try:
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        return float(data['price'])
+    except Exception as e:
+        print(f"שגיאה בקבלת מחיר עבור {symbol}: {e}")
+        return None
+
+def calculate_liquidation_price(entry_price, side, leverage):
+    """
+    מחשב את מחיר החיסול (Liquidation Price).
+    אם המחיר מגיע לנקודה זו - המשתמש מאבד את כל סכום העסקה שלו.
+    """
+    if side.upper() == "LONG":
+        # בלונג, חיסול קורה כשהמחיר יורד
+        return entry_price * (1 - (1 / leverage))
+    elif side.upper() == "SHORT":
+        # בשורט, חיסול קורה כשהמחיר עולה
+        return entry_price * (1 + (1 / leverage))
+    return None
+
+def open_position(symbol, side, margin_usd, leverage):
+    """
+    פותח עסקה מציאותית:
+    לוקח את סכום ההשקעה (Margin), מכפיל במינוף, גובה עמלה, ושומר את מחיר הכניסה האמיתי ברגע זה.
+    """
+    current_price = get_live_price(symbol)
+    if not current_price:
+        return {"success": False, "message": "לא ניתן לשאוב מחיר כרגע"}
+
+    # חישוב גודל הפוזיציה האמיתי (סכום השקעה * מינוף)
+    position_size_usd = margin_usd * leverage
+    
+    # חישוב עמלת מסחר שיורדת מיד (כמו במציאות, מתחילים קצת במינוס)
+    fee_usd = position_size_usd * TRADING_FEE_RATE
+    
+    # גודל העסקה במטבע עצמו (למשל, כמה ביטקוין קנינו)
+    position_amount_crypto = position_size_usd / current_price
+    
+    # מחיר בו העסקה תישרף
+    liquidation_price = calculate_liquidation_price(current_price, side, leverage)
+
+    return {
+        "success": True,
+        "symbol": symbol,
+        "side": side.upper(),
+        "entry_price": current_price,
+        "leverage": leverage,
+        "margin_usd": margin_usd,            # כמה כסף המשתמש סיכן
+        "position_size_usd": position_size_usd, # גודל העסקה הממונפת
+        "amount_crypto": position_amount_crypto,
+        "fee_paid": fee_usd,
+        "liquidation_price": liquidation_price,
+        "status": "OPEN"
+    }
+
+def calculate_unrealized_pnl(position, current_market_price):
+    """
+    מחשב רווח/הפסד בזמן אמת לעסקה פתוחה.
+    """
+    entry_price = position["entry_price"]
+    amount_crypto = position["amount_crypto"]
+    
+    if position["side"] == "LONG":
+        # רווח בלונג: עליית מחיר * כמות המטבעות
+        pnl = (current_market_price - entry_price) * amount_crypto
+    else: # SHORT
+        # רווח בשורט: ירידת מחיר * כמות המטבעות
+        pnl = (entry_price - current_market_price) * amount_crypto
+        
+    # מחסירים את העמלה ששילמנו בפתיחה
+    net_pnl = pnl - position["fee_paid"]
+    
+    return net_pnl
+
+# --- אזור בדיקה: הרץ את הקובץ כדי לראות איך זה עובד ---
+if __name__ == "__main__":
+    print("--- סימולטור שוק מציאותי ---")
+    
+    symbol = "BTCUSDT"
+    margin = 1000 # מסכנים 1000 דולר
+    leverage = 10 # מינוף פי 10 (העסקה תהיה בשווי 10,000 דולר)
+    side = "LONG"
+    
+    print(f"\nפותח עסקת {side} על {symbol} עם {margin}$ במינוף x{leverage}...")
+    position = open_position(symbol, side, margin, leverage)
+    
+    if position["success"]:
+        print(f"✅ עסקה נפתחה בהצלחה!")
+        print(f"💰 מחיר כניסה אמיתי כרגע: ${position['entry_price']:,.2f}")
+        print(f"🔥 מחיר חיסול (Liquidation): ${position['liquidation_price']:,.2f}")
+        print(f"💸 עמלת בורסה ששולמה: ${position['fee_paid']:,.2f}")
+        
+        print("\n--- מדמה שינוי מחיר בשוק ---")
+        # בוא נניח שהמחיר עלה ב-500 דולר
+        simulated_current_price = position['entry_price'] + 500
+        print(f"📈 המחיר עלה ל: ${simulated_current_price:,.2f}")
+        
+        pnl = calculate_unrealized_pnl(position, simulated_current_price)
+        if pnl > 0:
+            print(f"🟢 רווח נקי כרגע: +${pnl:,.2f}")
+        else:
+            print(f"🔴 הפסד נקי כרגע: ${pnl:,.2f}")
+            
+        # בדיקת חיסול מציאותית
+        if position["side"] == "LONG" and simulated_current_price <= position["liquidation_price"]:
+             print("💀 העסקה חוסלה! הפסדת את כל הבטוחה.")
+
+```
