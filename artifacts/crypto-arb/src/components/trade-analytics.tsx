@@ -131,6 +131,7 @@ export function TradeAnalytics() {
     const reasons: { key: ClosedTrade["exit"] | "MANUAL"; label: string }[] = [
       { key: "TP", label: t("ta.tp", lang) },
       { key: "SL", label: t("ta.sl", lang) },
+      { key: "LIQUIDATION", label: t("ta.liquidation", lang) },
       { key: "LIQ", label: t("ta.liq", lang) },
       { key: "MANUAL", label: t("ta.manual", lang) },
     ];

@@ -23,6 +23,28 @@ export function calcCloseFeeForBinance(notional: number): number {
   return notional * FEE_RATES.perp.close;
 }
 
+/**
+ * Exchange-style isolated-margin liquidation price for a leveraged position.
+ *
+ * Uses the simple full-margin model: a `1/leverage` adverse move wipes 100% of
+ * the posted margin, so:
+ *   LONG  → entry × (1 − 1/leverage)
+ *   SHORT → entry × (1 + 1/leverage)
+ *
+ * Returns `undefined` for 1× (no leverage ⇒ no liquidation) or invalid input.
+ */
+export function calcLiquidationPrice(
+  entryPrice: number,
+  leverage: number,
+  direction: "LONG" | "SHORT",
+): number | undefined {
+  if (!(leverage > 1) || !(entryPrice > 0) || !Number.isFinite(entryPrice)) {
+    return undefined;
+  }
+  const frac = 1 / leverage;
+  return direction === "LONG" ? entryPrice * (1 - frac) : entryPrice * (1 + frac);
+}
+
 /** Round-trip fee for a stock position (open + close). */
 export function calcFeeForStock(
   shares: number,

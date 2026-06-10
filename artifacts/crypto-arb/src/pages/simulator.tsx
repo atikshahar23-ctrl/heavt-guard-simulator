@@ -32,7 +32,7 @@ import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
   ChartCandlestick, BarChart3, Trophy, History, X, Plus,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
-  ShieldAlert, Target, Clock, Bot, Sparkles, PlayCircle,
+  ShieldAlert, Target, Clock, Bot, Sparkles, PlayCircle, Skull,
 } from "lucide-react";
 
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10] as const;
@@ -281,7 +281,7 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelec
                       {pnl >= 0 ? "+" : ""}{fmtUsd(pnl)} ({pnlPct >= 0 ? "+" : ""}{fmt(pnlPct)}%)
                     </div>
                   </div>
-                  {(pos.slPrice != null || pos.tpPrice != null) && (
+                  {(pos.slPrice != null || pos.tpPrice != null || pos.liquidationPrice != null) && (
                     <div className="flex gap-3 text-[10px] font-mono">
                       {pos.slPrice != null && (
                         <span className="flex items-center gap-0.5 text-red-400/80">
@@ -291,6 +291,14 @@ function FuturesPositionsPanel({ binancePrices, posFilter, setPosFilter, onSelec
                       {pos.tpPrice != null && (
                         <span className="flex items-center gap-0.5 text-emerald-400/80">
                           <Target className="h-2.5 w-2.5" />TP ${pos.tpPrice.toLocaleString()}
+                        </span>
+                      )}
+                      {pos.liquidationPrice != null && (
+                        <span
+                          className="flex items-center gap-0.5 text-red-500 font-bold"
+                          title={t("sim.liqTooltip", lang)}
+                        >
+                          <Skull className="h-2.5 w-2.5" />{t("sim.liqLabel", lang)} ${pos.liquidationPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </span>
                       )}
                     </div>
@@ -944,7 +952,7 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
                     <div className="text-[10px] text-muted-foreground font-mono">
                       Entry ${pos.entryPrice.toFixed(2)} → Now ${currentPrice.toFixed(2)} · Margin {fmtUsd(pos.cost)}
                     </div>
-                    {(pos.slPrice != null || pos.tpPrice != null) && (
+                    {(pos.slPrice != null || pos.tpPrice != null || pos.liquidationPrice != null) && (
                       <div className="flex items-center gap-2 mt-1">
                         {pos.slPrice != null && (
                           <span className="flex items-center gap-0.5 text-[9px] font-mono text-red-400/80">
@@ -954,6 +962,14 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
                         {pos.tpPrice != null && (
                           <span className="flex items-center gap-0.5 text-[9px] font-mono text-emerald-400/80">
                             <Target className="h-2.5 w-2.5" />TP ${pos.tpPrice.toLocaleString()}
+                          </span>
+                        )}
+                        {pos.liquidationPrice != null && (
+                          <span
+                            className="flex items-center gap-0.5 text-[9px] font-mono text-red-500 font-bold"
+                            title={t("sim.liqTooltip", lang)}
+                          >
+                            <Skull className="h-2.5 w-2.5" />{t("sim.liqLabel", lang)} ${pos.liquidationPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </span>
                         )}
                       </div>
@@ -1318,7 +1334,7 @@ export default function SimulatorPage() {
   const [futuresFilter, setFuturesFilter] = useState<PosFilter>("ALL");
   const [stocksFilter, setStocksFilter] = useState<PosFilter>("ALL");
   const [polyFilter, setPolyFilter] = useState<PosFilter>("ALL");
-  const { polyPositions, binancePositions, stockPositions, optionPositions, cash, resetPortfolio, checkSlTp, closeAllBotPositions } = usePortfolio();
+  const { polyPositions, binancePositions, stockPositions, optionPositions, cash, resetPortfolio, checkSlTp, checkLiquidations, closeAllBotPositions } = usePortfolio();
   const { settings, update: updateAutoTrader } = useAutoTrader();
   const { intervalFor } = useRefresh();
   const { lang } = useLanguage();
@@ -1373,12 +1389,18 @@ export default function SimulatorPage() {
   );
 
   useEffect(() => {
-    if (Object.keys(binancePrices).length > 0) checkSlTp(binancePrices);
-  }, [binancePrices, checkSlTp]);
+    if (Object.keys(binancePrices).length > 0) {
+      checkSlTp(binancePrices);
+      checkLiquidations(binancePrices);
+    }
+  }, [binancePrices, checkSlTp, checkLiquidations]);
 
   useEffect(() => {
-    if (Object.keys(stockPrices).length > 0) checkSlTp(stockPrices);
-  }, [stockPrices, checkSlTp]);
+    if (Object.keys(stockPrices).length > 0) {
+      checkSlTp(stockPrices);
+      checkLiquidations(stockPrices);
+    }
+  }, [stockPrices, checkSlTp, checkLiquidations]);
 
   const unrealizedPnl = useMemo(() => {
     const binancePnl = binancePositions.reduce((sum, pos) => {

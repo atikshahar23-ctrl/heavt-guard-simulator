@@ -4,7 +4,7 @@ import { useServerSync } from "@/contexts/server-sync-context";
 import { useLanguage } from "@/contexts/language-context";
 import { t, type Lang } from "@/lib/i18n";
 import { toast } from "@/hooks/use-toast";
-import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES, applySlippage } from "@/lib/fees";
+import { calcCloseFeeForBinance, calcCloseFeeForStock, calcCloseFeeForPoly, FEE_RATES, applySlippage, calcLiquidationPrice } from "@/lib/fees";
 import { optionPositionValue } from "@/lib/options-model";
 
 export const STARTING_BALANCE = 10_000;
@@ -48,6 +48,8 @@ export interface BinancePosition {
   leverage: number;
   slPrice?: number;
   tpPrice?: number;
+  /** Exchange-style liquidation price (leverage > 1 only); margin is fully lost when crossed. */
+  liquidationPrice?: number;
   openedAt: string;
   /** Opened automatically by the Auto-Trader engine. */
   auto?: boolean;
@@ -69,6 +71,8 @@ export interface StockPosition {
   cost: number;
   slPrice?: number;
   tpPrice?: number;
+  /** Exchange-style liquidation price (leverage > 1 only); margin is fully lost when crossed. */
+  liquidationPrice?: number;
   openedAt: string;
   /** Opened automatically by the Auto-Trader engine. */
   auto?: boolean;
@@ -146,8 +150,13 @@ export interface ClosedTrade {
   openedAt?: string;
   /** Closed by an automatic SL/TP trigger or auto-traded position. */
   auto?: boolean;
-  /** How the close happened: manual / SL / TP / LIQ (emergency risk exit). */
-  exit?: "MANUAL" | "SL" | "TP" | "LIQ" | "EXPIRY";
+  /**
+   * How the close happened:
+   *  - MANUAL / SL / TP / EXPIRY — ordinary closes.
+   *  - LIQ — early "risk guard" exit (margin partly eaten; bailed out before the real wipe).
+   *  - LIQUIDATION — true exchange-style liquidation: price crossed the liquidation price and the entire margin was lost.
+   */
+  exit?: "MANUAL" | "SL" | "TP" | "LIQ" | "EXPIRY" | "LIQUIDATION";
   /** Underlying symbol for deep-linking to the chart: BINANCE asset, STOCK ticker, or Polymarket slug. */
   symbol?: string;
   /** Polymarket conditionId — used as the chart market key for the probability chart. */
@@ -261,6 +270,13 @@ interface PortfolioContextValue extends PortfolioState {
    * before the exchange would liquidate it. Closes are tagged exit:"LIQ".
    */
   checkRiskGuards: (prices: Record<string, number>, maxLossPerTradePct: number) => void;
+  /**
+   * True exchange-style liquidation: hard backstop that force-closes any
+   * leveraged position whose live price has reached/crossed its
+   * `liquidationPrice`, wiping the ENTIRE margin (proceeds ≈ 0). Always applies,
+   * regardless of SL/TP or the early guard. Closes are tagged exit:"LIQUIDATION".
+   */
+  checkLiquidations: (prices: Record<string, number>) => void;
   /**
    * Portfolio kill-switch: immediately close every open Binance + stock position
    * at the supplied prices (positions without a price are left untouched).
@@ -639,6 +655,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const position: BinancePosition = {
         ...pos,
         entryPrice: execPrice,
+        // True exchange-style liquidation price from the executed entry (1× ⇒ none).
+        liquidationPrice: calcLiquidationPrice(execPrice, pos.leverage, pos.direction),
         id: crypto.randomUUID(),
         openedAt: new Date().toISOString(),
       };
@@ -900,6 +918,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const position: StockPosition = {
         ...stock,
         entryPrice: execPrice,
+        // True liquidation price for leveraged stock positions (1× ⇒ none).
+        liquidationPrice: calcLiquidationPrice(execPrice, lev, stock.direction ?? "LONG"),
         id: crypto.randomUUID(),
         shares,
         leverage: lev,
@@ -1054,6 +1074,109 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           direction: dir,
           entryPrice: pos.entryPrice,
           exitPrice: price,
+          leverage: pos.leverage,
+          qty: pos.shares,
+          source: pos.source,
+        };
+
+        stockPositions = stockPositions.filter((p) => p.id !== pos.id);
+        cash = cash + proceeds;
+        tradeHistory = [closed, ...tradeHistory];
+        changed = true;
+      }
+
+      if (!changed) return prev;
+      return { ...prev, binancePositions, stockPositions, cash, tradeHistory };
+    });
+  }, []);
+
+  /**
+   * True exchange-style liquidation. The hard backstop that ALWAYS applies,
+   * independent of whether SL/TP or the early `checkRiskGuards` exit are
+   * configured. When live price reaches/crosses a leveraged position's
+   * `liquidationPrice`, the position is force-closed with the ENTIRE margin lost
+   * (proceeds ≈ 0). Tagged exit:"LIQUIDATION" — distinct from the early-guard
+   * exit:"LIQ". Runs after SL/TP & the guard so those get first chance; only
+   * positions that slipped through (no/loosened SL, guard disabled) are wiped.
+   */
+  const checkLiquidations = useCallback((prices: Record<string, number>) => {
+    setState((prev) => {
+      let changed = false;
+      let binancePositions = prev.binancePositions;
+      let stockPositions = prev.stockPositions;
+      let cash = prev.cash;
+      let tradeHistory = prev.tradeHistory;
+
+      for (const pos of prev.binancePositions) {
+        if (pos.liquidationPrice == null) continue;
+        const price = prices[pos.asset];
+        if (!price || !Number.isFinite(price)) continue;
+        const hit =
+          pos.direction === "LONG" ? price <= pos.liquidationPrice : price >= pos.liquidationPrice;
+        if (!hit) continue;
+
+        const margin = pos.notional / pos.leverage;
+        // Liquidation wipes the entire margin: proceeds ≈ 0, loss = full margin.
+        const proceeds = 0;
+        const pnl = -margin;
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "BINANCE",
+          symbol: pos.asset,
+          description: `LIQUIDATION ${pos.direction} ${pos.asset} ${pos.leverage}x @ $${price.toLocaleString()} (entry $${pos.entryPrice.toLocaleString()}, liq $${pos.liquidationPrice.toLocaleString()})`,
+          slPrice: pos.slPrice,
+          tpPrice: pos.tpPrice,
+          cost: margin,
+          proceeds,
+          pnl,
+          fees: 0,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "LIQUIDATION",
+          direction: pos.direction,
+          entryPrice: pos.entryPrice,
+          exitPrice: pos.liquidationPrice,
+          leverage: pos.leverage,
+          qty: pos.notional,
+          source: pos.source,
+        };
+
+        binancePositions = binancePositions.filter((p) => p.id !== pos.id);
+        cash = cash + proceeds;
+        tradeHistory = [closed, ...tradeHistory];
+        changed = true;
+      }
+
+      for (const pos of prev.stockPositions) {
+        if (pos.liquidationPrice == null) continue;
+        const price = prices[pos.symbol];
+        if (!price || !Number.isFinite(price)) continue;
+        const dir = pos.direction ?? "LONG";
+        const hit = dir === "LONG" ? price <= pos.liquidationPrice : price >= pos.liquidationPrice;
+        if (!hit) continue;
+
+        // Liquidation wipes the entire posted margin (cost): proceeds ≈ 0.
+        const proceeds = 0;
+        const pnl = -pos.cost;
+        const closed: ClosedTrade = {
+          id: crypto.randomUUID(),
+          type: "STOCK",
+          symbol: pos.symbol,
+          description: `LIQUIDATION ${dir} ${pos.symbol} ${pos.leverage}x ${pos.shares.toFixed(2)} sh @ $${price.toFixed(2)} (entry $${pos.entryPrice.toFixed(2)}, liq $${pos.liquidationPrice.toFixed(2)})`,
+          slPrice: pos.slPrice,
+          tpPrice: pos.tpPrice,
+          cost: pos.cost,
+          proceeds,
+          pnl,
+          fees: 0,
+          closedAt: new Date().toISOString(),
+          openedAt: pos.openedAt,
+          auto: pos.auto,
+          exit: "LIQUIDATION",
+          direction: dir,
+          entryPrice: pos.entryPrice,
+          exitPrice: pos.liquidationPrice,
           leverage: pos.leverage,
           qty: pos.shares,
           source: pos.source,
@@ -1615,6 +1738,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         checkSlTp,
         updateTrailingStops,
         checkRiskGuards,
+        checkLiquidations,
         flattenAll,
         closeAllBotPositions,
         resetPortfolio,

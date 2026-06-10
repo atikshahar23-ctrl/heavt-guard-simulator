@@ -35,6 +35,7 @@ export const historyStrings: Record<string, Record<"he" | "en", string>> = {
   "history.filter.losses": { he: "הפסדים", en: "Losses" },
   "history.filter.auto": { he: "אוטומטי", en: "Auto" },
   "history.filter.manual": { he: "ידני", en: "Manual" },
+  "history.exit.liquidation": { he: "חוסל", en: "LIQUIDATED" },
   "history.botPanelHint": { he: "{title} — לחץ על החץ לפתיחת לוח הבוט", en: "{title} — click the arrow to open the bot panel" },
   "history.openBotPanel": { he: "פתח לוח {title}", en: "Open {title} panel" },
 

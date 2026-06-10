@@ -16,6 +16,7 @@ export const tradesStrings: Record<string, Record<"he" | "en", string>> = {
   "td.exitTp": { he: "יעד רווח (TP)", en: "Take Profit (TP)" },
   "td.exitSl": { he: "סטופ לוס (SL)", en: "Stop Loss (SL)" },
   "td.exitLiq": { he: "יציאת חירום (LIQ)", en: "Emergency Exit (LIQ)" },
+  "td.exitLiquidation": { he: "חיסול מלא (LIQUIDATION)", en: "Liquidated (LIQUIDATION)" },
   "td.exitManual": { he: "סגירה ידנית", en: "Manual Close" },
 
   // ─── Trade Detail Modal: bot / manual ───
@@ -63,6 +64,7 @@ export const tradesStrings: Record<string, Record<"he" | "en", string>> = {
   "td.lessonTp": { he: "העסקה הגיעה ליעד הרווח לפי התוכנית — ביצוע ממושמע של אסטרטגיית היציאה. כך נראית עסקה ״לפי הספר״.", en: "The trade reached its profit target per plan — a disciplined execution of the exit strategy. This is what a 'by the book' trade looks like." },
   "td.lessonSl": { he: "העסקה נקטעה בסטופ לפי התוכנית — ההפסד הוגבל מראש וזה בדיוק תפקיד הסטופ. ניהול סיכון נכון, גם כשמפסידים.", en: "The trade was stopped out per plan — the loss was capped in advance, which is exactly the stop's job. Sound risk management, even when losing." },
   "td.lessonLiq": { he: "יציאת חירום של מנהל הסיכונים (לפני סיכון מסוכן) — בדוק אם המינוף היה גבוה מדי או הסטופ רחוק מדי.", en: "An emergency exit by the risk manager (before dangerous risk) — check whether leverage was too high or the stop too far." },
+  "td.lessonLiquidation": { he: "המחיר חצה את מחיר החיסול — כל המרג׳ין אבד, בדיוק כמו בבורסה אמיתית. ככל שהמינוף גבוה יותר, מחיר החיסול קרוב יותר למחיר הכניסה. שקול מינוף נמוך יותר וסטופ מוגדר מראש.", en: "Price crossed the liquidation price — the entire margin was lost, exactly as on a real exchange. The higher the leverage, the closer the liquidation price sits to entry. Consider lower leverage and a preset stop." },
   "td.lessonWonManual": { he: "נסגרה ידנית ברווח — שקול אם כדאי היה לתת לרווח לרוץ עד היעד, או שהסגירה המוקדמת נכונה לסטאפ הזה.", en: "Closed manually in profit — consider whether it was worth letting the profit run to target, or whether the early close was right for this setup." },
   "td.lessonLostManual": { he: "נסגרה ידנית בהפסד לפני הסטופ — שים לב לסגירות רגשיות; לרוב עדיף לתת לתוכנית (SL/TP) לעבוד.", en: "Closed manually at a loss before the stop — watch out for emotional closes; it is usually better to let the plan (SL/TP) work." },
 
@@ -186,6 +188,7 @@ export const tradesStrings: Record<string, Record<"he" | "en", string>> = {
   "trade.exit.tp": { he: "יעד רווח (TP)", en: "Take Profit (TP)" },
   "trade.exit.sl": { he: "סטופ לוס (SL)", en: "Stop Loss (SL)" },
   "trade.exit.liq": { he: "יציאת חירום (LIQ)", en: "Emergency Exit (LIQ)" },
+  "trade.exit.liquidation": { he: "חיסול מלא (LIQUIDATION)", en: "Liquidated (LIQUIDATION)" },
   "trade.exit.manual": { he: "סגירה ידנית", en: "Manual Close" },
   "trade.source.dipbuyer": { he: "Dip Buyer", en: "Dip Buyer" },
   "trade.source.breakout": { he: "Breakout Hunter", en: "Breakout Hunter" },

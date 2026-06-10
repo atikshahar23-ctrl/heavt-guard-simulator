@@ -46,6 +46,7 @@ function directionLabel(d: ClosedTrade["direction"], lang: Lang): string {
 function exitInfo(trade: ClosedTrade, lang: Lang): { label: string; color: string } {
   if (trade.exit === "TP") return { label: t("td.exitTp", lang), color: "#22c55e" };
   if (trade.exit === "SL") return { label: t("td.exitSl", lang), color: "#ef4444" };
+  if (trade.exit === "LIQUIDATION") return { label: t("td.exitLiquidation", lang), color: "#dc2626" };
   if (trade.exit === "LIQ") return { label: t("td.exitLiq", lang), color: "#f59e0b" };
   return { label: t("td.exitManual", lang), color: "#a1a1aa" };
 }
@@ -152,6 +153,7 @@ function buildAnalysis(trade: ClosedTrade, lang: Lang): TradeAnalysis {
   let lessonTone: "good" | "bad" | "neutral" = "neutral";
   if (trade.exit === "TP") { lesson = t("td.lessonTp", lang); lessonTone = "good"; }
   else if (trade.exit === "SL") { lesson = t("td.lessonSl", lang); lessonTone = "bad"; }
+  else if (trade.exit === "LIQUIDATION") { lesson = t("td.lessonLiquidation", lang); lessonTone = "bad"; }
   else if (trade.exit === "LIQ") { lesson = t("td.lessonLiq", lang); lessonTone = "bad"; }
   else if (won) { lesson = t("td.lessonWonManual", lang); lessonTone = "good"; }
   else { lesson = t("td.lessonLostManual", lang); lessonTone = "bad"; }

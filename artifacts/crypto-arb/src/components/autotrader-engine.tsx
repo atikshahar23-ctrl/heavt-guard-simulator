@@ -110,7 +110,7 @@ export function AutoTraderEngine() {
   const {
     binancePositions, stockPositions, polyPositions, cash, totalDeposited, tradeHistory,
     openBinancePosition, openPolyPosition, closePolyPosition, openStockPosition,
-    closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll,
+    closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, checkLiquidations, flattenAll,
     activeWalletId,
   } = usePortfolio();
   const { settings, update, getAssetCaution, recordAssetResult, publishAlpha } = useAutoTrader();
@@ -462,6 +462,8 @@ export function AutoTraderEngine() {
       checkRiskGuards(priceMap, settings.maxLossPerTradePct);
     }
     checkSlTp(priceMap);
+    // Hard backstop: always runs, even when SL/TP and the early guard are off.
+    checkLiquidations(priceMap);
 
     // Portfolio kill-switch: track equity peak, flatten everything once the
     // drawdown from that peak crosses the configured (unrecoverable) threshold.
@@ -500,7 +502,7 @@ export function AutoTraderEngine() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overview, stocks, liveVersion, settings, closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, flattenAll]);
+  }, [overview, stocks, liveVersion, settings, closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, checkLiquidations, flattenAll]);
 
   // Auto-trade evaluation.
   useEffect(() => {

@@ -279,6 +279,8 @@ const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "sim.shortSell": { he: "שורט / מכירה", en: "Short / Sell" },
   "sim.chartLabel": { he: "גרף — ", en: "Chart — " },
   "sim.chartHint": { he: "קווי כניסה · SL · TP מוצגים על הגרף", en: "Entry lines · SL · TP shown on the chart" },
+  "sim.liqLabel": { he: "חיסול", en: "LIQ" },
+  "sim.liqTooltip": { he: "מחיר חיסול — אם המחיר החי חוצה אותו, הפוזיציה נסגרת בכפייה וכל המרג׳ין אובד (כמו בבורסה אמיתית).", en: "Liquidation price — if the live price crosses it, the position is force-closed and the entire margin is lost (just like a real exchange)." },
   "sim.closeChart": { he: "סגור גרף", en: "Close chart" },
 
   // --- Wallet Switcher ---
@@ -308,6 +310,7 @@ const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "ta.tp": { he: "יעד רווח (TP)", en: "Take Profit (TP)" },
   "ta.sl": { he: "עצירת הפסד (SL)", en: "Stop Loss (SL)" },
   "ta.liq": { he: "חיסול (LIQ)", en: "Liquidation (LIQ)" },
+  "ta.liquidation": { he: "חיסול מלא", en: "Full Liquidation" },
   "ta.manual": { he: "סגירה ידנית", en: "Manual Close" },
   "ta.noData": { he: "עדיין אין מספיק נתונים — הפעל את הבוטים כדי שהסוכן יתחיל ללמוד מהעסקאות.", en: "Not enough data yet — activate the bots so the agent can start learning from trades." },
   "ta.bestProfitable": { he: "האפיק הרווחי ביותר", en: "Most profitable channel" },

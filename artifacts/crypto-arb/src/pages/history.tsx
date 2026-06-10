@@ -70,6 +70,7 @@ function fmtPrice(p: number): string {
 function exit(tr: ClosedTrade, lang: Lang) {
   if (tr.exit === "TP") return { label: "TP", color: "#22c55e" };
   if (tr.exit === "SL") return { label: "SL", color: "#ef4444" };
+  if (tr.exit === "LIQUIDATION") return { label: t("history.exit.liquidation", lang), color: "#dc2626" };
   if (tr.exit === "LIQ") return { label: "LIQ", color: "#f59e0b" };
   return { label: t("history.filter.manual", lang), color: "#a1a1aa" };
 }
