@@ -299,7 +299,7 @@ export default function Dashboard() {
   const botsArmed = settings.enabled;
 
   return (
-    <div className="relative min-h-screen p-4 md:p-6 space-y-5 md:space-y-6 max-w-7xl mx-auto">
+    <div className="relative min-h-dvh p-4 md:p-6 space-y-5 md:space-y-6 max-w-7xl mx-auto">
 
       {/* ── Matrix rain lives behind everything, clipped to page container ── */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">

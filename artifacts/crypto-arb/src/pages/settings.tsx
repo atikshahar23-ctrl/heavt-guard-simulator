@@ -188,7 +188,7 @@ export default function Settings() {
   ];
 
   return (
-    <div dir={dir} className="relative min-h-screen p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+    <div dir={dir} className="relative min-h-dvh p-4 md:p-6 max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="grid place-items-center h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 text-primary">

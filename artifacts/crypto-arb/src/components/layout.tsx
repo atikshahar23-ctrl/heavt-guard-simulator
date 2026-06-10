@@ -285,7 +285,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex h-svh w-full bg-background overflow-hidden">
       {/* ── Desktop sidebar ── */}
       <aside
         className="relative z-10 hidden md:flex w-52 border-r border-border flex-col shrink-0"
@@ -356,7 +356,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 overflow-y-auto relative min-h-0">
           {/* Animated Earth + global money-flow backdrop */}
           <EarthBackground />
-          <div key={location} className="relative z-10 h-full page-enter">
+          <div key={location} className="relative z-10 min-h-0 h-full page-enter">
             {children}
           </div>
         </div>

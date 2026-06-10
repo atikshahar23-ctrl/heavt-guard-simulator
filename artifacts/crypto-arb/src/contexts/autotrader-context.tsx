@@ -293,7 +293,7 @@ export function resolveSizing(
 export interface IntensityProfile {
   /** Clamped 1-5 level. */
   level: number;
-  /** Short Hebrew name for the gear. */
+  /** Short name for the gear. */
   label: string;
   /** Relative trade cadence vs. level 1 (≈ +50% per level: 1 … 5.06). */
   tradeRate: number;
@@ -309,7 +309,7 @@ export interface IntensityProfile {
   selectivityMult: number;
 }
 
-const INTENSITY_LABELS = ["רגוע", "מתון", "מאוזן", "אגרסיבי", "טורבו קיצוני"] as const;
+const INTENSITY_LABELS = ["Calm", "Mild", "Balanced", "Aggressive", "Extreme Turbo"] as const;
 const INTENSITY_COOLDOWN = [1, 0.67, 0.44, 0.3, 0.2] as const;
 const INTENSITY_MAXOPEN = [0.6, 0.8, 1, 1.4, 2] as const;
 const INTENSITY_CONFRANK = [1, 1, 0, 0, -1] as const;
@@ -327,7 +327,7 @@ const INTENSITY_SELECTIVITY = [1.3, 1.15, 1, 0.85, 0.7] as const;
 export type TradeMode = "NORMAL" | "CALCULATED" | "SHLOMI";
 
 /** Extra multipliers each long-term trade mode layers over the gear.
- *  SHLOMI ("מצב שלומי") is the most extreme: a maximally patient, ultra-selective
+ *  SHLOMI ("Shlomi Mode") is the most extreme: a maximally patient, ultra-selective
  *  long-term temperament with the lowest cadence and the fewest, highest-quality
  *  paper trades. Its leverage is also hard-capped low in resolveSizing(). */
 const TRADE_MODE_MULTS = {
@@ -613,7 +613,7 @@ export interface AutoTraderSettings {
    */
   maxPerfEnabled: boolean;
 
-  /* ── Momentum Drive (בוט הנעה) ── */
+  /* ── Momentum Drive (Drive Bot) ── */
   /**
    * Portfolio-proportional sizing engine that calibrates EVERY bot's leverage
    * and stake in real time based on current cash equity. Unlike the Account
@@ -822,11 +822,11 @@ export interface ScalpCandidate {
  *  the live scalp signals. `fit` returns 0-1: how well a candidate suits it. */
 export interface ScalpSquadMember {
   id: string;
-  /** Hebrew display name. */
+  /** Display name. */
   name: string;
-  /** Hebrew role tag (short). */
+  /** Role tag (short). */
   role: string;
-  /** Hebrew one-line description of what this bot hunts. */
+  /** One-line description of what this bot hunts. */
   tagline: string;
   /** Trade source tag — counts/fleet attribution match on "Scalp" substring. */
   source: string;
@@ -844,42 +844,42 @@ const CONF_WEIGHT: Record<ScalpConfidence, number> = { LOW: 0, MEDIUM: 1, HIGH: 
 export const SCALP_SQUAD: ScalpSquadMember[] = [
   {
     id: "vanguard",
-    name: "חוד החנית",
-    role: "מוביל",
-    tagline: "תופס את הסטאפים החזקים ביותר, בלי קשר לכיוון",
+    name: "Spearhead",
+    role: "Lead",
+    tagline: "Catches the strongest setups, regardless of direction",
     source: "Scalp Squad · חוד החנית",
     // Loves the highest-conviction setups regardless of direction.
     fit: (c) => 0.4 + 0.3 * (CONF_WEIGHT[c.confidence] / 2) + 0.3 * Math.min(1, c.score / 100),
   },
   {
     id: "longrider",
-    name: "רוכב המגמה",
-    role: "לונג",
-    tagline: "מתמחה בעליות — רוכב על מומנטום חיובי",
+    name: "Trend Rider",
+    role: "Long",
+    tagline: "Specializes in upside — rides positive momentum",
     source: "Scalp Squad · רוכב המגמה",
     fit: (c) => (c.direction === "LONG" ? 0.85 + 0.15 * Math.min(1, c.score / 100) : 0.1),
   },
   {
     id: "shorthunter",
-    name: "צייד השורטים",
-    role: "שורט",
-    tagline: "מתמחה בירידות — מנצל חולשה וסטאפים שליליים",
+    name: "Short Hunter",
+    role: "Short",
+    tagline: "Specializes in downside — exploits weakness and bearish setups",
     source: "Scalp Squad · צייד השורטים",
     fit: (c) => (c.direction === "SHORT" ? 0.85 + 0.15 * Math.min(1, c.score / 100) : 0.1),
   },
   {
     id: "scout",
-    name: "הסייר",
-    role: "זריז",
-    tagline: "תופס הזדמנויות בינוניות וזריזות לפני שהן מתחזקות",
+    name: "Scout",
+    role: "Nimble",
+    tagline: "Catches mid-sized, quick opportunities before they strengthen",
     source: "Scalp Squad · הסייר",
     fit: (c) => 0.5 + 0.35 * (c.confidence === "MEDIUM" ? 1 : 0.35) + 0.1 * Math.min(1, c.score / 100),
   },
   {
     id: "sweeper",
-    name: "המגבה",
-    role: "גיבוי",
-    tagline: "רשת הביטחון — אוסף את מה שנשאר ומגבה את הצוות",
+    name: "Sweeper",
+    role: "Backup",
+    tagline: "The safety net — mops up the rest and backs up the team",
     source: "Scalp Squad · המגבה",
     // Flat fit: the safety net that mops up leftovers the others skipped.
     fit: () => 0.45,

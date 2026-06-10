@@ -799,13 +799,13 @@ export function Jarvis() {
                 <div className="shrink-0 mt-0.5"><JarvisFace speaking={speaking} size={34} /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-widest text-primary mb-1 jarvis-boost-pulse">
-                    <Zap className="h-3 w-3" /> {lang === "he" ? "ג'רוויס · התראת בוסט" : "JARVIS · Boost alert"}
+                    <Zap className="h-3 w-3" /> {t("misc.jarvis.boostAlertTitle", lang)}
                   </div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-primary/20 text-primary border border-primary/50">
                       {boostAdvice.label}
                     </span>
-                    <span className="text-[9px] font-mono font-bold text-[#9fb4c7]">{lang === "he" ? `חום ${boostAdvice.heat}/100` : `Heat ${boostAdvice.heat}/100`}</span>
+                    <span className="text-[9px] font-mono font-bold text-[#9fb4c7]">{t("misc.jarvis.heat", lang).replace("{n}", String(boostAdvice.heat))}</span>
                   </div>
                   <p dir={lang === "he" ? "rtl" : "ltr"} className="text-[11px] leading-snug text-foreground/90 line-clamp-3">{boostAdvice.text}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -813,13 +813,13 @@ export function Jarvis() {
                       onClick={activateBoost}
                       className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-3 py-1.5 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity jarvis-boost-pulse"
                     >
-                      <Zap className="h-3 w-3" /> {lang === "he" ? `הפעל בוסט · ${boostAdvice.durationMin}ד׳` : `Boost now · ${boostAdvice.durationMin}m`}
+                      <Zap className="h-3 w-3" /> {t("misc.jarvis.boostNow", lang).replace("{n}", String(boostAdvice.durationMin))}
                     </button>
                     <button
                       onClick={dismissBoost}
                       className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {lang === "he" ? "אחר כך" : "Later"}
+                      {t("misc.jarvis.later", lang)}
                     </button>
                   </div>
                 </div>
@@ -844,7 +844,7 @@ export function Jarvis() {
                 <div className="shrink-0 mt-0.5"><JarvisFace speaking={speaking} size={34} /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-widest text-primary mb-1">
-                    <Sparkles className="h-3 w-3" /> {lang === "he" ? "ג'רוויס · טיפ חי" : "JARVIS · Live tip"}
+                    <Sparkles className="h-3 w-3" /> {t("misc.jarvis.liveTipTitle", lang)}
                   </div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span
@@ -867,7 +867,7 @@ export function Jarvis() {
                       onClick={() => openWithTip(currentTip)}
                       className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                     >
-                      {lang === "he" ? "פרטים" : "View details"} <Send className="h-2.5 w-2.5" />
+                      {t("misc.jarvis.viewDetails", lang)} <Send className="h-2.5 w-2.5" />
                     </button>
                     {(() => {
                       const trade = currentTip.links?.find((l) => l.internal);
@@ -906,7 +906,7 @@ export function Jarvis() {
             <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card animate-pulse" />
             {boostAdvice.worth && !boostActive ? (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 inline-flex items-center gap-0.5 text-[8px] font-mono font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full whitespace-nowrap jarvis-boost-pulse">
-                <Zap className="h-2.5 w-2.5" /> {lang === "he" ? "בוסט!" : "BOOST!"}
+                <Zap className="h-2.5 w-2.5" /> {t("misc.jarvis.boostBadge", lang)}
               </span>
             ) : tips.length > 0 && !showTip ? (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-mono font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full whitespace-nowrap">
@@ -932,10 +932,10 @@ export function Jarvis() {
                 <div className="text-[9px] text-muted-foreground font-mono tracking-wider mt-1 flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   {listening
-                    ? (lang === "he" ? "מקשיב…" : "Listening…")
+                    ? t("misc.jarvis.listening", lang)
                     : speaking
-                      ? (lang === "he" ? "מדבר…" : "Speaking…")
-                      : (lang === "he" ? "מנוע ייעוץ · סיגנלים חיים" : "Advisory engine · live signals")}
+                      ? t("misc.jarvis.speaking", lang)
+                      : t("misc.jarvis.advisoryEngine", lang)}
                 </div>
               </div>
             </div>
@@ -974,16 +974,17 @@ export function Jarvis() {
               <div className="min-w-0 flex-1" dir={lang === "he" ? "rtl" : "ltr"}>
                 <div className="text-[10px] font-mono font-bold text-primary truncate">{boostAdvice.label}</div>
                 <div className="text-[9px] text-muted-foreground truncate">
-                  {lang === "he"
-                    ? `${boostAdvice.strong} בזינוק · ${boostAdvice.hiScalps} סיגנלים · חום ${boostAdvice.heat}/100`
-                    : `${boostAdvice.strong} surging · ${boostAdvice.hiScalps} signals · heat ${boostAdvice.heat}/100`}
+                  {t("misc.jarvis.boostSummary", lang)
+                    .replace("{strong}", String(boostAdvice.strong))
+                    .replace("{signals}", String(boostAdvice.hiScalps))
+                    .replace("{heat}", String(boostAdvice.heat))}
                 </div>
               </div>
               <button
                 onClick={activateBoost}
                 className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0 jarvis-boost-pulse"
               >
-                <Zap className="h-3 w-3" /> {lang === "he" ? `${boostAdvice.durationMin}ד׳` : `${boostAdvice.durationMin}m`}
+                <Zap className="h-3 w-3" /> {t("misc.jarvis.minutesShort", lang).replace("{n}", String(boostAdvice.durationMin))}
               </button>
             </div>
           )}
@@ -991,7 +992,7 @@ export function Jarvis() {
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#9fb4c7]/30 bg-[#9fb4c7]/10">
               <Zap className="h-3.5 w-3.5 text-[#9fb4c7] shrink-0 jarvis-boost-pulse" />
               <span className="text-[10px] font-mono font-bold text-[#9fb4c7]" dir={lang === "he" ? "rtl" : "ltr"}>
-                {lang === "he" ? "מהירות האור פעילה — הצי בקצב מקסימלי" : "Light-speed active — fleet at max cadence"}
+                {t("misc.jarvis.lightspeedActive", lang)}
               </span>
             </div>
           )}
@@ -1073,7 +1074,7 @@ export function Jarvis() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               dir={lang === "he" ? "rtl" : "ltr"}
-              placeholder={listening ? (lang === "he" ? "מקשיב…" : "Listening…") : (lang === "he" ? "שאל את ג'רוויס..." : "Ask JARVIS...")}
+              placeholder={listening ? t("misc.jarvis.listening", lang) : t("misc.jarvis.inputPlaceholder", lang)}
               className="flex-1 h-9 rounded-lg bg-secondary/40 border border-border px-3 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
             />
             <button

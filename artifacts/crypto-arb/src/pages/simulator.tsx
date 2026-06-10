@@ -155,10 +155,10 @@ function CompactStats({ unrealizedPnl, totalPositionValue }: { unrealizedPnl: nu
   return (
     <div className="grid grid-cols-3 sm:grid-cols-5 gap-px bg-border">
       {stats.map(s => (
-        <div key={s.label} className="bg-background px-3 py-2">
-          <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{s.label}</div>
-          <div className={`text-sm font-black font-mono ${s.color ?? "text-foreground"}`}>{s.value}</div>
-          <div className={`text-[9px] font-mono ${s.subColor ?? "text-muted-foreground"}`}>{s.sub}</div>
+        <div key={s.label} className="bg-background px-2 sm:px-3 py-1.5 sm:py-2">
+          <div className="text-[8px] sm:text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{s.label}</div>
+          <div className={`text-xs sm:text-sm font-black font-mono ${s.color ?? "text-foreground"}`}>{s.value}</div>
+          <div className={`text-[8px] sm:text-[9px] font-mono ${s.subColor ?? "text-muted-foreground"}`}>{s.sub}</div>
         </div>
       ))}
     </div>
@@ -489,7 +489,7 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
           </div>
           {/* Chart — maximizable on mobile (hides trade form when maximized), slider-controlled height, fills desktop */}
           <div
-            className={`min-h-0 shrink-0 lg:h-auto lg:flex-1 lg:shrink ${chartMaximized ? "flex-1 h-[calc(100vh-200px)]" : "h-[var(--chart-h)]"}`}
+            className={`min-h-0 shrink-0 lg:h-auto lg:flex-1 lg:shrink ${chartMaximized ? "flex-1 h-[calc(100dvh-200px)]" : "h-[var(--chart-h)]"}`}
             style={{ ["--chart-h" as string]: `${chartHeight}px` }}
           >
             <CandlestickChart
@@ -614,8 +614,8 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
         </div>
       </div>
 
-      {/* Mobile: positions below trade form */}
-      <div className="lg:hidden border-t border-border overflow-y-auto" style={{ maxHeight: "280px" }}>
+      {/* Mobile: resizable positions + history panel */}
+      <div className="lg:hidden border-t border-border overflow-y-auto touch-pan-y" style={{ maxHeight: "max(180px, min(40vh, 45dvh))" }}>
         <FuturesPositionsPanel binancePrices={binancePrices} posFilter={posFilter} setPosFilter={setPosFilter} onSelectAsset={setSelectedAsset} />
       </div>
     </div>

@@ -90,7 +90,7 @@ export default function LeaderboardPage() {
   const selfInTop = entries.some((e) => e.isSelf);
 
   return (
-    <div dir={lang === "he" ? "rtl" : "ltr"} className="relative min-h-screen p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+    <div dir={lang === "he" ? "rtl" : "ltr"} className="relative min-h-dvh p-4 md:p-6 max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>

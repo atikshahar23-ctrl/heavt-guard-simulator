@@ -33,8 +33,8 @@ const BOOST_PRESETS = [5, 15, 30, 60, 120, 180, 300] as const;
 
 /** Label for a boost duration given in minutes. */
 function boostDurationLabel(min: number, lang: Lang): string {
-  const minLabel = lang === "en" ? "min" : "דק'";
-  const hrLabel  = lang === "en" ? "hr"  : "שע'";
+  const minLabel = t("bots.boostDurationMin", lang);
+  const hrLabel  = t("bots.boostDurationHr", lang);
   if (min < 60) return `${min} ${minLabel}`;
   const h = min / 60;
   return Number.isInteger(h) ? `${h} ${hrLabel}` : `${h.toFixed(1)} ${hrLabel}`;
@@ -137,21 +137,21 @@ const NEW_BOT_META: {
 }[] = [
   {
     id: "dipbuyer", icon: TrendingDown, title: "Dip Buyer", subtitle: "Contrarian crypto LONG",
-    hint: "קונה את מטבעות הקריפטו עם הירידה הגדולה ביותר ב-24 שעות",
+    hint: "Buys the crypto coins with the biggest 24h drop",
     enabledKey: "dipEnabled", stakeKey: "dipStake", maxKey: "dipMaxOpen", thrKey: "dipMinDropPct",
-    thrLabel: "ירידה מינ' %", source: "Dip Buyer", market: "crypto",
+    thrLabel: "Min Drop %", source: "Dip Buyer", market: "crypto",
   },
   {
     id: "breakout", icon: TrendingUp, title: "Breakout Hunter", subtitle: "Momentum continuation LONG",
-    hint: "קונה את מטבעות הקריפטו עם העלייה החזקה ביותר ב-24 שעות",
+    hint: "Buys the crypto coins with the strongest 24h gain",
     enabledKey: "breakoutEnabled", stakeKey: "breakoutStake", maxKey: "breakoutMaxOpen", thrKey: "breakoutMinGainPct",
-    thrLabel: "עלייה מינ' %", source: "Breakout Hunter", market: "crypto",
+    thrLabel: "Min Gain %", source: "Breakout Hunter", market: "crypto",
   },
   {
     id: "dca", icon: Layers, title: "Blue-Chip DCA", subtitle: "Scheduled stock accumulation",
-    hint: "צובר מניות גדולות במנות קבועות לאורך זמן",
+    hint: "Accumulates large-cap stocks in fixed tranches over time",
     enabledKey: "dcaEnabled", stakeKey: "dcaStake", maxKey: "dcaMaxOpen", thrKey: "dcaIntervalMin",
-    thrLabel: "מרווח (דק')", source: "Blue-Chip DCA", market: "stock",
+    thrLabel: "Interval (min)", source: "Blue-Chip DCA", market: "stock",
   },
 ];
 
@@ -376,7 +376,7 @@ export default function Bots() {
     });
   };
 
-  // ── Speed-of-light cancel ("ביטול מסחר במהירות האור") ──
+  // ── Speed-of-light cancel ("cancel trading at light speed") ──
   // One emergency kill-switch: instantly disarm every bot, end any active boost
   // and close ALL bot-placed positions at the latest live price (falling back to
   // the entry price so nothing is ever left hanging open). Manual trades the user
@@ -424,7 +424,7 @@ export default function Bots() {
   // Turning light-speed off must NOT stop the bots: they keep trading at the
   // normal, considered cadence (one sensible trade per opportunity, no flooding
   // many micro-trades onto the same position). Positions stay open; bots stay
-  // armed. The full kill remains available via the separate "עצירת חירום" button.
+  // armed. The full kill remains available via the separate "Emergency Stop" button.
   const cancelLightSpeed = () => {
     if (!boostActive) {
       toast({
@@ -440,7 +440,7 @@ export default function Bots() {
     });
   };
 
-  // ── Auto-Pilot ("אוטומטי") — one switch hands every trade decision to the system ──
+  // ── Auto-Pilot — one switch hands every trade decision to the system ──
   // When on, the engines size every trade themselves (margin, leverage and stake
   // from portfolio health/win-rate), set their own SL/TP, and run the full
   // management stack (smart exits, trailing, adaptive selectivity, risk manager,
@@ -474,7 +474,7 @@ export default function Bots() {
     });
   };
 
-  // ── Max Performance ("מצב מקסימום") — one tap pushes the whole fleet to the top ──
+  // ── Max Performance — one tap pushes the whole fleet to the top ──
   // Sets max intensity, top fleet-wide leverage, the fastest cadence and the
   // highest open caps (all computed in effectiveSettings, so turning it off
   // restores the user's values), and arms every bot. It honors the user's
@@ -645,7 +645,7 @@ export default function Bots() {
         </div>
       )}
 
-      {/* ── Alpha Convergence Coordinator — סוכן אלפא (מתאם-על) ── */}
+      {/* ── Alpha Convergence Coordinator — Alpha Agent (super-coordinator) ── */}
       {(() => {
         const on = settings.alphaCoordinatorEnabled;
         const dir = on ? alpha.direction : "NEUTRAL";
@@ -832,7 +832,7 @@ export default function Bots() {
         );
       })()}
 
-      {/* ── Trade mode — סגנון מסחר: רגיל ↔ מחושב אקסטרא ↔ מצב שלומי ── */}
+      {/* ── Trade mode — trading style: Normal ↔ Extra Calculated ↔ Shlomi Mode ── */}
       {(() => {
         const mode = settings.tradeMode;
         const calc = mode === "CALCULATED";
@@ -919,7 +919,7 @@ export default function Bots() {
         );
       })()}
 
-      {/* ── Mega-Agent Coordinator — סוכן-על מתאם ── */}
+      {/* ── Mega-Agent Coordinator — super-coordinator agent ── */}
       <section className="rounded-lg border p-4" style={{ borderColor: "hsl(265 70% 60% / 0.4)", background: "hsl(265 70% 60% / 0.05)" }} dir="rtl">
         <div className="flex items-start gap-3">
           <div className="h-9 w-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "hsl(265 70% 60% / 0.15)" }}>
@@ -1101,7 +1101,7 @@ export default function Bots() {
         );
       })()}
 
-      {/* ── Momentum Drive (בוט הנעה) ── */}
+      {/* ── Momentum Drive (Drive Bot) ── */}
       {(() => {
         const driveDisabled = settings.dynamicCapitalEnabled;
         const drive = computeMomentumDriveSizing(cash, totalDeposited, settings.momentumDriveStakePct, settings.momentumDriveMaxLeverage);
@@ -1333,7 +1333,7 @@ export default function Bots() {
         </div>
       </section>
 
-      {/* Per-coin caution — זהירות לפי מטבע */}
+      {/* Per-coin caution */}
       <section className="rounded-lg border p-4" style={{ borderColor: "hsl(207 30% 70% / 0.35)", background: "hsl(207 30% 70% / 0.04)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -1399,7 +1399,7 @@ export default function Bots() {
         )}
       </section>
 
-      {/* Risk Manager — סוכן ניהול סיכונים */}
+      {/* Risk Manager */}
       <section className="rounded-lg border p-4" style={{ borderColor: "hsl(0 72% 51% / 0.35)", background: "hsl(0 72% 51% / 0.03)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -1458,7 +1458,7 @@ export default function Bots() {
         </div>
       </section>
 
-      {/* Smart Exit — סגירה חכמה */}
+      {/* Smart Exit */}
       <section className="rounded-lg border p-4" style={{ borderColor: "hsl(152 60% 45% / 0.35)", background: "hsl(152 60% 45% / 0.04)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
