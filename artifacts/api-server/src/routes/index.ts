@@ -8,6 +8,7 @@ import userStateRouter from "./userState";
 import socialRouter from "./social";
 import adminRouter from "./admin";
 import binanceCredRouter from "./binanceCredentials";
+import telegramRouter from "./telegram";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(userStateRouter);
 router.use(socialRouter);
 router.use(adminRouter);
 router.use(binanceCredRouter);
+router.use(telegramRouter);
 
 export default router;

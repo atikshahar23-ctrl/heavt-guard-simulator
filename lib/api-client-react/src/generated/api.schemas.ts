@@ -816,6 +816,20 @@ export interface BinanceOrders {
   orders: BinanceOrder[];
 }
 
+export interface TelegramSendInput {
+  /** Telegram chat ID (numeric ID or @channel username) */
+  chatId: string;
+  /** Telegram Bot API token obtained from @BotFather */
+  botToken: string;
+  /** Plain-text message body, max 4096 characters */
+  message: string;
+}
+
+export interface TelegramSendResponse {
+  ok: boolean;
+  error?: string | null;
+}
+
 export interface PublicTrade {
   id: number;
   userId: string;

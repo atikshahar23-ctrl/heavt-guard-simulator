@@ -73,6 +73,8 @@ import type {
   StockQuote,
   StockRecommendation,
   StockSearchResult,
+  TelegramSendInput,
+  TelegramSendResponse,
   UserStateEntry,
   UserStateInput,
   UserStateWriteResult
@@ -3474,5 +3476,78 @@ export const useAdminRename = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getAdminRenameMutationOptions(options));
+    }
+
+export const getSendTelegramMessageUrl = () => {
+
+
+
+
+  return `/api/telegram/send`
+}
+
+/**
+ * Server-side proxy to the Telegram Bot API. The caller supplies their own bot token and chat ID — credentials are never stored on the server. Rate-limited to 20 calls per minute per authenticated user.
+
+ * @summary Send a signal message via Telegram
+ */
+export const sendTelegramMessage = async (telegramSendInput: TelegramSendInput, options?: RequestInit): Promise<TelegramSendResponse> => {
+
+  return customFetch<TelegramSendResponse>(getSendTelegramMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      telegramSendInput,)
+  }
+);}
+
+
+
+
+export const getSendTelegramMessageMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTelegramMessage>>, TError,{data: BodyType<TelegramSendInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTelegramMessage>>, TError,{data: BodyType<TelegramSendInput>}, TContext> => {
+
+const mutationKey = ['sendTelegramMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTelegramMessage>>, {data: BodyType<TelegramSendInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendTelegramMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTelegramMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendTelegramMessage>>>
+    export type SendTelegramMessageMutationBody = BodyType<TelegramSendInput>
+    export type SendTelegramMessageMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send a signal message via Telegram
+ */
+export const useSendTelegramMessage = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTelegramMessage>>, TError,{data: BodyType<TelegramSendInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendTelegramMessage>>,
+        TError,
+        {data: BodyType<TelegramSendInput>},
+        TContext
+      > => {
+      return useMutation(getSendTelegramMessageMutationOptions(options));
     }
 

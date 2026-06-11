@@ -98,6 +98,8 @@ export * from './stockRecommendationAction';
 export * from './stockRecommendationCategory';
 export * from './stockRecommendationConfidence';
 export * from './stockSearchResult';
+export * from './telegramSendInput';
+export * from './telegramSendResponse';
 export * from './trendingCoin';
 export * from './userStateData';
 export * from './userStateEntry';

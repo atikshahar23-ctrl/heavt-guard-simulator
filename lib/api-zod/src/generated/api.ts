@@ -986,3 +986,20 @@ export const AdminRenameResponse = zod.object({
 })
 
 
+/**
+ * Server-side proxy to the Telegram Bot API. The caller supplies their own bot token and chat ID — credentials are never stored on the server. Rate-limited to 20 calls per minute per authenticated user.
+
+ * @summary Send a signal message via Telegram
+ */
+export const SendTelegramMessageBody = zod.object({
+  "chatId": zod.string().describe('Telegram chat ID (numeric ID or @channel username)'),
+  "botToken": zod.string().describe('Telegram Bot API token obtained from @BotFather'),
+  "message": zod.string().describe('Plain-text message body, max 4096 characters')
+})
+
+export const SendTelegramMessageResponse = zod.object({
+  "ok": zod.boolean(),
+  "error": zod.string().nullish()
+})
+
+

@@ -8,7 +8,7 @@ import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield,
+  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield, Bell,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
@@ -179,6 +179,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/momentum", label: t("nav.momentum", lang), icon: Rocket },
         { href: "/quickbets", label: t("nav.quickbets", lang), icon: Timer },
         { href: "/smart-money", label: t("nav.smartMoney", lang), icon: Megaphone },
+        { href: "/signals", label: t("nav.signals", lang), icon: Bell },
       ],
     },
     {

@@ -20,6 +20,8 @@ tags:
     description: User state and profile
   - name: binance-user
     description: User-managed Binance API credentials (read-only)
+  - name: telegram
+    description: Telegram notification proxy
 paths:
   /healthz:
     get:
@@ -1287,6 +1289,47 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telegram/send:
+    post:
+      operationId: sendTelegramMessage
+      tags: [telegram]
+      summary: Send a signal message via Telegram
+      description: >
+        Server-side proxy to the Telegram Bot API. The caller supplies their own
+        bot token and chat ID — credentials are never stored on the server.
+        Rate-limited to 20 calls per minute per authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramSendInput"
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramSendResponse"
+        "400":
+          description: Invalid input (bad token format, message too long, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Telegram API rejected the request
           content:
             application/json:
               schema:
@@ -2598,6 +2641,34 @@ components:
           type: number
         status:
           type: string
+
+    TelegramSendInput:
+      type: object
+      required:
+        - chatId
+        - botToken
+        - message
+      properties:
+        chatId:
+          type: string
+          description: Telegram chat ID (numeric ID or @channel username)
+        botToken:
+          type: string
+          description: Telegram Bot API token obtained from @BotFather
+        message:
+          type: string
+          description: Plain-text message body, max 4096 characters
+
+    TelegramSendResponse:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+          nullable: true
 
     PublicTrade:
       type: object

@@ -38,6 +38,7 @@ const Leaderboard = lazy(() => import("@/pages/leaderboard"));
 const TradesFeed = lazy(() => import("@/pages/trades-feed"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPage = lazy(() => import("@/pages/admin"));
+const SignalsPage = lazy(() => import("@/pages/signals"));
 import Layout from "@/components/layout";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { CalendarAlerter } from "@/components/calendar-alerter";
@@ -248,6 +249,7 @@ function Router() {
         <Route path="/research" component={Research} />
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/signals" component={SignalsPage} />
         <Route path="/admin" component={AdminPage} />
         {/* REQUIRED — "/*?" is the only wouter syntax that matches both bare
             and OAuth sub-paths like /sign-in/sso-callback */}

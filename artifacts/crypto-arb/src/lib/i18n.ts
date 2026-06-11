@@ -8,6 +8,7 @@ import { advisorStrings } from "./i18n-extra/advisor";
 import { miscStrings } from "./i18n-extra/misc";
 import { settingsStrings } from "./i18n-extra/settings";
 import { adminStrings } from "./i18n-extra/admin";
+import { signalsStrings } from "./i18n-extra/signals";
 
 const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   // Sidebar / Navigation
@@ -376,6 +377,7 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   ...miscStrings,
   ...settingsStrings,
   ...adminStrings,
+  ...signalsStrings,
 };
 
 export function t(key: string, lang: Lang): string {
