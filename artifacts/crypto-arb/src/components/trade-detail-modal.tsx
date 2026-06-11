@@ -229,17 +229,17 @@ function DetailRow({ label, value, color }: { label: string; value: string; colo
 interface Props {
   trade: ClosedTrade | null;
   onClose: () => void;
+  /** Position near the click instead of centering. */
+  clickPos?: { x: number; y: number } | null;
 }
 
-export function TradeDetailModal({ trade, onClose }: Props) {
+export function TradeDetailModal({ trade, onClose, clickPos }: Props) {
   const { lang, dir } = useLanguage();
   useEffect(() => {
     if (!trade) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+    return () => { window.removeEventListener("keydown", onKey); };
   }, [trade, onClose]);
 
   if (!trade) return null;
@@ -256,16 +256,28 @@ export function TradeDetailModal({ trade, onClose }: Props) {
       : trade.type === "POLYMARKET" ? `${(trade.qty ?? 0).toFixed(2)} ${t("td.qtyUnits", lang)}`
         : `$${fmtUsd(trade.qty ?? 0, 0)} ${t("td.qtyNotional", lang)}`;
 
+  const cardWidth = 640;
+  const cardHeight = 480;
+  const isNearClick = !!clickPos;
+  const posStyle = isNearClick
+    ? {
+        top: Math.max(12, Math.min(clickPos!.y - 40, window.innerHeight - cardHeight - 12)),
+        left: Math.max(12, Math.min(clickPos!.x + 20, window.innerWidth - cardWidth - 12)),
+        position: "fixed" as const,
+        width: cardWidth,
+        maxHeight: "80vh",
+      }
+    : undefined;
+
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto"
-      onClick={onClose}
-      dir={dir}
-    >
+    <div className="fixed inset-0 z-40" onClick={onClose} dir={dir}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="w-full max-w-2xl rounded-xl border border-border bg-background shadow-2xl my-auto"
+        className={`z-50 rounded-xl border border-border bg-background shadow-2xl overflow-y-auto ${isNearClick ? "" : "fixed inset-0 flex items-center justify-center p-3 sm:p-6 overflow-y-auto"}`}
+        style={isNearClick ? posStyle : undefined}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className={`${isNearClick ? "w-full max-w-2xl" : "w-full max-w-2xl mx-auto"}`}>
         {/* Header */}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2 min-w-0">
@@ -372,6 +384,7 @@ export function TradeDetailModal({ trade, onClose }: Props) {
           <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
             <Cpu className="h-3 w-3" /> {t("td.disclaimer", lang)}
           </p>
+        </div>
         </div>
       </div>
     </div>,

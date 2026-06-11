@@ -649,6 +649,21 @@ export default function HistoryPage() {
   const [sourceF, setSourceF] = useState<SourceFilter>("ALL");
   const [botF, setBotF] = useState<BotFilter>("ALL");
   const [selected, setSelected] = useState<ClosedTrade | null>(null);
+  const [clickPos, setClickPos] = useState<{ x: number; y: number } | null>(null);
+
+  const handleSelect = useCallback((t: ClosedTrade, e?: React.MouseEvent) => {
+    setSelected(t);
+    if (e) {
+      setClickPos({ x: e.clientX, y: e.clientY });
+    } else {
+      setClickPos(null);
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setSelected(null);
+    setClickPos(null);
+  }, []);
 
   // Long-press / right-click on an active bot chip jumps to that bot's panel on /bots.
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -835,10 +850,10 @@ export default function HistoryPage() {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground py-10 text-center">{t("history.noMatch", lang)}</p>
       ) : (
-        <ClosedTradeTable trades={filtered} onSelect={setSelected} />
+        <ClosedTradeTable trades={filtered} onSelect={handleSelect} />
       )}
 
-      <TradeDetailModal trade={selected} onClose={() => setSelected(null)} />
+      <TradeDetailModal trade={selected} onClose={handleClose} clickPos={clickPos} />
     </div>
   );
 }
@@ -1002,7 +1017,7 @@ function CategoryHeaderRow({ type, count, totalCost, totalPnl, collapsed, onTogg
   );
 }
 
-function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelect: (t: ClosedTrade) => void }) {
+function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelect: (t: ClosedTrade, e?: React.MouseEvent) => void }) {
   const { lang } = useLanguage();
   const [hovered, setHovered] = useState<ClosedTrade | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -1091,7 +1106,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                         <div key={key} className="group" dir="rtl">
                           {/* Summary row */}
                           <div
-                            onClick={() => onSelect(first)}
+                            onClick={(e) => onSelect(first, e)}
                             onMouseEnter={() => setHovered(first)}
                             onMouseLeave={() => setHovered(null)}
                             onMouseMove={onMove}
@@ -1177,7 +1192,7 @@ function ClosedTradeTable({ trades, onSelect }: { trades: ClosedTrade[]; onSelec
                                 return (
                                   <div
                                     key={t.id}
-                                    onClick={() => onSelect(t)}
+                                    onClick={(e) => onSelect(t, e)}
                                     onMouseEnter={() => setHovered(t)}
                                     onMouseLeave={() => setHovered(null)}
                                     onMouseMove={onMove}
