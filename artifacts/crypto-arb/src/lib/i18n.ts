@@ -12,6 +12,7 @@ import { signalsStrings } from "./i18n-extra/signals";
 
 const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   // Sidebar / Navigation
+  "nav.orderFlow": { he: "זרימת הזמנות", en: "Order Flow" },
   "nav.dashboard": { he: "לוח בקרה", en: "Dashboard" },
   "nav.advisor": { he: "היועץ הראשי", en: "Master Advisor" },
   "nav.simulator": { he: "תיק ההשקעות", en: "Portfolio" },
@@ -58,6 +59,29 @@ const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "nav.pos": { he: "פוזיציות", en: "Positions" },
   "nav.privateWealth": { he: "Private Wealth", en: "Private Wealth" },
   "nav.system": { he: "HEAVY GUARD SYSTEM", en: "HEAVY GUARD SYSTEM" },
+
+  // Order Flow
+  "orderFlow.title": { he: "זרימת הזמנות", en: "Order Flow" },
+  "orderFlow.subtitle": { he: "Order Book + Tape בזמן אמת — תחושה לדקות הקרובות", en: "Live Order Book + Tape — near-term feel" },
+  "orderFlow.symbol": { he: "סימול", en: "Symbol" },
+  "orderFlow.watch": { he: "צפה", en: "Watch" },
+  "orderFlow.live": { he: "חי", en: "Live" },
+  "orderFlow.reconnecting": { he: "מתחבר...", en: "Reconnecting..." },
+  "orderFlow.feel": { he: "תחושה", en: "Feel" },
+  "orderFlow.feelDesc": { he: "על בסיס Order Book + Tape ב-5 שניות אחרונות", en: "Based on Order Book + Tape over last 5s" },
+  "orderFlow.mid": { he: "מחיר אמצע", en: "Mid" },
+  "orderFlow.spread": { he: "ספרד", en: "Spread" },
+  "orderFlow.tapeSpeed": { he: "מהירות טייפ", en: "Tape Speed" },
+  "orderFlow.qty": { he: "כמות", en: "Qty" },
+  "orderFlow.trades": { he: "עסקאות", en: "Trades" },
+  "orderFlow.bearish": { he: "בריש", en: "Bearish" },
+  "orderFlow.bullish": { he: "בוליש", en: "Bullish" },
+  "orderFlow.confidence": { he: "ביטחון", en: "Confidence" },
+  "orderFlow.depth": { he: "עומק", en: "Depth" },
+  "orderFlow.bids": { he: "בידים", en: "Bids" },
+  "orderFlow.asks": { he: "אסקים", en: "Asks" },
+  "orderFlow.tape": { he: "טייפ עסקאות", en: "Trade Tape" },
+  "orderFlow.waiting": { he: "ממתין לנתונים...", en: "Waiting for data..." },
   "nav.marketNewsTitle": { he: "חדשות שוק", en: "Market News" },
   "nav.marketNewsLoading": { he: "טוען חדשות...", en: "Loading news..." },
   "nav.marketNewsEmpty": { he: "אין חדשות זמינות", en: "No news available" },

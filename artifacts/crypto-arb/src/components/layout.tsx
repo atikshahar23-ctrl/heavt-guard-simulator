@@ -174,6 +174,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     {
       title: t("nav.algorithmics", lang),
       links: [
+        { href: "/order-flow", label: t("nav.orderFlow", lang), icon: Activity },
         { href: "/scalp", label: t("nav.scalp", lang), icon: Gauge },
         { href: "/funding-arb", label: t("nav.fundingArb", lang), icon: Coins },
         { href: "/momentum", label: t("nav.momentum", lang), icon: Rocket },

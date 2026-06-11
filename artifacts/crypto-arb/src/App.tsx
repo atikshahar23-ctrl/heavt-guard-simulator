@@ -39,6 +39,7 @@ const TradesFeed = lazy(() => import("@/pages/trades-feed"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPage = lazy(() => import("@/pages/admin"));
 const SignalsPage = lazy(() => import("@/pages/signals"));
+const OrderFlowPage = lazy(() => import("@/pages/order-flow"));
 import Layout from "@/components/layout";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { CalendarAlerter } from "@/components/calendar-alerter";
@@ -47,12 +48,14 @@ import { FavoritesProvider } from "@/contexts/favorites-context";
 import { AutoTraderProvider } from "@/contexts/autotrader-context";
 import { RefreshProvider } from "@/contexts/refresh-context";
 import { LivePriceProvider } from "@/contexts/live-price-context";
+import { OrderFlowProvider } from "@/contexts/order-flow-context";
 import { ServerSyncProvider } from "@/contexts/server-sync-context";
 import { SocialProvider } from "@/contexts/social-context";
 import { AutoTraderEngine } from "@/components/autotrader-engine";
 import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 import { FundingBotEngine } from "@/components/funding-bot-engine";
 import { OptionsBotEngine } from "@/components/options-bot-engine";
+import { OrderFlowBotEngine } from "@/components/order-flow-bot-engine";
 
 const queryClient = new QueryClient();
 
@@ -250,6 +253,7 @@ function Router() {
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/signals" component={SignalsPage} />
+        <Route path="/order-flow" component={OrderFlowPage} />
         <Route path="/admin" component={AdminPage} />
         {/* REQUIRED — "/*?" is the only wouter syntax that matches both bare
             and OAuth sub-paths like /sign-in/sso-callback */}
@@ -312,27 +316,30 @@ function AuthedApp() {
   return (
     <RefreshProvider>
       <LivePriceProvider>
-      <ServerSyncProvider>
-      <PortfolioProvider>
-      <SocialProvider>
-      <FavoritesProvider>
-      <AutoTraderProvider>
-      <TooltipProvider>
-        <AutoTraderEngine />
-        <ExtraBotsEngine />
-        <FundingBotEngine />
-        <OptionsBotEngine />
-        <CalendarAlerter />
-        <OnboardingGate>
-          <Router />
-        </OnboardingGate>
-        <Toaster />
-      </TooltipProvider>
-      </AutoTraderProvider>
-      </FavoritesProvider>
-      </SocialProvider>
-      </PortfolioProvider>
-      </ServerSyncProvider>
+        <OrderFlowProvider>
+          <ServerSyncProvider>
+            <PortfolioProvider>
+              <SocialProvider>
+                <FavoritesProvider>
+                  <AutoTraderProvider>
+                    <TooltipProvider>
+                      <AutoTraderEngine />
+                      <ExtraBotsEngine />
+                      <FundingBotEngine />
+                      <OptionsBotEngine />
+                      <OrderFlowBotEngine />
+                      <CalendarAlerter />
+                      <OnboardingGate>
+                        <Router />
+                      </OnboardingGate>
+                      <Toaster />
+                    </TooltipProvider>
+                  </AutoTraderProvider>
+                </FavoritesProvider>
+              </SocialProvider>
+            </PortfolioProvider>
+          </ServerSyncProvider>
+        </OrderFlowProvider>
       </LivePriceProvider>
     </RefreshProvider>
   );

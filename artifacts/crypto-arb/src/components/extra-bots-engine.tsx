@@ -21,11 +21,13 @@ const SOURCE: Record<NewBotId, string> = {
   dipbuyer: "Dip Buyer",
   breakout: "Breakout Hunter",
   dca: "Blue-Chip DCA",
+  flowbot: "Order Flow Bot",
 };
 const SOURCE_TO_BOT: Record<string, NewBotId> = {
   "Dip Buyer": "dipbuyer",
   "Breakout Hunter": "breakout",
   "Blue-Chip DCA": "dca",
+  "Order Flow Bot": "flowbot",
 };
 
 /** Rotating large-cap universe for the accumulation bot. */
@@ -133,6 +135,7 @@ export function ExtraBotsEngine() {
       evaluateRisk("dipbuyer", tradeHistory, cash, totalDeposited);
       evaluateRisk("breakout", tradeHistory, cash, totalDeposited);
       evaluateRisk("dca", tradeHistory, cash, totalDeposited);
+      evaluateRisk("flowbot", tradeHistory, cash, totalDeposited);
     }, 30000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps

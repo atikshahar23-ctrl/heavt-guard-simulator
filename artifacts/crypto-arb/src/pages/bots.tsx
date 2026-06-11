@@ -155,6 +155,12 @@ const NEW_BOT_META: {
     enabledKey: "dcaEnabled", stakeKey: "dcaStake", maxKey: "dcaMaxOpen", thrKey: "dcaIntervalMin",
     thrLabel: "Interval (min)", source: "Blue-Chip DCA", market: "stock",
   },
+  {
+    id: "flowbot", icon: Zap, title: "Order Flow Bot", subtitle: "Live depth + tape feel",
+    hint: "Reads Binance Order Book + AggTrades in real time for near-term directional feel",
+    enabledKey: "flowBotEnabled", stakeKey: "flowBotStake", maxKey: "flowBotMaxOpen", thrKey: "flowBotMinFeel",
+    thrLabel: "Min Feel", source: "Order Flow Bot", market: "crypto",
+  },
 ];
 
 /** i18n key per new-bot id for its hint line and threshold field label. */
@@ -162,11 +168,13 @@ const NEW_BOT_HINT_KEY: Record<string, string> = {
   dipbuyer: "bots.newbot.dipHint",
   breakout: "bots.newbot.breakoutHint",
   dca: "bots.newbot.dcaHint",
+  flowbot: "bots.newbot.flowHint",
 };
 const NEW_BOT_THR_KEY: Record<string, string> = {
   dipbuyer: "bots.newbot.dipThr",
   breakout: "bots.newbot.breakoutThr",
   dca: "bots.newbot.dcaThr",
+  flowbot: "bots.newbot.flowThr",
 };
 
 /** Lucide icon per squad member id. */
@@ -293,6 +301,7 @@ export default function Bots() {
       dca: stockPositions.filter((p) => p.source === "Blue-Chip DCA").length,
       funding: fundingPositions.filter((p) => p.source === "Funding Arb Agent").length,
       options: optionPositions.filter((p) => p.source === "Options Agent").length,
+      flowbot: binancePositions.filter((p) => p.source === "Order Flow Bot").length,
     };
   }, [binancePositions, stockPositions, polyPositions, fundingPositions, optionPositions]);
 
@@ -334,13 +343,14 @@ export default function Bots() {
       { key: "dca", title: "Blue-Chip DCA", icon: Layers, market: "stocks", armed: settings.dcaEnabled, match: (t) => t.source === "Blue-Chip DCA" },
       { key: "funding", title: "Funding Arb Agent", icon: Coins, market: "crypto", armed: settings.fundingEnabled, match: (t) => t.type === "FUNDING" && t.source === "Funding Arb Agent" },
       { key: "options", title: "Options Agent", icon: Sparkles, market: "options", armed: settings.optionsEnabled, match: (t) => t.type === "OPTION" && t.source === "Options Agent" },
+      { key: "flowbot", title: "Order Flow Bot", icon: Zap, market: "crypto", armed: settings.flowBotEnabled, match: (t) => t.source === "Order Flow Bot" },
     ];
     const rows = defs.map((d) => {
       const ts = tradeHistory.filter((t) => d.match(t));
       const trades = ts.length;
       const wins = ts.filter((t) => t.pnl > 0).length;
       const net = ts.reduce((a, t) => a + t.pnl, 0);
-      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca";
+      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca" || d.key === "flowbot";
       return {
         ...d,
         trades, wins, net,
@@ -368,7 +378,7 @@ export default function Bots() {
 
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
     settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled ||
-    settings.optionsEnabled;
+    settings.optionsEnabled || settings.flowBotEnabled;
 
   const armAll = (on: boolean) => {
     update({
@@ -376,7 +386,7 @@ export default function Bots() {
       strategy: on ? "BOTH" : settings.strategy,
       stocksEnabled: on, polyEnabled: on,
       dipEnabled: on, breakoutEnabled: on, dcaEnabled: on, fundingEnabled: on,
-      optionsEnabled: on,
+      optionsEnabled: on, flowBotEnabled: on,
     });
   };
 
@@ -776,7 +786,7 @@ export default function Bots() {
 
       {/* Live summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border bg-secondary/20 p-4">
-        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled].filter(Boolean).length} / 9`} />
+        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled, settings.flowBotEnabled].filter(Boolean).length} / 10`} />
         <StatChip label="Open Auto Pos." value={String(totalOpenAuto)} tone={totalOpenAuto > 0 ? "good" : undefined} />
         <StatChip label="Adaptive Mgr" value={settings.adaptiveEnabled ? "ON" : "OFF"} tone={settings.adaptiveEnabled ? "good" : undefined} />
         <StatChip label="Leverage (new)" value={`${settings.newBotLeverage}x`} />
@@ -1535,8 +1545,8 @@ export default function Bots() {
                   <NumField
                     label={t(NEW_BOT_THR_KEY[b.id], lang)}
                     value={settings[b.thrKey] as number}
-                    min={1}
-                    step={b.id === "dca" ? 5 : 1}
+                    min={b.id === "flowbot" ? 0.05 : 1}
+                    step={b.id === "dca" ? 5 : b.id === "flowbot" ? 0.05 : 1}
                     onChange={(v) => update({ [b.thrKey]: v } as Partial<AutoTraderSettings>)}
                   />
                   {b.market === "crypto" && (

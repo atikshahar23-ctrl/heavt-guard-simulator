@@ -264,6 +264,8 @@ export const botsStrings: Record<string, Record<"he" | "en", string>> = {
   "bots.newbot.breakoutThr": { he: "עלייה מינ' %", en: "Min Gain %" },
   "bots.newbot.dcaHint": { he: "צובר מניות גדולות במנות קבועות לאורך זמן", en: "Accumulates large-cap stocks in fixed tranches over time" },
   "bots.newbot.dcaThr": { he: "מרווח (דק')", en: "Interval (min)" },
+  "bots.newbot.flowHint": { he: "קורא Order Book + AggTrades בזמן אמת לתחושה כיוונית לדקות הקרובות", en: "Reads Order Book + AggTrades in real time for near-term directional feel" },
+  "bots.newbot.flowThr": { he: "תחושה מינ'", en: "Min Feel" },
   "bots.funding.hint": { he: "פותח פוזיציות דלתא-נייטרל (בסיס + פרפ הפוך) שצוברות מימון מדומה — לימודי בלבד, ללא הבטחת תשואה", en: "Opens delta-neutral positions (spot + inverse perp) that accrue simulated funding — educational only, no return guarantees" },
   "bots.funding.minFunding": { he: "מימון מינ' (% שנתי)", en: "Min Funding (% annual)" },
   "bots.options.hint": { he: "קונה אופציות CALL/PUT לונג בלבד על קריפטו ומניות לפי האותות החזקים — ההפסד המרבי הוא הפרמיה ששולמה בלבד. מדומה ולימודי בלבד, ללא הבטחת תשואה", en: "Buys long-only CALL/PUT options on crypto and stocks based on strong signals — max loss is only the premium paid. Simulated and educational only, no return guarantees" },

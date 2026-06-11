@@ -7,8 +7,8 @@ export type ScalpConfidence = "LOW" | "MEDIUM" | "HIGH";
 /** Which signal sources the engine trades from. */
 export type TradeStrategy = "SCALP" | "MOMENTUM" | "BOTH";
 
-/** The three additional, independently-managed simulator bots. */
-export const NEW_BOT_IDS = ["dipbuyer", "breakout", "dca"] as const;
+/** The additional, independently-managed simulator bots. */
+export const NEW_BOT_IDS = ["dipbuyer", "breakout", "dca", "flowbot"] as const;
 export type NewBotId = (typeof NEW_BOT_IDS)[number];
 
 /** Rolling, per-bot paper-trading scorecard used by the adaptive manager. */
@@ -251,7 +251,7 @@ export function resolveSizing(
   cash: number,
   totalDeposited: number,
   tradeHistory: { pnl: number }[],
-  botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly",
+  botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly" | "flowbot",
 ): { margin: number; leverage: number; recoveryMode: boolean } {
   // Momentum Drive: highest-priority override — portfolio-proportional, no cap.
   if (settings.momentumDriveEnabled) {
@@ -271,12 +271,13 @@ export function resolveSizing(
   }
   let leverage = settings.leverage;
   let margin = settings.marginPerTrade;
-  if (botId === "dipbuyer" || botId === "breakout") leverage = settings.newBotLeverage;
+  if (botId === "dipbuyer" || botId === "breakout" || botId === "flowbot") leverage = settings.newBotLeverage;
   if (botId === "dipbuyer") margin = settings.dipStake;
   else if (botId === "breakout") margin = settings.breakoutStake;
   else if (botId === "dca") margin = settings.dcaStake;
   else if (botId === "stocks") margin = settings.stockStakePerTrade;
   else if (botId === "poly") margin = settings.polyStakePerBet;
+  else if (botId === "flowbot") margin = settings.flowBotStake;
   if (settings.globalLeverageEnabled) leverage = settings.globalLeverage;
   if (settings.fixedAmountEnabled) margin = settings.fixedAmount;
   // SHLOMI mode enforces god-tier risk management: leverage is hard-capped low,
@@ -574,6 +575,23 @@ export interface AutoTraderSettings {
   /** Days to expiry for newly opened options. */
   optionExpiryDays: number;
 
+  /** Order Flow Bot — reads live Binance Order Book + AggTrades and opens directional paper positions. */
+  flowBotEnabled: boolean;
+  /** Symbol to watch (e.g. BTCUSDT). */
+  flowBotSymbol: string;
+  /** Margin per trade (USD). */
+  flowBotStake: number;
+  /** Max open positions at once. */
+  flowBotMaxOpen: number;
+  /** Minimum |feel| required before opening (0..1). */
+  flowBotMinFeel: number;
+  /** Minimum feelStrength (0..100) required before opening. */
+  flowBotMinStrength: number;
+  /** Leverage for flow-bot trades. */
+  flowBotLeverage: number;
+  /** Hold-time seconds before auto-close (scalp-style). */
+  flowBotMaxHoldSec: number;
+
   /** Per-bot rolling scorecards (keyed by NewBotId). */
   botStats: Record<string, BotStat>;
 
@@ -726,6 +744,15 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   optionMaxOpen: 4,
   optionMinConfidence: 60,
   optionExpiryDays: 7,
+
+  flowBotEnabled: false,
+  flowBotSymbol: "BTCUSDT",
+  flowBotStake: 150,
+  flowBotMaxOpen: 2,
+  flowBotMinFeel: 0.25,
+  flowBotMinStrength: 40,
+  flowBotLeverage: 3,
+  flowBotMaxHoldSec: 60,
 
   botStats: {},
 
@@ -1074,6 +1101,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
             dcaEnabled: false,
             fundingEnabled: false,
             optionsEnabled: false,
+            flowBotEnabled: false,
             alphaCoordinatorEnabled: false,
             dynamicCapitalEnabled: false,
             maxPerfEnabled: false,
