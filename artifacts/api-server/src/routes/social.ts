@@ -553,12 +553,17 @@ router.post(
       return;
     }
     try {
-      await ensureUser(userId);
+      const profile = await ensureUser(userId);
+      // Authoritative display name: server resolves from profile; never trusts client.
+      const displayName =
+        profile.displayNameOverride?.trim().slice(0, 40) ||
+        profile.displayName?.trim().slice(0, 40) ||
+        "Trader";
       const [row] = await db
         .insert(publicTrade)
         .values({
           userId,
-          displayName: body.data.displayName.trim().slice(0, 40) || "Trader",
+          displayName,
           symbol: body.data.symbol.trim().toUpperCase().slice(0, 32),
           type: body.data.type.trim().toUpperCase(),
           direction: body.data.direction?.trim() ?? null,

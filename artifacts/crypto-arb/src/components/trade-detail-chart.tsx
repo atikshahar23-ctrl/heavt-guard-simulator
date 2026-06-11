@@ -26,9 +26,17 @@ function toBinanceSymbol(asset: string): string {
   return SYMBOL_MAP[asset] ?? `${asset.toUpperCase()}USDT`;
 }
 
-/** Choose a Binance kline interval so the trade window spans ~120 bars with context. */
+/** Choose a Binance kline interval so the trade window spans ~120 bars with context.
+ *  For short trades (≤2h) we prefer 1m for maximum detail; otherwise we adapt so the
+ *  full window still fits within 1000 bars (the max Binance returns per request). */
 function cryptoIntervalFor(spanMs: number): string {
-  const secPerBar = Math.max(spanMs, 60_000) / 1000 / 120;
+  const maxBars = 1000;
+  // Short trades: 1m gives best detail; up to ~16h fits in 1000 bars.
+  if (spanMs <= 2 * 60 * 60 * 1000) return "1m";
+  // Longer trades: pick interval so the window + padding fits within 1000 bars.
+  const pad = Math.max(spanMs * 0.5, 60_000);
+  const totalMs = spanMs + pad * 2;
+  const secPerBar = totalMs / 1000 / maxBars;
   const candidates: [number, string][] = [
     [60, "1m"], [180, "3m"], [300, "5m"], [900, "15m"], [1800, "30m"],
     [3600, "1h"], [7200, "2h"], [14400, "4h"], [21600, "6h"], [43200, "12h"], [86400, "1d"],
@@ -43,7 +51,10 @@ function cryptoIntervalFor(spanMs: number): string {
  *  charted against the wrong recent slice. */
 function stockRangeFor(openedMs: number): "1d" | "5d" | "1mo" | "6mo" | "1y" {
   const ageDays = (Date.now() - openedMs) / 86_400_000;
-  if (ageDays <= 3.5) return "5d";
+  // Prefer the most granular range that still covers the trade entry.
+  // 1d gives 1-minute intraday bars (best detail); 5d gives 5-minute bars.
+  if (ageDays <= 1) return "1d";
+  if (ageDays <= 5) return "5d";
   if (ageDays <= 24) return "1mo";
   if (ageDays <= 150) return "6mo";
   return "1y";
