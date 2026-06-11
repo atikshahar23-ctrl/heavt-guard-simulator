@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X, TrendingUp, TrendingDown, Bot, Hand, Clock, Target, Cpu,
   ArrowUpRight, ArrowDownRight, Lightbulb, ClipboardList, Flag, Brain,
@@ -255,7 +256,7 @@ export function TradeDetailModal({ trade, onClose }: Props) {
       : trade.type === "POLYMARKET" ? `${(trade.qty ?? 0).toFixed(2)} ${t("td.qtyUnits", lang)}`
         : `$${fmtUsd(trade.qty ?? 0, 0)} ${t("td.qtyNotional", lang)}`;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto"
       onClick={onClose}
@@ -373,6 +374,7 @@ export function TradeDetailModal({ trade, onClose }: Props) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

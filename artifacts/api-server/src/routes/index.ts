@@ -6,6 +6,7 @@ import fundingRouter from "./funding";
 import polymarketRouter from "./polymarket";
 import userStateRouter from "./userState";
 import socialRouter from "./social";
+import adminRouter from "./admin";
 import binanceCredRouter from "./binanceCredentials";
 
 const router: IRouter = Router();
@@ -17,6 +18,7 @@ router.use(fundingRouter);
 router.use(polymarketRouter);
 router.use(userStateRouter);
 router.use(socialRouter);
+router.use(adminRouter);
 router.use(binanceCredRouter);
 
 export default router;

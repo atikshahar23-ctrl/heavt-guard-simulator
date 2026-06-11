@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
-import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-react";
+import { useHealthCheck, getHealthCheckQueryKey, useAdminMe, getAdminMeQueryKey } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { useLanguage } from "@/contexts/language-context";
 import { t } from "@/lib/i18n";
@@ -8,7 +8,7 @@ import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon,
+  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield,
 } from "lucide-react";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
@@ -133,12 +133,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { lang, dir } = useLanguage();
+  const { user } = useUser();
   const { data: health, isLoading } = useHealthCheck({
     query: {
       queryKey: getHealthCheckQueryKey(),
       refetchInterval: 60000,
     }
   });
+  const { data: adminMe } = useAdminMe({
+    query: { queryKey: getAdminMeQueryKey(), enabled: !!user },
+  });
+  const isAdmin = adminMe?.isAdmin === true;
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -192,6 +197,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/tools", label: t("nav.tools", lang), icon: Calculator },
         { href: "/history", label: t("nav.history", lang), icon: History },
         { href: "/settings", label: t("nav.settings", lang), icon: SettingsIcon },
+        ...(isAdmin
+          ? [{ href: "/admin", label: t("nav.admin", lang), icon: Shield }]
+          : []),
       ],
     },
   ];

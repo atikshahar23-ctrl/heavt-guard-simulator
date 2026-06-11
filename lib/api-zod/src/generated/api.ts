@@ -846,3 +846,72 @@ export const AckCreditsResponse = zod.object({
 })
 
 
+/**
+ * Returns { isAdmin } for any authenticated user (false for everyone but the single software-manager account). The client uses this to decide whether to render admin tooling; the server is the source of truth.
+
+ * @summary Whether the caller is the software manager
+ */
+export const AdminMeResponse = zod.object({
+  "isAdmin": zod.boolean()
+})
+
+
+/**
+ * Returns all users with their leaderboard name (and any admin override) and reported wallet value, ranked by wallet value. No per-user state blobs — fetch those lazily via /admin/users/{userId}/state. Admin only.
+
+ * @summary Every user ranked by wallet value (admin only)
+ */
+export const AdminUsersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "rank": zod.number(),
+  "userId": zod.string(),
+  "displayName": zod.string().describe('The user\'s own self-reported leaderboard name.'),
+  "displayNameOverride": zod.string().nullish().describe('Admin-set name override (null when unset).'),
+  "effectiveName": zod.string().describe('The name actually shown (override if set, else displayName).'),
+  "walletValue": zod.number(),
+  "walletReportedAt": zod.string().nullish(),
+  "referralCode": zod.string().nullish(),
+  "referredBy": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary One user's wallets / trader / performance blobs (admin only)
+ */
+export const AdminUserStateParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const AdminUserStateResponse = zod.object({
+  "userId": zod.string(),
+  "wallets": zod.unknown().optional().describe('Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.\n'),
+  "autotrader": zod.unknown().optional().describe('Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.\n'),
+  "performance": zod.unknown().optional().describe('Opaque client-owned JSON state. The server never interprets the shape; it is fully owned by the frontend contexts. May be an object or array.\n')
+})
+
+
+/**
+ * Sets an admin override for the user's leaderboard name. An empty name clears the override (reverts to the user's own self-reported name). The override survives the user's periodic self-report. Admin only.
+
+ * @summary Set or clear a user's leaderboard display name (admin only)
+ */
+
+export const adminRenameBodyDisplayNameMax = 40;
+
+
+
+export const AdminRenameBody = zod.object({
+  "userId": zod.string().min(1),
+  "displayName": zod.string().max(adminRenameBodyDisplayNameMax).describe('New name; empty string clears the override.')
+})
+
+export const AdminRenameResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "displayNameOverride": zod.string().nullish(),
+  "effectiveName": zod.string()
+})
+
+

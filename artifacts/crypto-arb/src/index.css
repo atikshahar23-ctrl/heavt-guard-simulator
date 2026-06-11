@@ -216,7 +216,7 @@ html {
   to   { opacity: 1; transform: translateY(0); }
 }
 .page-enter {
-  animation: page-enter 0.4s var(--ease-out-quart) both;
+  animation: page-enter 0.4s var(--ease-out-quart) backwards;
 }
 
 /* Staggered child reveal (opt-in via .stagger on a container) */

@@ -1103,6 +1103,136 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/me:
+    get:
+      operationId: adminMe
+      tags: [admin]
+      summary: Whether the caller is the software manager
+      description: >
+        Returns { isAdmin } for any authenticated user (false for everyone but
+        the single software-manager account). The client uses this to decide
+        whether to render admin tooling; the server is the source of truth.
+      responses:
+        "200":
+          description: Admin status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMe"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users:
+    get:
+      operationId: adminUsers
+      tags: [admin]
+      summary: Every user ranked by wallet value (admin only)
+      description: >
+        Returns all users with their leaderboard name (and any admin override)
+        and reported wallet value, ranked by wallet value. No per-user state
+        blobs — fetch those lazily via /admin/users/{userId}/state. Admin only.
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsers"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the software manager
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users/{userId}/state:
+    get:
+      operationId: adminUserState
+      tags: [admin]
+      summary: One user's wallets / trader / performance blobs (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User state blobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserState"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the software manager
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users/rename:
+    post:
+      operationId: adminRename
+      tags: [admin]
+      summary: Set or clear a user's leaderboard display name (admin only)
+      description: >
+        Sets an admin override for the user's leaderboard name. An empty name
+        clears the override (reverts to the user's own self-reported name). The
+        override survives the user's periodic self-report. Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRenameInput"
+      responses:
+        "200":
+          description: Updated name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRenameResult"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the software manager
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1318,6 +1448,106 @@ components:
         version:
           type: integer
         updatedAt:
+          type: string
+
+    AdminMe:
+      type: object
+      required:
+        - isAdmin
+      properties:
+        isAdmin:
+          type: boolean
+
+    AdminUser:
+      type: object
+      required:
+        - rank
+        - userId
+        - displayName
+        - effectiveName
+        - walletValue
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: string
+        displayName:
+          type: string
+          description: The user's own self-reported leaderboard name.
+        displayNameOverride:
+          type: string
+          nullable: true
+          description: Admin-set name override (null when unset).
+        effectiveName:
+          type: string
+          description: The name actually shown (override if set, else displayName).
+        walletValue:
+          type: number
+        walletReportedAt:
+          type: string
+          nullable: true
+        referralCode:
+          type: string
+          nullable: true
+        referredBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+
+    AdminUsers:
+      type: object
+      required:
+        - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUser"
+
+    AdminUserState:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+        wallets:
+          $ref: "#/components/schemas/UserStateData"
+        autotrader:
+          $ref: "#/components/schemas/UserStateData"
+        performance:
+          $ref: "#/components/schemas/UserStateData"
+
+    AdminRenameInput:
+      type: object
+      required:
+        - userId
+        - displayName
+      properties:
+        userId:
+          type: string
+          minLength: 1
+        displayName:
+          type: string
+          maxLength: 40
+          description: New name; empty string clears the override.
+
+    AdminRenameResult:
+      type: object
+      required:
+        - userId
+        - displayName
+        - effectiveName
+      properties:
+        userId:
+          type: string
+        displayName:
+          type: string
+        displayNameOverride:
+          type: string
+          nullable: true
+        effectiveName:
           type: string
 
     BinanceData:

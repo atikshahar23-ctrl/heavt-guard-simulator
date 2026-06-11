@@ -7,6 +7,12 @@
  */
 
 export * from './ackCreditsInput';
+export * from './adminMe';
+export * from './adminRenameInput';
+export * from './adminRenameResult';
+export * from './adminUser';
+export * from './adminUsers';
+export * from './adminUserState';
 export * from './arbitrageSignal';
 export * from './arbitrageSignalSeverity';
 export * from './arbitrageSignalType';

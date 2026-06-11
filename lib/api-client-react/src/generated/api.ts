@@ -21,6 +21,11 @@ import type {
 
 import type {
   AckCreditsInput,
+  AdminMe,
+  AdminRenameInput,
+  AdminRenameResult,
+  AdminUserState,
+  AdminUsers,
   BacktestFundingAssetParams,
   BinanceBalance,
   BinanceCredentialsInput,
@@ -2998,5 +3003,313 @@ export const useAckCredits = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getAckCreditsMutationOptions(options));
+    }
+
+export const getAdminMeUrl = () => {
+
+
+
+
+  return `/api/admin/me`
+}
+
+/**
+ * Returns { isAdmin } for any authenticated user (false for everyone but the single software-manager account). The client uses this to decide whether to render admin tooling; the server is the source of truth.
+
+ * @summary Whether the caller is the software manager
+ */
+export const adminMe = async ( options?: RequestInit): Promise<AdminMe> => {
+
+  return customFetch<AdminMe>(getAdminMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminMeQueryKey = () => {
+    return [
+    `/api/admin/me`
+    ] as const;
+    }
+
+
+export const getAdminMeQueryOptions = <TData = Awaited<ReturnType<typeof adminMe>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminMe>>> = ({ signal }) => adminMe({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminMeQueryResult = NonNullable<Awaited<ReturnType<typeof adminMe>>>
+export type AdminMeQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Whether the caller is the software manager
+ */
+
+export function useAdminMe<TData = Awaited<ReturnType<typeof adminMe>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminUsersUrl = () => {
+
+
+
+
+  return `/api/admin/users`
+}
+
+/**
+ * Returns all users with their leaderboard name (and any admin override) and reported wallet value, ranked by wallet value. No per-user state blobs — fetch those lazily via /admin/users/{userId}/state. Admin only.
+
+ * @summary Every user ranked by wallet value (admin only)
+ */
+export const adminUsers = async ( options?: RequestInit): Promise<AdminUsers> => {
+
+  return customFetch<AdminUsers>(getAdminUsersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminUsersQueryKey = () => {
+    return [
+    `/api/admin/users`
+    ] as const;
+    }
+
+
+export const getAdminUsersQueryOptions = <TData = Awaited<ReturnType<typeof adminUsers>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminUsersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminUsers>>> = ({ signal }) => adminUsers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminUsers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminUsersQueryResult = NonNullable<Awaited<ReturnType<typeof adminUsers>>>
+export type AdminUsersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Every user ranked by wallet value (admin only)
+ */
+
+export function useAdminUsers<TData = Awaited<ReturnType<typeof adminUsers>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminUsersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminUserStateUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/state`
+}
+
+/**
+ * @summary One user's wallets / trader / performance blobs (admin only)
+ */
+export const adminUserState = async (userId: string, options?: RequestInit): Promise<AdminUserState> => {
+
+  return customFetch<AdminUserState>(getAdminUserStateUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminUserStateQueryKey = (userId: string,) => {
+    return [
+    `/api/admin/users/${userId}/state`
+    ] as const;
+    }
+
+
+export const getAdminUserStateQueryOptions = <TData = Awaited<ReturnType<typeof adminUserState>>, TError = ErrorType<ErrorResponse>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminUserState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminUserStateQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminUserState>>> = ({ signal }) => adminUserState(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(userId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminUserState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminUserStateQueryResult = NonNullable<Awaited<ReturnType<typeof adminUserState>>>
+export type AdminUserStateQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary One user's wallets / trader / performance blobs (admin only)
+ */
+
+export function useAdminUserState<TData = Awaited<ReturnType<typeof adminUserState>>, TError = ErrorType<ErrorResponse>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminUserState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminUserStateQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminRenameUrl = () => {
+
+
+
+
+  return `/api/admin/users/rename`
+}
+
+/**
+ * Sets an admin override for the user's leaderboard name. An empty name clears the override (reverts to the user's own self-reported name). The override survives the user's periodic self-report. Admin only.
+
+ * @summary Set or clear a user's leaderboard display name (admin only)
+ */
+export const adminRename = async (adminRenameInput: AdminRenameInput, options?: RequestInit): Promise<AdminRenameResult> => {
+
+  return customFetch<AdminRenameResult>(getAdminRenameUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRenameInput,)
+  }
+);}
+
+
+
+
+export const getAdminRenameMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRename>>, TError,{data: BodyType<AdminRenameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRename>>, TError,{data: BodyType<AdminRenameInput>}, TContext> => {
+
+const mutationKey = ['adminRename'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRename>>, {data: BodyType<AdminRenameInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminRename(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRenameMutationResult = NonNullable<Awaited<ReturnType<typeof adminRename>>>
+    export type AdminRenameMutationBody = BodyType<AdminRenameInput>
+    export type AdminRenameMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set or clear a user's leaderboard display name (admin only)
+ */
+export const useAdminRename = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRename>>, TError,{data: BodyType<AdminRenameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRename>>,
+        TError,
+        {data: BodyType<AdminRenameInput>},
+        TContext
+      > => {
+      return useMutation(getAdminRenameMutationOptions(options));
     }
 

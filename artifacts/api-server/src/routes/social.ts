@@ -212,7 +212,9 @@ router.get("/social/leaderboard", async (req, res): Promise<void> => {
     const top = await db
       .select({
         userId: appUser.userId,
-        displayName: appUser.displayName,
+        // Admin-set override (set via the admin panel) wins over the user's own
+        // self-reported name; falls back to the user's name when unset.
+        displayName: sql<string>`COALESCE(${appUser.displayNameOverride}, ${appUser.displayName})`,
         walletValue: appUser.walletValue,
       })
       .from(appUser)
@@ -232,7 +234,7 @@ router.get("/social/leaderboard", async (req, res): Promise<void> => {
       // many users have a strictly greater wallet value.
       const [me] = await db
         .select({
-          displayName: appUser.displayName,
+          displayName: sql<string>`COALESCE(${appUser.displayNameOverride}, ${appUser.displayName})`,
           walletValue: appUser.walletValue,
         })
         .from(appUser)

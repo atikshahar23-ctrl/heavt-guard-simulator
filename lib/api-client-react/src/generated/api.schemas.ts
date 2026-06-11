@@ -118,6 +118,54 @@ export interface UserStateWriteResult {
   updatedAt: string;
 }
 
+export interface AdminMe {
+  isAdmin: boolean;
+}
+
+export interface AdminUser {
+  rank: number;
+  userId: string;
+  /** The user's own self-reported leaderboard name. */
+  displayName: string;
+  /** Admin-set name override (null when unset). */
+  displayNameOverride?: string | null;
+  /** The name actually shown (override if set, else displayName). */
+  effectiveName: string;
+  walletValue: number;
+  walletReportedAt?: string | null;
+  referralCode?: string | null;
+  referredBy?: string | null;
+  createdAt?: string;
+}
+
+export interface AdminUsers {
+  users: AdminUser[];
+}
+
+export interface AdminUserState {
+  userId: string;
+  wallets?: UserStateData;
+  autotrader?: UserStateData;
+  performance?: UserStateData;
+}
+
+export interface AdminRenameInput {
+  /** @minLength 1 */
+  userId: string;
+  /**
+     * New name; empty string clears the override.
+     * @maxLength 40
+     */
+  displayName: string;
+}
+
+export interface AdminRenameResult {
+  userId: string;
+  displayName: string;
+  displayNameOverride?: string | null;
+  effectiveName: string;
+}
+
 export interface BinanceData {
   symbol: string;
   /** Short asset name e.g. BTC */

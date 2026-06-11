@@ -29,6 +29,13 @@ export const appUser = pgTable("app_user", {
   userId: text("user_id").primaryKey(),
   /** Privacy-safe name shown on the leaderboard (never an email). */
   displayName: text("display_name").notNull().default("Trader"),
+  /**
+   * Admin-set name that overrides the user's self-reported `displayName` on the
+   * leaderboard and in admin views. Set by the software manager via the admin
+   * panel; `null` means "use the user's own `displayName`". Kept separate so the
+   * user's periodic self-report (`/social/report`) never clobbers the override.
+   */
+  displayNameOverride: text("display_name_override"),
   /** Latest reported active-wallet value (paper dollars). */
   walletValue: doublePrecision("wallet_value").notNull().default(0),
   /** When walletValue was last reported. */
