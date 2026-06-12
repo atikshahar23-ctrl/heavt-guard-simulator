@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { BotStatsPopover } from "@/components/bot-stats-popover";
+import { FloatingBotPanel } from "@/components/floating-bot-panel";
 import { CandlestickChart } from "@/components/candlestick-chart";
 import { StockChart } from "@/components/stock-chart";
 import { OrderBook } from "@/components/order-book";
@@ -1625,6 +1626,8 @@ export default function SimulatorPage() {
           onDeposit={() => setShowDeposit(false)}
         />
       )}
+
+      <FloatingBotPanel />
     </div>
   );
 }
