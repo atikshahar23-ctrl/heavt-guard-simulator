@@ -80,6 +80,7 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [mode, setMode] = useState<"live" | "pro">("live");
+  const [overlayCollapsed, setOverlayCollapsed] = useState(true);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -407,9 +408,21 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
       <div className="relative flex-1 min-h-0">
         <div ref={containerRef} className="absolute inset-0" />
 
-        {/* ── Open-position overlay cards ───────────────────────────────────── */}
+        {/* ── Open-position overlay cards (collapsible on mobile) ───────────── */}
         {mode === "live" && positions && positions.length > 0 && (
           <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 max-h-[calc(100%-16px)] overflow-y-auto pointer-events-none">
+            {/* Mobile: compact toggle — always visible */}
+            <button
+              type="button"
+              onClick={() => setOverlayCollapsed(v => !v)}
+              className="sm:hidden pointer-events-auto flex items-center gap-1 rounded border bg-[hsl(0_0%_6%)/92] backdrop-blur-sm px-2 py-1 shadow-lg text-[10px] font-mono"
+              style={{ borderColor: "#ffffff20" }}
+            >
+              <span className="text-muted-foreground">{positions.length} positions</span>
+              <span className="text-[8px] text-muted-foreground">{overlayCollapsed ? "▶" : "▼"}</span>
+            </button>
+            {/* Cards — hidden on mobile when collapsed, always visible on desktop */}
+            <div className={`flex flex-col gap-1 ${overlayCollapsed ? "hidden sm:flex" : ""}`}>
             {positions.map((pos) => {
               const isLong = pos.direction === "LONG";
               const mark = markPrice > 0 ? markPrice : pos.entryPrice;
@@ -484,6 +497,7 @@ export function CandlestickChart({ symbol, positions, currentPrice, onClosePosit
                 </div>
               );
             })}
+            </div>
           </div>
         )}
 
