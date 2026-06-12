@@ -659,9 +659,9 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
         </div>
 
         {/* CENTER: Chart + Trade Form */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden lg:overflow-hidden">
-          {/* Chart — always fills center on desktop, fills entire mobile tab on chart-tab */}
-          <div className={`min-h-0 flex-1 lg:block ${mobileTab === "chart" ? "block" : "hidden lg:block"}`}>
+        <div className="flex flex-col flex-1 min-w-0 overflow-y-auto lg:overflow-hidden">
+          {/* Chart — fixed height on mobile so it always shows; flex-1 on desktop */}
+          <div className={`h-[220px] lg:h-auto lg:flex-1 lg:block shrink-0 lg:shrink ${mobileTab === "chart" ? "block" : "hidden lg:block"}`}>
             <CandlestickChart
               symbol={selectedAsset}
               positions={binancePositions.filter(p => p.asset === selectedAsset)}
