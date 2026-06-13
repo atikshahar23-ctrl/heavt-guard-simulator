@@ -29,10 +29,18 @@ for (const domain of (process.env.REPLIT_DOMAINS ?? "").split(",")) {
 const devDomain = process.env.REPLIT_DEV_DOMAIN?.trim();
 if (devDomain) corsAllowlist.add(`https://${devDomain}`);
 
-// Add allowed origins from environment variable (comma-separated)
+// Add allowed origins from environment variable (comma-separated). Each entry
+// must be a bare "https://host" origin (no path, no wildcard) — anything else
+// can never match a browser's Origin header and would silently no-op, so warn
+// loudly at startup to surface deploy misconfiguration.
 for (const origin of (process.env.ALLOWED_ORIGINS ?? "").split(",")) {
   const o = origin.trim();
-  if (o) corsAllowlist.add(o);
+  if (!o) continue;
+  if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(o)) {
+    logger.warn({ origin: o }, "ALLOWED_ORIGINS entry is not a valid https origin and will never match — ignoring");
+    continue;
+  }
+  corsAllowlist.add(o);
 }
 
 // Trust exactly one reverse-proxy hop (the Replit edge proxy). This lets

@@ -351,12 +351,13 @@ export default function Bots() {
       const wins = ts.filter((t) => t.pnl > 0).length;
       const net = ts.reduce((a, t) => a + t.pnl, 0);
       const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca" || d.key === "flowbot";
+      const isRiskManaged = isNewBot || d.key === "scalp" || d.key === "momentum";
       return {
         ...d,
         trades, wins, net,
         wr: trades > 0 ? (wins / trades) * 100 : 0,
         open: counts[d.key] ?? 0,
-        paused: isNewBot ? getRiskGuard(d.key).paused : false,
+        paused: isRiskManaged ? getRiskGuard(d.key).paused : false,
         edge: isNewBot ? getBotStat(d.key).edge : 1,
       };
     });

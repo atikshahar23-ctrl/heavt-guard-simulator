@@ -195,7 +195,7 @@ router.put("/user/binance/futures/credentials", writeLimit, async (req, res): Pr
 });
 
 // ── DELETE /api/user/binance/futures/credentials?mode=testnet ──
-router.delete("/user/binance/futures/credentials", async (req, res): Promise<void> => {
+router.delete("/user/binance/futures/credentials", writeLimit, async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -267,7 +267,7 @@ router.patch("/user/binance/futures/config", writeLimit, async (req, res): Promi
 });
 
 // ── GET /api/user/binance/futures/balance ──
-router.get("/user/binance/futures/balance", async (req, res): Promise<void> => {
+router.get("/user/binance/futures/balance", orderLimit, async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -385,7 +385,7 @@ router.post("/user/binance/futures/close-all", writeLimit, async (req, res): Pro
 });
 
 // ── GET /api/user/binance/futures/positions ──
-router.get("/user/binance/futures/positions", async (req, res): Promise<void> => {
+router.get("/user/binance/futures/positions", orderLimit, async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });

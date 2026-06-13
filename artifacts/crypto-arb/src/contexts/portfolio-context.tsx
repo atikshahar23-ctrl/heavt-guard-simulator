@@ -864,7 +864,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const pos = prev.fundingPositions.find((p) => p.id === id);
         if (!pos) return prev;
-        const pnl = pos.accruedFundingUsd;
+        // Round to cents at realization time so long-running float accrual
+        // never leaves sub-cent drift in cash/trade history.
+        const pnl = Math.round(pos.accruedFundingUsd * 100) / 100;
         const proceeds = Math.max(0, pos.notionalPerLeg + pnl);
         const sideLabel = pos.side === "SHORT_PERP" ? "Long base / Short perp" : "Short base / Long perp";
         const closed: ClosedTrade = {
@@ -1524,7 +1526,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     // close them, returning capital + accrued simulated funding.
     const keptFunding: FundingPosition[] = [];
     for (const pos of prev.fundingPositions) {
-      const pnl = pos.accruedFundingUsd;
+      // Round to cents at realization time so long-running float accrual
+      // never leaves sub-cent drift in cash/trade history.
+      const pnl = Math.round(pos.accruedFundingUsd * 100) / 100;
       const proceeds = Math.max(0, pos.notionalPerLeg + pnl);
       const closed: ClosedTrade = {
         id: crypto.randomUUID(),
@@ -1732,7 +1736,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const keptFunding: FundingPosition[] = [];
       for (const pos of prev.fundingPositions) {
         if (!pos.auto) { keptFunding.push(pos); continue; }
-        const pnl = pos.accruedFundingUsd;
+        // Round to cents at realization time so long-running float accrual
+        // never leaves sub-cent drift in cash/trade history.
+        const pnl = Math.round(pos.accruedFundingUsd * 100) / 100;
         const proceeds = Math.max(0, pos.notionalPerLeg + pnl);
         const sideLabel = pos.side === "SHORT_PERP" ? "Long base / Short perp" : "Short base / Long perp";
         const closed: ClosedTrade = {

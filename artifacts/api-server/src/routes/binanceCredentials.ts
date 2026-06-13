@@ -15,6 +15,15 @@ const writeLimit = makeRateLimiter(
   (req) => getAuth(req).userId ?? req.ip ?? "unknown",
 );
 
+// Each GET below makes a signed call out to Binance, so bound how often a
+// single user can trigger that fan-out.
+const readLimit = makeRateLimiter(
+  30,
+  60_000,
+  "Too many requests, please slow down.",
+  (req) => getAuth(req).userId ?? req.ip ?? "unknown",
+);
+
 const BINANCE_SPOT_BASE = "https://api.binance.com";
 
 /** Fetch the user's stored Binance credentials (decrypted). */
@@ -104,7 +113,7 @@ router.put("/user/binance/credentials", writeLimit, async (req, res): Promise<vo
 });
 
 // ── DELETE /api/user/binance/credentials ──
-router.delete("/user/binance/credentials", async (req, res): Promise<void> => {
+router.delete("/user/binance/credentials", writeLimit, async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -123,7 +132,7 @@ router.delete("/user/binance/credentials", async (req, res): Promise<void> => {
 });
 
 // ── GET /api/user/binance/balance ──
-router.get("/user/binance/balance", async (req, res): Promise<void> => {
+router.get("/user/binance/balance", readLimit, async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -178,7 +187,7 @@ router.get("/user/binance/balance", async (req, res): Promise<void> => {
 });
 
 // ── GET /api/user/binance/orders ──
-router.get("/user/binance/orders", async (req, res): Promise<void> => {
+router.get("/user/binance/orders", readLimit, async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });

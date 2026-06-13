@@ -9,7 +9,8 @@ A real-time dashboard that cross-references Binance BTC futures data with Polyma
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — key for encrypting stored Binance credentials
+- Optional env: `ADMIN_USER_ID` — Clerk user id of the software-manager account (preferred over the username-based admin fallback), `ALLOWED_ORIGINS` — comma-separated extra CORS origins (`https://host` only)
 
 ## Stack
 
@@ -22,11 +23,20 @@ A real-time dashboard that cross-references Binance BTC futures data with Polyma
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server` — Express API (port 5000). Routes in `src/routes/*`, upstream integrations (Binance, Polymarket, Hyperliquid, stocks, etc.) in `src/lib/*`. CORS/auth/rate-limit wiring in `src/app.ts`.
+- `artifacts/crypto-arb` — main React frontend ("ARB_SCAN"). Pages in `src/pages`, bot/portfolio state in `src/contexts` (`portfolio-context.tsx` = wallets/positions/cash, `autotrader-context.tsx` = bot settings, risk guards, adaptive stats), headless bot loops in `src/components/*-engine.tsx`.
+- `lib/db` — Drizzle ORM schema + Postgres access (source of truth for `userState`, `appUser` tables).
+- `lib/api-zod` — generated Zod schemas/types from the OpenAPI spec (`lib/api-spec`) via Orval; regenerate with `pnpm --filter @workspace/api-spec run codegen`.
+- `lib/api-client-react` — generated React Query hooks over the API.
+- `render.yaml` — Render deployment config (env vars are set in the Render dashboard, not in the repo).
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Per-user encrypted Binance credentials**: API keys/secrets are AES-256-GCM encrypted (`artifacts/api-server/src/lib/crypto.ts`, key derived from `SESSION_SECRET`) and stored in the `userState` table under dedicated slots (`binance_credentials`, `binance_futures`) that are *not* part of the generic `/api/user-state/:slot` enum — the generic state endpoint can never read/write encrypted credential blobs.
+- **Admin gating**: a single "software manager" account gets admin tooling (`artifacts/api-server/src/routes/admin.ts`). Resolved via `ADMIN_USER_ID` (Clerk user id, preferred — set as an env var) or, if unset, a fallback Clerk-username check. Client-side admin UI gating is cosmetic only; the server enforces it.
+- **Risk Manager / auto-pause**: `evaluateRiskGuard` (in `autotrader-context.tsx`) pauses a bot on 3 consecutive losses, <25% win-rate after 5 trades, a daily loss cap, or a 25% drawdown. It runs for the 4 "extra" bots (Dip Buyer, Breakout Hunter, Blue-Chip DCA, Order Flow Bot) *and* for the Scalp Squad / Momentum bot via `autotrader-engine.tsx`'s own 30s risk-evaluation effect.
+- **Cash floor**: `cashReserveFloor()` always returns at least `MIN_CASH_FLOOR_USD` ($3,000); every position-opening path (`openBinancePosition`/`openPolyPosition`/`openStockPosition` in `portfolio-context.tsx`) checks `cash - (stake/margin + open fee) < floor` at the point of debit — this is the authoritative check, independent of any per-tick pre-checks in the bot engines.
+- **Rate limiting**: in-memory fixed-window limiter (`artifacts/api-server/src/lib/rateLimiter.ts`), layered as a global per-IP budget plus per-user limiters on write/order/credential routes and on read routes that fan out to Binance.
 
 ## Product
 

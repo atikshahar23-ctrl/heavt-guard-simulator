@@ -22,9 +22,15 @@ const router: IRouter = Router();
 /**
  * The single software-manager account. Admin tooling (rename leaderboard names,
  * full transparency into every user's wallets/bots/trader) is gated to this
- * Clerk username server-side — the client UI gate is cosmetic only.
+ * account server-side — the client UI gate is cosmetic only.
+ *
+ * Prefer ADMIN_USER_ID (Clerk's immutable user id) when set — usernames can be
+ * changed or, after account deletion, re-registered by a different person, so
+ * pinning to the user id avoids any future identity confusion. Falls back to
+ * the username check for environments where ADMIN_USER_ID isn't configured.
  */
 const ADMIN_USERNAME = "atik.shahar.23";
+const ADMIN_USER_ID = process.env.ADMIN_USER_ID?.trim();
 
 /**
  * Cache of userId -> isAdmin so we don't call Clerk on every admin request.
@@ -36,6 +42,8 @@ const ADMIN_TTL_MS = 5 * 60 * 1000;
 const adminCache = new Map<string, { isAdmin: boolean; expiresAt: number }>();
 
 async function resolveIsAdmin(userId: string): Promise<boolean> {
+  if (ADMIN_USER_ID) return userId === ADMIN_USER_ID;
+
   const now = Date.now();
   const cached = adminCache.get(userId);
   if (cached && cached.expiresAt > now) return cached.isAdmin;

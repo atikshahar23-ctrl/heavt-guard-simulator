@@ -114,7 +114,7 @@ export function AutoTraderEngine() {
     closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, checkLiquidations, flattenAll,
     activeWalletId,
   } = usePortfolio();
-  const { settings, update, getAssetCaution, recordAssetResult, publishAlpha } = useAutoTrader();
+  const { settings, update, getAssetCaution, recordAssetResult, publishAlpha, getRiskGuard, evaluateRisk } = useAutoTrader();
   const { isFavorite } = useFavorites();
   // Bridge backend live-trading status into the portfolio singleton + run the
   // 60s position-reconciliation poll for as long as the engine is mounted.
@@ -508,6 +508,20 @@ export function AutoTraderEngine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overview, stocks, liveVersion, settings, closeBinancePosition, checkSlTp, updateTrailingStops, checkRiskGuards, checkLiquidations, flattenAll]);
 
+  // ── Risk Manager supervision for the Scalp Squad + Momentum bot ──
+  // Mirrors ExtraBotsEngine's per-bot supervision: the daily-loss and drawdown
+  // guards in evaluateRiskGuard are fleet-wide (not botStat-based) and must also
+  // cover the highest-volume bots, not just the 4 "extra" bots.
+  useEffect(() => {
+    if (!settings.riskManagerEnabled) return;
+    const timer = setInterval(() => {
+      evaluateRisk("scalp", tradeHistory, cash, totalDeposited);
+      evaluateRisk("momentum", tradeHistory, cash, totalDeposited);
+    }, 30000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.riskManagerEnabled, evaluateRisk, tradeHistory, cash, totalDeposited]);
+
   // Auto-trade evaluation.
   useEffect(() => {
     if (!settings.enabled) return;
@@ -535,7 +549,10 @@ export function AutoTraderEngine() {
     // ── Collect candidates from enabled sources ──
     const candidates: Candidate[] = [];
 
-    if (useScalp && signals) {
+    const scalpPaused = getRiskGuard("scalp").paused;
+    const momentumPaused = getRiskGuard("momentum").paused;
+
+    if (useScalp && signals && !scalpPaused) {
       for (const s of signals as ScalpSignal[]) {
         if (s.direction === "NEUTRAL") continue;
         // Per-asset caution: coins the bots keep losing on must clear a higher
@@ -564,7 +581,7 @@ export function AutoTraderEngine() {
       }
     }
 
-    if (useMomentum && momentum && settings.allowLong) {
+    if (useMomentum && momentum && settings.allowLong && !momentumPaused) {
       const mAlpha = alphaAdjust(alphaState, settings.alphaCoordinatorEnabled, "LONG");
       for (const m of momentum as MomentumCoin[]) {
         // Per-asset caution + intensity gear + Alpha Coordinator set the surge bar.
@@ -726,7 +743,7 @@ export function AutoTraderEngine() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signals, momentum, alphaState, settings, cash, binancePositions, isFavorite, totalDeposited, tradeHistory]);
+  }, [signals, momentum, alphaState, settings, cash, binancePositions, isFavorite, totalDeposited, tradeHistory, getRiskGuard]);
 
   // ── Smart-Money stock bot ───────────────────────────────────────────────────
   // Fuses two free sources per ticker — technical recommendations and
