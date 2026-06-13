@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -132,5 +134,24 @@ app.use("/api", (req, res, next) => {
 });
 
 app.use("/api", router);
+
+// Serve the built crypto-arb frontend (single Render web service). Vite
+// builds it into dist/public next to this server's own dist. In local dev
+// that directory doesn't exist — the frontend runs on its own Vite dev
+// server instead — so this block is skipped entirely and unmatched routes
+// fall through to a normal 404.
+const frontendDist = path.resolve(import.meta.dirname, "../../crypto-arb/dist/public");
+if (existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  // SPA fallback: any non-API GET that didn't match a static file resolves
+  // to index.html so client-side routing (wouter) can take over.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 export default app;
