@@ -2,7 +2,7 @@ services:
   - type: web
     name: poly-market-api
     runtime: node
-    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    buildCommand: npm install -g pnpm && pnpm install --config.minimumReleaseAge=0 && pnpm run build
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     envVars:
       - key: NODE_ENV
