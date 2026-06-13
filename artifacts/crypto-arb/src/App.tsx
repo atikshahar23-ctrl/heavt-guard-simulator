@@ -62,6 +62,7 @@ import { ExtraBotsEngine } from "@/components/extra-bots-engine";
 import { FundingBotEngine } from "@/components/funding-bot-engine";
 import { OptionsBotEngine } from "@/components/options-bot-engine";
 import { OrderFlowBotEngine } from "@/components/order-flow-bot-engine";
+import { RangeBotEngine } from "@/components/range-bot-engine";
 
 const queryClient = new QueryClient();
 
@@ -334,6 +335,7 @@ function AuthedApp() {
                       <FundingBotEngine />
                       <OptionsBotEngine />
                       <OrderFlowBotEngine />
+                      <RangeBotEngine />
                       <CalendarAlerter />
                       <OnboardingGate>
                         <Router />

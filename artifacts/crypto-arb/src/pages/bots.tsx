@@ -3,7 +3,7 @@ import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
   Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit, Sparkles, Coins,
-  PauseCircle, PlayCircle,
+  PauseCircle, PlayCircle, Waves,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -161,6 +161,12 @@ const NEW_BOT_META: {
     enabledKey: "flowBotEnabled", stakeKey: "flowBotStake", maxKey: "flowBotMaxOpen", thrKey: "flowBotMinFeel",
     thrLabel: "Min Feel", source: "Order Flow Bot", market: "crypto",
   },
+  {
+    id: "rangebot", icon: Waves, title: "Range Bot", subtitle: "Mean-reversion LONG/SHORT",
+    hint: "Trades against sharp short-term moves away from the rolling average price, banking the reversion",
+    enabledKey: "rangeEnabled", stakeKey: "rangeStake", maxKey: "rangeMaxOpen", thrKey: "rangeDeviationPct",
+    thrLabel: "Min Deviation %", source: "Range Bot", market: "crypto",
+  },
 ];
 
 /** i18n key per new-bot id for its hint line and threshold field label. */
@@ -169,12 +175,14 @@ const NEW_BOT_HINT_KEY: Record<string, string> = {
   breakout: "bots.newbot.breakoutHint",
   dca: "bots.newbot.dcaHint",
   flowbot: "bots.newbot.flowHint",
+  rangebot: "bots.newbot.rangeHint",
 };
 const NEW_BOT_THR_KEY: Record<string, string> = {
   dipbuyer: "bots.newbot.dipThr",
   breakout: "bots.newbot.breakoutThr",
   dca: "bots.newbot.dcaThr",
   flowbot: "bots.newbot.flowThr",
+  rangebot: "bots.newbot.rangeThr",
 };
 
 /** Lucide icon per squad member id. */
@@ -302,6 +310,7 @@ export default function Bots() {
       funding: fundingPositions.filter((p) => p.source === "Funding Arb Agent").length,
       options: optionPositions.filter((p) => p.source === "Options Agent").length,
       flowbot: binancePositions.filter((p) => p.source === "Order Flow Bot").length,
+      rangebot: binancePositions.filter((p) => p.source === "Range Bot").length,
     };
   }, [binancePositions, stockPositions, polyPositions, fundingPositions, optionPositions]);
 
@@ -344,13 +353,14 @@ export default function Bots() {
       { key: "funding", title: "Funding Arb Agent", icon: Coins, market: "crypto", armed: settings.fundingEnabled, match: (t) => t.type === "FUNDING" && t.source === "Funding Arb Agent" },
       { key: "options", title: "Options Agent", icon: Sparkles, market: "options", armed: settings.optionsEnabled, match: (t) => t.type === "OPTION" && t.source === "Options Agent" },
       { key: "flowbot", title: "Order Flow Bot", icon: Zap, market: "crypto", armed: settings.flowBotEnabled, match: (t) => t.source === "Order Flow Bot" },
+      { key: "rangebot", title: "Range Bot", icon: Waves, market: "crypto", armed: settings.rangeEnabled, match: (t) => t.source === "Range Bot" },
     ];
     const rows = defs.map((d) => {
       const ts = tradeHistory.filter((t) => d.match(t));
       const trades = ts.length;
       const wins = ts.filter((t) => t.pnl > 0).length;
       const net = ts.reduce((a, t) => a + t.pnl, 0);
-      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca" || d.key === "flowbot";
+      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca" || d.key === "flowbot" || d.key === "rangebot";
       const isRiskManaged = isNewBot || d.key === "scalp" || d.key === "momentum";
       return {
         ...d,
@@ -379,7 +389,7 @@ export default function Bots() {
 
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
     settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled ||
-    settings.optionsEnabled || settings.flowBotEnabled;
+    settings.optionsEnabled || settings.flowBotEnabled || settings.rangeEnabled;
 
   const armAll = (on: boolean) => {
     update({
@@ -387,7 +397,7 @@ export default function Bots() {
       strategy: on ? "BOTH" : settings.strategy,
       stocksEnabled: on, polyEnabled: on,
       dipEnabled: on, breakoutEnabled: on, dcaEnabled: on, fundingEnabled: on,
-      optionsEnabled: on, flowBotEnabled: on,
+      optionsEnabled: on, flowBotEnabled: on, rangeEnabled: on,
     });
   };
 
@@ -787,7 +797,7 @@ export default function Bots() {
 
       {/* Live summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border bg-secondary/20 p-4">
-        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled, settings.flowBotEnabled].filter(Boolean).length} / 10`} />
+        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled, settings.flowBotEnabled, settings.rangeEnabled].filter(Boolean).length} / 11`} />
         <StatChip label="Open Auto Pos." value={String(totalOpenAuto)} tone={totalOpenAuto > 0 ? "good" : undefined} />
         <StatChip label="Adaptive Mgr" value={settings.adaptiveEnabled ? "ON" : "OFF"} tone={settings.adaptiveEnabled ? "good" : undefined} />
         <StatChip label="Leverage (new)" value={`${settings.newBotLeverage}x`} />

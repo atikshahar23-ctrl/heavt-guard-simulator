@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
-  Layers, Coins, Sparkles, Zap, PauseCircle, PlayCircle, X,
+  Layers, Coins, Sparkles, Zap, PauseCircle, PlayCircle, X, Waves,
 } from "lucide-react";
 
 export function FloatingBotPanel() {
@@ -21,6 +21,7 @@ export function FloatingBotPanel() {
     scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled,
     settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled,
     settings.fundingEnabled, settings.optionsEnabled, settings.flowBotEnabled,
+    settings.rangeEnabled,
   ].filter(Boolean).length;
 
   const armAll = () => {
@@ -35,6 +36,7 @@ export function FloatingBotPanel() {
       fundingEnabled: true,
       optionsEnabled: true,
       flowBotEnabled: true,
+      rangeEnabled: true,
     });
     toast({ title: "All bots armed", description: "Every bot is now active and ready to trade." });
   };
@@ -51,6 +53,7 @@ export function FloatingBotPanel() {
       fundingEnabled: false,
       optionsEnabled: false,
       flowBotEnabled: false,
+      rangeEnabled: false,
     });
     toast({ title: "All bots disarmed", description: "Every bot is now off. Existing positions remain open." });
   };
@@ -89,6 +92,7 @@ export function FloatingBotPanel() {
     { key: "funding", title: "Funding Arb", icon: Coins, on: settings.fundingEnabled, toggle: () => update({ fundingEnabled: !settings.fundingEnabled }) },
     { key: "options", title: "Options", icon: Sparkles, on: settings.optionsEnabled, toggle: () => update({ optionsEnabled: !settings.optionsEnabled }) },
     { key: "flow", title: "Flow Bot", icon: Zap, on: settings.flowBotEnabled, toggle: () => update({ flowBotEnabled: !settings.flowBotEnabled }) },
+    { key: "range", title: "Range Bot", icon: Waves, on: settings.rangeEnabled, toggle: () => update({ rangeEnabled: !settings.rangeEnabled }) },
   ];
 
   // The sidebar sits on the right in RTL (Hebrew) layouts, so anchor this

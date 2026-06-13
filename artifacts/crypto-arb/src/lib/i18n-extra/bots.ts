@@ -266,6 +266,8 @@ export const botsStrings: Record<string, Record<"he" | "en", string>> = {
   "bots.newbot.dcaThr": { he: "מרווח (דק')", en: "Interval (min)" },
   "bots.newbot.flowHint": { he: "קורא Order Book + AggTrades בזמן אמת לתחושה כיוונית לדקות הקרובות", en: "Reads Order Book + AggTrades in real time for near-term directional feel" },
   "bots.newbot.flowThr": { he: "תחושה מינ'", en: "Min Feel" },
+  "bots.newbot.rangeHint": { he: "נכנס נגד תנודה חדה לטווח קצר מהמחיר הממוצע המתגלגל וגובה את החזרה לממוצע (LONG אם המחיר נמוך מהממוצע, SHORT אם גבוה ממנו)", en: "Trades against a sharp short-term move away from the rolling average price and banks the reversion back toward it (LONG when price is below the average, SHORT when above)" },
+  "bots.newbot.rangeThr": { he: "סטייה מינ' %", en: "Min Deviation %" },
   "bots.funding.hint": { he: "פותח פוזיציות דלתא-נייטרל (בסיס + פרפ הפוך) שצוברות מימון מדומה — לימודי בלבד, ללא הבטחת תשואה", en: "Opens delta-neutral positions (spot + inverse perp) that accrue simulated funding — educational only, no return guarantees" },
   "bots.funding.minFunding": { he: "מימון מינ' (% שנתי)", en: "Min Funding (% annual)" },
   "bots.options.hint": { he: "קונה אופציות CALL/PUT לונג בלבד על קריפטו ומניות לפי האותות החזקים — ההפסד המרבי הוא הפרמיה ששולמה בלבד. מדומה ולימודי בלבד, ללא הבטחת תשואה", en: "Buys long-only CALL/PUT options on crypto and stocks based on strong signals — max loss is only the premium paid. Simulated and educational only, no return guarantees" },

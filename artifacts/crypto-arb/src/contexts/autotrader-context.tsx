@@ -8,7 +8,7 @@ export type ScalpConfidence = "LOW" | "MEDIUM" | "HIGH";
 export type TradeStrategy = "SCALP" | "MOMENTUM" | "BOTH";
 
 /** The additional, independently-managed simulator bots. */
-export const NEW_BOT_IDS = ["dipbuyer", "breakout", "dca", "flowbot"] as const;
+export const NEW_BOT_IDS = ["dipbuyer", "breakout", "dca", "flowbot", "rangebot"] as const;
 export type NewBotId = (typeof NEW_BOT_IDS)[number];
 
 /** Rolling, per-bot paper-trading scorecard used by the adaptive manager. */
@@ -251,7 +251,7 @@ export function resolveSizing(
   cash: number,
   totalDeposited: number,
   tradeHistory: { pnl: number }[],
-  botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly" | "flowbot",
+  botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly" | "flowbot" | "rangebot",
 ): { margin: number; leverage: number; recoveryMode: boolean } {
   // Momentum Drive: highest-priority override — portfolio-proportional, no cap.
   if (settings.momentumDriveEnabled) {
@@ -271,13 +271,14 @@ export function resolveSizing(
   }
   let leverage = settings.leverage;
   let margin = settings.marginPerTrade;
-  if (botId === "dipbuyer" || botId === "breakout" || botId === "flowbot") leverage = settings.newBotLeverage;
+  if (botId === "dipbuyer" || botId === "breakout" || botId === "flowbot" || botId === "rangebot") leverage = settings.newBotLeverage;
   if (botId === "dipbuyer") margin = settings.dipStake;
   else if (botId === "breakout") margin = settings.breakoutStake;
   else if (botId === "dca") margin = settings.dcaStake;
   else if (botId === "stocks") margin = settings.stockStakePerTrade;
   else if (botId === "poly") margin = settings.polyStakePerBet;
   else if (botId === "flowbot") margin = settings.flowBotStake;
+  else if (botId === "rangebot") margin = settings.rangeStake;
   if (settings.globalLeverageEnabled) leverage = settings.globalLeverage;
   if (settings.fixedAmountEnabled) margin = settings.fixedAmount;
   // SHLOMI mode enforces god-tier risk management: leverage is hard-capped low,
@@ -575,6 +576,18 @@ export interface AutoTraderSettings {
   /** Days to expiry for newly opened options. */
   optionExpiryDays: number;
 
+  /** Range Bot — mean-reversion: opens against sharp short-term deviations from the
+   *  rolling average price and exits as price reverts toward the mean (or hits SL/TP). */
+  rangeEnabled: boolean;
+  /** Margin per trade (USD). */
+  rangeStake: number;
+  /** Max simultaneously open range-bot positions. */
+  rangeMaxOpen: number;
+  /** Minimum deviation (abs %) of price from its rolling average before opening. */
+  rangeDeviationPct: number;
+  /** Rolling lookback window (minutes) used to compute the average price. */
+  rangeLookbackMin: number;
+
   /** Order Flow Bot — reads live Binance Order Book + AggTrades and opens directional paper positions. */
   flowBotEnabled: boolean;
   /** Symbol to watch (e.g. BTCUSDT). */
@@ -744,6 +757,12 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   optionMaxOpen: 4,
   optionMinConfidence: 60,
   optionExpiryDays: 7,
+
+  rangeEnabled: false,
+  rangeStake: 100,
+  rangeMaxOpen: 3,
+  rangeDeviationPct: 1.5,
+  rangeLookbackMin: 20,
 
   flowBotEnabled: false,
   flowBotSymbol: "BTCUSDT",
@@ -1102,6 +1121,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
             fundingEnabled: false,
             optionsEnabled: false,
             flowBotEnabled: false,
+            rangeEnabled: false,
             alphaCoordinatorEnabled: false,
             dynamicCapitalEnabled: false,
             maxPerfEnabled: false,
@@ -1442,6 +1462,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         dcaMaxOpen: Math.max(eff.dcaMaxOpen, 10),
         fundingMaxOpen: Math.max(eff.fundingMaxOpen, 8),
         optionMaxOpen: Math.max(eff.optionMaxOpen, 8),
+        rangeMaxOpen: Math.max(eff.rangeMaxOpen, 6),
         riskManagerEnabled: true,
       };
     }
@@ -1460,6 +1481,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
         dcaMaxOpen:       Math.max(eff.dcaMaxOpen,       HIGH),
         fundingMaxOpen:   Math.max(eff.fundingMaxOpen,   HIGH),
         optionMaxOpen:    Math.max(eff.optionMaxOpen,    HIGH),
+        rangeMaxOpen:     Math.max(eff.rangeMaxOpen,     HIGH),
       };
     }
 
