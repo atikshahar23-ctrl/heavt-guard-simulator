@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAutoTrader } from "@/contexts/autotrader-context";
+import { useLanguage } from "@/contexts/language-context";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -9,6 +10,7 @@ import {
 
 export function FloatingBotPanel() {
   const { settings, update, startBoost, stopBoost } = useAutoTrader();
+  const { dir } = useLanguage();
   const [open, setOpen] = useState(false);
 
   const boostActive = useMemo(() => settings.boostUntil > Date.now(), [settings.boostUntil]);
@@ -89,8 +91,13 @@ export function FloatingBotPanel() {
     { key: "flow", title: "Flow Bot", icon: Zap, on: settings.flowBotEnabled, toggle: () => update({ flowBotEnabled: !settings.flowBotEnabled }) },
   ];
 
+  // The sidebar sits on the right in RTL (Hebrew) layouts, so anchor this
+  // panel to the opposite side from the sidebar in each direction — otherwise
+  // it ends up overlapped/hidden behind the sidebar in RTL.
+  const sideCls = dir === "rtl" ? "left-4 items-start" : "right-4 items-end";
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+    <div className={`fixed bottom-4 z-40 flex flex-col gap-2 ${sideCls}`}>
       {/* Collapsed button */}
       {!open && (
         <button
