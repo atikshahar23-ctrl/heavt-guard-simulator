@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useQueries } from "@tanstack/react-query";
 import {
   useGetMarketOverview, getGetMarketOverviewQueryKey,
   useGetStocks, getGetStocksQueryKey,
+  getGetStockKlinesQueryOptions,
 } from "@workspace/api-client-react";
 import type { CoinTicker, StockQuote } from "@workspace/api-client-react";
 import { usePortfolio } from "@/contexts/portfolio-context";
@@ -10,6 +12,7 @@ import { useLivePrices } from "@/contexts/live-price-context";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { checkPreTrade } from "@/lib/fees";
 import { toast } from "@/hooks/use-toast";
+import { rsi, sma } from "@/lib/ta";
 
 /** Don't re-open the same asset within this window after an auto action. */
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -23,6 +26,7 @@ const SOURCE: Record<NewBotId, string> = {
   dca: "Blue-Chip DCA",
   flowbot: "Order Flow Bot",
   rangebot: "Range Bot",
+  signalbot: "Technical Signals Bot",
 };
 const SOURCE_TO_BOT: Record<string, NewBotId> = {
   "Dip Buyer": "dipbuyer",
@@ -30,7 +34,11 @@ const SOURCE_TO_BOT: Record<string, NewBotId> = {
   "Blue-Chip DCA": "dca",
   "Order Flow Bot": "flowbot",
   "Range Bot": "rangebot",
+  "Technical Signals Bot": "signalbot",
 };
+
+/** Liquid, large-cap watchlist scanned by the Technical Signals Bot for RSI + MA-trend confluence. */
+const SIGNAL_WATCHLIST: string[] = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JPM"];
 
 /** Rotating large-cap universe for the accumulation bot. */
 const BLUE_CHIPS: { symbol: string; name: string }[] = [
@@ -139,6 +147,7 @@ export function ExtraBotsEngine() {
       evaluateRisk("dca", tradeHistory, cash, totalDeposited);
       evaluateRisk("flowbot", tradeHistory, cash, totalDeposited);
       evaluateRisk("rangebot", tradeHistory, cash, totalDeposited);
+      evaluateRisk("signalbot", tradeHistory, cash, totalDeposited);
     }, 30000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -292,6 +301,104 @@ export function ExtraBotsEngine() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stocks, settings, cash, stockPositions]);
+
+  // ── Technical Signals Bot — RSI(14) extreme + moving-average trend filter ──
+  // Pulls daily candles for a fixed large-cap watchlist and computes RSI(14) and
+  // a long-period SMA (the trend filter). A LONG entry requires RSI below the
+  // oversold threshold AND price above the trend MA (an oversold bounce that
+  // isn't fighting the broader uptrend). A SHORT entry (only if shorts are
+  // allowed) requires RSI above the overbought threshold AND price below the
+  // trend MA — a fading rally inside a downtrend. This multi-indicator
+  // confluence is intentionally stricter than the single-signal bots.
+  const klineQueries = useQueries({
+    queries: SIGNAL_WATCHLIST.map((symbol) => {
+      const params = { symbol, range: "3mo" as const };
+      return {
+        ...getGetStockKlinesQueryOptions(params),
+        enabled: settings.signalEnabled,
+        refetchInterval: settings.signalEnabled ? (boostActive ? 30000 : 5 * 60_000) : false,
+        staleTime: 60_000,
+      };
+    }),
+  });
+  const signalCooldownRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!settings.signalEnabled) return;
+    if (settings.fleetPaused) return;
+    if (pausedBots.has("signalbot")) return;
+    const sizing = resolveSizing(settings, cash, totalDeposited, tradeHistory, "signalbot");
+    const stake = sizing.margin;
+    if (!(stake > 0)) return;
+    const cashFloor = cashReserveFloor(totalDeposited, settings.cashFloorPct);
+    const edge = getBotStat("signalbot").edge;
+    const oversold = Math.min(49, settings.signalRsiOversold);
+    const overbought = Math.max(51, settings.signalRsiOverbought);
+    const maLen = Math.max(5, Math.round(settings.signalMaLength));
+    const maxOpen = Math.max(1, Math.round(settings.signalMaxOpen * prof.maxOpenMult));
+    const now = Date.now();
+
+    let open = stockPositions.filter((p) => p.source === SOURCE.signalbot).length;
+    let avail = cash;
+    const openSymbols = new Set(stockPositions.map((p) => p.symbol));
+
+    type Candidate = { symbol: string; price: number; direction: "LONG" | "SHORT"; rsiVal: number; maVal: number };
+    const candidates: Candidate[] = [];
+
+    SIGNAL_WATCHLIST.forEach((symbol, i) => {
+      const candles = klineQueries[i]?.data;
+      if (!candles || candles.length < maLen + 15) return;
+      if (openSymbols.has(symbol)) return;
+      if (now - (signalCooldownRef.current[symbol] ?? 0) <= cooldownMs) return;
+
+      const closes = candles.map((c) => c.close);
+      const r = rsi(closes, 14);
+      const ma = sma(closes, maLen);
+      const lastR = r.at(-1);
+      const lastMa = ma.at(-1);
+      const price = closes.at(-1);
+      if (!Number.isFinite(lastR) || !Number.isFinite(lastMa) || !Number.isFinite(price) || !price || price <= 0) return;
+
+      const caution = getAssetCaution(symbol);
+      const oversoldThr = Math.max(5, oversold / (edge * caution));
+      const overboughtThr = Math.min(95, 100 - (100 - overbought) / (edge * caution));
+
+      if (lastR! < oversoldThr && price! > lastMa!) {
+        candidates.push({ symbol, price: price!, direction: "LONG", rsiVal: lastR!, maVal: lastMa! });
+      } else if (settings.allowShort && lastR! > overboughtThr && price! < lastMa!) {
+        candidates.push({ symbol, price: price!, direction: "SHORT", rsiVal: lastR!, maVal: lastMa! });
+      }
+    });
+
+    // Trade the most extreme RSI readings first — the strongest confluence setups.
+    candidates.sort((a, b) =>
+      Math.abs((a.direction === "LONG" ? a.rsiVal : 100 - a.rsiVal) - 50) <
+      Math.abs((b.direction === "LONG" ? b.rsiVal : 100 - b.rsiVal) - 50)
+        ? 1 : -1,
+    );
+
+    for (const c of candidates) {
+      if (open >= maxOpen) break;
+      if (avail - stake < cashFloor) break;
+      if (!settings.allowLong && c.direction === "LONG") continue;
+      const pre = checkPreTrade(0, 0, c.direction);
+      if (pre) continue;
+      const { sl, tp } = recommendLevels(c.price, c.direction, { slPct: 0.04, tpPct: 0.08 });
+      const err = openStockPosition(
+        { symbol: c.symbol, name: c.symbol, direction: c.direction, entryPrice: c.price, slPrice: sl, tpPrice: tp, auto: true, source: SOURCE.signalbot },
+        stake, 1, cashFloor,
+      );
+      if (err) continue;
+      signalCooldownRef.current[c.symbol] = now;
+      avail -= stake;
+      open += 1;
+      toast({
+        title: `Technical Signals Bot · ${c.direction} ${c.symbol}`,
+        description: `RSI ${c.rsiVal.toFixed(1)} · price vs MA(${maLen}) ${c.price > c.maVal ? "above" : "below"} · $${stake} @ $${c.price.toFixed(2)}`,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [klineQueries, settings, cash, stockPositions]);
 
   return null;
 }

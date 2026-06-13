@@ -5,9 +5,10 @@ import {
   useGetAllMarkets, getGetAllMarketsQueryKey,
   useGetStocks, getGetStocksQueryKey,
   useGetStockRecommendations, getGetStockRecommendationsQueryKey,
+  useGetStockSearch, getGetStockSearchQueryKey,
   useGetBinanceBalance,
   useGetBinanceCredentials,
-  type StockRecommendation, type StockQuote,
+  type StockRecommendation, type StockQuote, type StockSearchResult,
 } from "@workspace/api-client-react";
 import {
   usePortfolio, STARTING_BALANCE,
@@ -33,7 +34,7 @@ import { WalletProgress } from "@/components/wallet-progress";
 import { QuickTradeButton } from "@/components/quick-trade-button";
 import {
   TrendingUp, TrendingDown, Wallet, RotateCcw, Search,
-  ChartCandlestick, BarChart3, Trophy, History, X, Plus,
+  ChartCandlestick, BarChart3, Trophy, History, X, Plus, Loader2,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
   ShieldAlert, Target, Clock, Bot, Sparkles, PlayCircle, Skull, Link, Zap,
 } from "lucide-react";
@@ -1012,6 +1013,20 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
   const [tpInputs, setTpInputs] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedChartSymbol, setSelectedChartSymbol] = useState<string | null>(null);
+  const [chartTvSymbol, setChartTvSymbol] = useState<string | undefined>(undefined);
+
+  // ── Research / Analyze Chart — free-text symbol search ──
+  const [chartSearchTerm, setChartSearchTerm] = useState("");
+  const [chartSearchDebounced, setChartSearchDebounced] = useState("");
+  const [chartSearchOpen, setChartSearchOpen] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setChartSearchDebounced(chartSearchTerm.trim()), 300);
+    return () => clearTimeout(id);
+  }, [chartSearchTerm]);
+  const chartSearchParams = { q: chartSearchDebounced };
+  const { data: chartSearchResults, isFetching: chartSearchFetching } = useGetStockSearch(chartSearchParams, {
+    query: { queryKey: getGetStockSearchQueryKey(chartSearchParams), enabled: chartSearchDebounced.length >= 1 },
+  });
 
   useEffect(() => {
     if (stockPositions.length > 0 && !selectedChartSymbol) {
@@ -1106,7 +1121,7 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
             return (
               <div
                 key={pos.id}
-                onClick={() => setSelectedChartSymbol(isChartSelected ? null : pos.symbol)}
+                onClick={() => { setSelectedChartSymbol(isChartSelected ? null : pos.symbol); setChartTvSymbol(undefined); }}
                 className={`rounded-lg border p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${pnlBg(pnl)} ${isChartSelected ? "ring-1 ring-primary/50" : "hover:border-primary/30"}`}
                 title={t("sim.viewChart", lang)}
               >
@@ -1161,8 +1176,56 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
         </div>
       )}
 
+      {/* ── Research / Analyze Chart — pull up any symbol's chart for technical study ── */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder={t("sim.analyzeSearchPlaceholder", lang)}
+          value={chartSearchTerm}
+          onChange={e => { setChartSearchTerm(e.target.value); setChartSearchOpen(true); }}
+          onFocus={() => setChartSearchOpen(true)}
+          onBlur={() => setTimeout(() => setChartSearchOpen(false), 150)}
+          className="pl-9 pr-9 bg-secondary/30"
+        />
+        {chartSearchFetching && chartSearchDebounced.length >= 1 && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
+        )}
+        {chartSearchOpen && chartSearchDebounced.length >= 1 && (
+          <div className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-card shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+            {!chartSearchResults || chartSearchResults.length === 0 ? (
+              <div className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                {chartSearchFetching ? t("markets.searching", lang) : t("markets.noResults", lang)}
+              </div>
+            ) : (
+              (chartSearchResults as StockSearchResult[]).map(r => (
+                <button
+                  key={`${r.symbol}-${r.exchange}`}
+                  onClick={() => {
+                    setSelectedChartSymbol(r.symbol);
+                    setChartTvSymbol(r.symbol);
+                    setChartSearchTerm("");
+                    setChartSearchOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-primary/10 transition-colors border-b border-border/40 last:border-0"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-sm text-foreground">{r.symbol}</span>
+                      <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground">{r.type}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{r.name}</div>
+                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">{r.exchange}</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       {selectedChartSymbol && (() => {
-        const tvSym = stocks.find(s => s.symbol === selectedChartSymbol)?.tradingViewSymbol;
+        const tvSym = stocks.find(s => s.symbol === selectedChartSymbol)?.tradingViewSymbol ?? chartTvSymbol;
         return (
           <div className="rounded-xl border border-primary/20 bg-card overflow-hidden" style={{ height: 360 }}>
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/60 shrink-0">
@@ -1171,7 +1234,7 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
               <span className="text-[10px] text-muted-foreground font-mono">{t("sim.chartHint", lang)}</span>
               <div className="flex-1" />
               <button
-                onClick={() => setSelectedChartSymbol(null)}
+                onClick={() => { setSelectedChartSymbol(null); setChartTvSymbol(undefined); }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 title={t("sim.closeChart", lang)}
               >

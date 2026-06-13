@@ -8,7 +8,7 @@ export type ScalpConfidence = "LOW" | "MEDIUM" | "HIGH";
 export type TradeStrategy = "SCALP" | "MOMENTUM" | "BOTH";
 
 /** The additional, independently-managed simulator bots. */
-export const NEW_BOT_IDS = ["dipbuyer", "breakout", "dca", "flowbot", "rangebot"] as const;
+export const NEW_BOT_IDS = ["dipbuyer", "breakout", "dca", "flowbot", "rangebot", "signalbot"] as const;
 export type NewBotId = (typeof NEW_BOT_IDS)[number];
 
 /** Rolling, per-bot paper-trading scorecard used by the adaptive manager. */
@@ -251,7 +251,7 @@ export function resolveSizing(
   cash: number,
   totalDeposited: number,
   tradeHistory: { pnl: number }[],
-  botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly" | "flowbot" | "rangebot",
+  botId: "scalp" | "momentum" | "dipbuyer" | "breakout" | "dca" | "stocks" | "poly" | "flowbot" | "rangebot" | "signalbot",
 ): { margin: number; leverage: number; recoveryMode: boolean } {
   // Momentum Drive: highest-priority override — portfolio-proportional, no cap.
   if (settings.momentumDriveEnabled) {
@@ -279,6 +279,7 @@ export function resolveSizing(
   else if (botId === "poly") margin = settings.polyStakePerBet;
   else if (botId === "flowbot") margin = settings.flowBotStake;
   else if (botId === "rangebot") margin = settings.rangeStake;
+  else if (botId === "signalbot") margin = settings.signalStake;
   if (settings.globalLeverageEnabled) leverage = settings.globalLeverage;
   if (settings.fixedAmountEnabled) margin = settings.fixedAmount;
   // SHLOMI mode enforces god-tier risk management: leverage is hard-capped low,
@@ -588,6 +589,20 @@ export interface AutoTraderSettings {
   /** Rolling lookback window (minutes) used to compute the average price. */
   rangeLookbackMin: number;
 
+  /** Technical Signals Bot — multi-indicator confluence on stocks: RSI(14) oversold/overbought
+   *  combined with a long moving-average trend filter (price vs MA confirms the bias before entry). */
+  signalEnabled: boolean;
+  /** Margin per trade (USD). */
+  signalStake: number;
+  /** Max simultaneously open signal-bot stock positions. */
+  signalMaxOpen: number;
+  /** RSI below this level (with price > MA) triggers a LONG entry. */
+  signalRsiOversold: number;
+  /** RSI above this level (with price < MA, and shorts allowed) triggers a SHORT entry. */
+  signalRsiOverbought: number;
+  /** Lookback length (daily candles) for the trend-filter moving average. */
+  signalMaLength: number;
+
   /** Order Flow Bot — reads live Binance Order Book + AggTrades and opens directional paper positions. */
   flowBotEnabled: boolean;
   /** Symbol to watch (e.g. BTCUSDT). */
@@ -763,6 +778,13 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   rangeMaxOpen: 3,
   rangeDeviationPct: 1.5,
   rangeLookbackMin: 20,
+
+  signalEnabled: false,
+  signalStake: 150,
+  signalMaxOpen: 3,
+  signalRsiOversold: 30,
+  signalRsiOverbought: 70,
+  signalMaLength: 50,
 
   flowBotEnabled: false,
   flowBotSymbol: "BTCUSDT",
@@ -1122,6 +1144,7 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
             optionsEnabled: false,
             flowBotEnabled: false,
             rangeEnabled: false,
+            signalEnabled: false,
             alphaCoordinatorEnabled: false,
             dynamicCapitalEnabled: false,
             maxPerfEnabled: false,

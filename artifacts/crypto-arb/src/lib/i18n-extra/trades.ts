@@ -145,6 +145,7 @@ export const tradesStrings: Record<string, Record<"he" | "en", string>> = {
   //  Simulator: misc 
   "sim.viewChart": { he: "לחץ לצפייה בגרף", en: "Click to view chart" },
   "sim.viewChartFor": { he: "צפה בגרף", en: "View chart" },
+  "sim.analyzeSearchPlaceholder": { he: "חפש כל מניה לניתוח גרף (לימודי בלבד)…", en: "Search any stock to analyze its chart (paper trading only)…" },
   "sim.botsPausedTitle": { he: "הבוטים מושהים — לחץ לביטול ההשהיה", en: "Bots are paused — click to resume" },
   "sim.botsPaused": { he: "בוטים מושהים", en: "Bots Paused" },
 

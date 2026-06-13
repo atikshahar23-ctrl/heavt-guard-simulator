@@ -3,7 +3,7 @@ import {
   Bot, Power, Gauge, Rocket, Megaphone, Timer, TrendingDown, TrendingUp,
   Layers, Brain, RotateCcw, Activity, ShieldCheck, ShieldAlert, Scissors, Zap, Square, Cpu,
   Network, ArrowUpRight, ArrowDownRight, Minus, Trophy, Siren, Crosshair, Turtle, Rabbit, Sparkles, Coins,
-  PauseCircle, PlayCircle, Waves,
+  PauseCircle, PlayCircle, Waves, Radar,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -167,6 +167,12 @@ const NEW_BOT_META: {
     enabledKey: "rangeEnabled", stakeKey: "rangeStake", maxKey: "rangeMaxOpen", thrKey: "rangeDeviationPct",
     thrLabel: "Min Deviation %", source: "Range Bot", market: "crypto",
   },
+  {
+    id: "signalbot", icon: Radar, title: "Technical Signals Bot", subtitle: "RSI + MA-trend confluence",
+    hint: "Scans large-cap stocks for RSI(14) extremes confirmed by a moving-average trend filter before opening LONG (or SHORT, if allowed)",
+    enabledKey: "signalEnabled", stakeKey: "signalStake", maxKey: "signalMaxOpen", thrKey: "signalRsiOversold",
+    thrLabel: "RSI Oversold <", source: "Technical Signals Bot", market: "stock",
+  },
 ];
 
 /** i18n key per new-bot id for its hint line and threshold field label. */
@@ -176,6 +182,7 @@ const NEW_BOT_HINT_KEY: Record<string, string> = {
   dca: "bots.newbot.dcaHint",
   flowbot: "bots.newbot.flowHint",
   rangebot: "bots.newbot.rangeHint",
+  signalbot: "bots.newbot.signalHint",
 };
 const NEW_BOT_THR_KEY: Record<string, string> = {
   dipbuyer: "bots.newbot.dipThr",
@@ -183,6 +190,7 @@ const NEW_BOT_THR_KEY: Record<string, string> = {
   dca: "bots.newbot.dcaThr",
   flowbot: "bots.newbot.flowThr",
   rangebot: "bots.newbot.rangeThr",
+  signalbot: "bots.newbot.signalThr",
 };
 
 /** Lucide icon per squad member id. */
@@ -311,6 +319,7 @@ export default function Bots() {
       options: optionPositions.filter((p) => p.source === "Options Agent").length,
       flowbot: binancePositions.filter((p) => p.source === "Order Flow Bot").length,
       rangebot: binancePositions.filter((p) => p.source === "Range Bot").length,
+      signalbot: stockPositions.filter((p) => p.source === "Technical Signals Bot").length,
     };
   }, [binancePositions, stockPositions, polyPositions, fundingPositions, optionPositions]);
 
@@ -354,13 +363,14 @@ export default function Bots() {
       { key: "options", title: "Options Agent", icon: Sparkles, market: "options", armed: settings.optionsEnabled, match: (t) => t.type === "OPTION" && t.source === "Options Agent" },
       { key: "flowbot", title: "Order Flow Bot", icon: Zap, market: "crypto", armed: settings.flowBotEnabled, match: (t) => t.source === "Order Flow Bot" },
       { key: "rangebot", title: "Range Bot", icon: Waves, market: "crypto", armed: settings.rangeEnabled, match: (t) => t.source === "Range Bot" },
+      { key: "signalbot", title: "Technical Signals Bot", icon: Radar, market: "stocks", armed: settings.signalEnabled, match: (t) => t.source === "Technical Signals Bot" },
     ];
     const rows = defs.map((d) => {
       const ts = tradeHistory.filter((t) => d.match(t));
       const trades = ts.length;
       const wins = ts.filter((t) => t.pnl > 0).length;
       const net = ts.reduce((a, t) => a + t.pnl, 0);
-      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca" || d.key === "flowbot" || d.key === "rangebot";
+      const isNewBot = d.key === "dipbuyer" || d.key === "breakout" || d.key === "dca" || d.key === "flowbot" || d.key === "rangebot" || d.key === "signalbot";
       const isRiskManaged = isNewBot || d.key === "scalp" || d.key === "momentum";
       return {
         ...d,
@@ -389,7 +399,7 @@ export default function Bots() {
 
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
     settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled ||
-    settings.optionsEnabled || settings.flowBotEnabled || settings.rangeEnabled;
+    settings.optionsEnabled || settings.flowBotEnabled || settings.rangeEnabled || settings.signalEnabled;
 
   const armAll = (on: boolean) => {
     update({
@@ -397,7 +407,7 @@ export default function Bots() {
       strategy: on ? "BOTH" : settings.strategy,
       stocksEnabled: on, polyEnabled: on,
       dipEnabled: on, breakoutEnabled: on, dcaEnabled: on, fundingEnabled: on,
-      optionsEnabled: on, flowBotEnabled: on, rangeEnabled: on,
+      optionsEnabled: on, flowBotEnabled: on, rangeEnabled: on, signalEnabled: on,
     });
   };
 
@@ -797,7 +807,7 @@ export default function Bots() {
 
       {/* Live summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border bg-secondary/20 p-4">
-        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled, settings.flowBotEnabled, settings.rangeEnabled].filter(Boolean).length} / 11`} />
+        <StatChip label="Bots Active" value={`${[scalpOn, momOn, settings.stocksEnabled, settings.polyEnabled, settings.dipEnabled, settings.breakoutEnabled, settings.dcaEnabled, settings.fundingEnabled, settings.optionsEnabled, settings.flowBotEnabled, settings.rangeEnabled, settings.signalEnabled].filter(Boolean).length} / 12`} />
         <StatChip label="Open Auto Pos." value={String(totalOpenAuto)} tone={totalOpenAuto > 0 ? "good" : undefined} />
         <StatChip label="Adaptive Mgr" value={settings.adaptiveEnabled ? "ON" : "OFF"} tone={settings.adaptiveEnabled ? "good" : undefined} />
         <StatChip label="Leverage (new)" value={`${settings.newBotLeverage}x`} />
@@ -1569,6 +1579,26 @@ export default function Bots() {
                       onChange={(v) => update({ newBotLeverage: v })}
                       suffix="x"
                     />
+                  )}
+                  {b.id === "signalbot" && (
+                    <>
+                      <NumField
+                        label={t("bots.newbot.signalOverbought", lang)}
+                        value={settings.signalRsiOverbought}
+                        min={51}
+                        max={99}
+                        onChange={(v) => update({ signalRsiOverbought: v })}
+                      />
+                      <NumField
+                        label={t("bots.newbot.signalMaLen", lang)}
+                        value={settings.signalMaLength}
+                        min={5}
+                        max={200}
+                        step={5}
+                        onChange={(v) => update({ signalMaLength: v })}
+                        suffix={t("bots.newbot.signalMaSuffix", lang)}
+                      />
+                    </>
                   )}
                 </div>
               </BotCard>
