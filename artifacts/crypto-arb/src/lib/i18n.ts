@@ -42,6 +42,7 @@ const BASE_TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "nav.signOut": { he: "התנתק", en: "Sign Out" },
   "nav.connected": { he: "מחובר", en: "Connected" },
   "nav.language": { he: "שפה", en: "Language" },
+  "nav.syncOffline": { he: "לא מסונכרן - השינויים נשמרים במכשיר זה", en: "Not synced - changes saved on this device" },
   "nav.languageHe": { he: "עברית", en: "Hebrew" },
   "nav.languageEn": { he: "English", en: "English" },
   "nav.privateOffice": { he: "לשכה פרטית", en: "Private Office" },

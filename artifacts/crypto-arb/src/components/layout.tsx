@@ -8,8 +8,9 @@ import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield, Bell,
+  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield, Bell, CloudOff,
 } from "lucide-react";
+import { useServerSync } from "@/contexts/server-sync-context";
 import { Jarvis } from "@/components/jarvis";
 import { MarketClock } from "@/components/market-clock";
 import { TopControls } from "@/components/top-controls";
@@ -39,6 +40,7 @@ function AuthSection() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const { lang, setLang, dir } = useLanguage();
+  const { hydrationOk } = useServerSync();
   const [showMenu, setShowMenu] = useState(false);
   const isRTL = dir === "rtl";
 
@@ -105,7 +107,17 @@ function AuthSection() {
               <p className="truncate text-foreground text-[11px] font-medium">
                 {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "User"}
               </p>
-              <p className="text-[9px] text-muted-foreground">{t("nav.connected", lang)}</p>
+              {hydrationOk ? (
+                <p className="text-[9px] text-muted-foreground">{t("nav.connected", lang)}</p>
+              ) : (
+                <p
+                  className={`flex items-center gap-1 text-[9px] text-amber-400 ${isRTL ? "justify-end" : ""}`}
+                  title={t("nav.syncOffline", lang)}
+                >
+                  <CloudOff className="h-2.5 w-2.5" />
+                  {t("nav.syncOffline", lang)}
+                </p>
+              )}
             </div>
             <LogOut className="h-3 w-3 text-muted-foreground" />
           </button>

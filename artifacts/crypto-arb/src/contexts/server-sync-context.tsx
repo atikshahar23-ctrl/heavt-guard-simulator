@@ -32,7 +32,11 @@ interface ServerSyncValue {
   getServerData: (slot: StateSlot) => unknown | null;
   /** Debounced, optimistic-concurrency save of a slot's full blob. */
   save: (slot: StateSlot, data: unknown) => void;
-  /** True only when the initial GET succeeded, so the snapshot is authoritative. */
+  /**
+   * True once a GET has succeeded (either the initial burst or a later
+   * background retry), so writes via `save` are enabled. Reactive — flips to
+   * true if a background retry recovers from an initial failure.
+   */
   hydrationOk: boolean;
 }
 
@@ -54,6 +58,11 @@ const HYDRATION_ATTEMPTS = 3;
 // authed app stuck behind the hydration spinner forever; on timeout we fall
 // through to retry and, if every attempt stalls, to localStorage-only mode.
 const HYDRATION_TIMEOUT_MS = 10000;
+// If every initial attempt fails (offline / sustained outage), keep retrying
+// in the background at this interval so the device starts syncing again once
+// connectivity returns, instead of staying localStorage-only for the whole tab
+// session.
+const BACKGROUND_RETRY_MS = 60000;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -82,6 +91,7 @@ function isTerminal(err: unknown): boolean {
 
 export function ServerSyncProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  const [hydrationOk, setHydrationOk] = useState(false);
   const hydratedRef = useRef(false);
   const hydrationOkRef = useRef(false);
 
@@ -100,7 +110,8 @@ export function ServerSyncProvider({ children }: { children: ReactNode }) {
   // ── Hydration: GET on mount (with retry), gate children until it settles. ──
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    const attemptHydration = async (): Promise<boolean> => {
       for (let attempt = 0; attempt < HYDRATION_ATTEMPTS; attempt++) {
         try {
           const entries = await Promise.race([
@@ -109,28 +120,50 @@ export function ServerSyncProvider({ children }: { children: ReactNode }) {
               throw new Error("hydration timeout");
             }),
           ]);
-          if (cancelled) return;
+          if (cancelled) return true;
           for (const e of entries) {
             const slot = e.slot as StateSlot;
             if (!SLOTS.includes(slot)) continue;
             initialRef.current[slot] = e.data;
             versionRef.current[slot] = e.version;
           }
-          hydrationOkRef.current = true;
-          break;
+          return true;
         } catch {
           // Transient (offline / 429 burst / auth race). Back off and retry.
           if (attempt < HYDRATION_ATTEMPTS - 1) await sleep(BASE_RETRY_MS * 2 ** attempt);
         }
       }
-      if (!cancelled) {
-        // If every attempt failed, hydrationOk stays false and save() becomes a
-        // no-op for the session: localStorage remains the source of truth and we
-        // never blind-overwrite the server with un-read local state.
-        hydratedRef.current = true;
-        setHydrated(true);
+      return false;
+    };
+
+    (async () => {
+      const ok = await attemptHydration();
+      if (cancelled) return;
+
+      hydrationOkRef.current = ok;
+      setHydrationOk(ok);
+      hydratedRef.current = true;
+      setHydrated(true);
+
+      if (ok) return;
+
+      // If every initial attempt failed, children render from localStorage and
+      // save() stays a no-op (so we never blind-overwrite the server with
+      // un-read local state). Keep retrying in the background — once an
+      // attempt succeeds, enable save() so this device starts syncing future
+      // edits without requiring a manual reload.
+      while (!cancelled) {
+        await sleep(BACKGROUND_RETRY_MS);
+        if (cancelled) return;
+        const recovered = await attemptHydration();
+        if (recovered) {
+          hydrationOkRef.current = true;
+          setHydrationOk(true);
+          return;
+        }
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -294,9 +327,7 @@ export function ServerSyncProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ServerSyncContext.Provider
-      value={{ getServerData, save, hydrationOk: hydrationOkRef.current }}
-    >
+    <ServerSyncContext.Provider value={{ getServerData, save, hydrationOk }}>
       {children}
     </ServerSyncContext.Provider>
   );
