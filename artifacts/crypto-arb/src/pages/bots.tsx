@@ -274,6 +274,8 @@ export default function Bots() {
 
   // Live boost countdown — tick once a second only while a boost is running.
   const [now, setNow] = useState(() => Date.now());
+  // Time window for the Mega-Agent fleet roll-up's trade stats (closed trades only).
+  const [fleetStatsRange, setFleetStatsRange] = useState<"today" | "7d" | "30d" | "all">("all");
   const boostActive = settings.boostUntil > now;
   const boostRemainMs = Math.max(0, settings.boostUntil - now);
   useEffect(() => {
@@ -365,8 +367,11 @@ export default function Bots() {
       { key: "rangebot", title: "Range Bot", icon: Waves, market: "crypto", armed: settings.rangeEnabled, match: (t) => t.source === "Range Bot" },
       { key: "signalbot", title: "Technical Signals Bot", icon: Radar, market: "stocks", armed: settings.signalEnabled, match: (t) => t.source === "Technical Signals Bot" },
     ];
+    const cutoff = fleetStatsRange === "all" ? 0
+      : fleetStatsRange === "today" ? new Date().setHours(0, 0, 0, 0)
+      : Date.now() - (fleetStatsRange === "7d" ? 7 : 30) * 24 * 60 * 60 * 1000;
     const rows = defs.map((d) => {
-      const ts = tradeHistory.filter((t) => d.match(t));
+      const ts = tradeHistory.filter((t) => d.match(t) && new Date(t.closedAt).getTime() >= cutoff);
       const trades = ts.length;
       const wins = ts.filter((t) => t.pnl > 0).length;
       const net = ts.reduce((a, t) => a + t.pnl, 0);
@@ -395,7 +400,7 @@ export default function Bots() {
       best: rows.filter((r) => r.trades > 0).sort((a, b) => b.net - a.net)[0],
       worst: rows.filter((r) => r.trades > 0).sort((a, b) => a.net - b.net)[0],
     };
-  }, [tradeHistory, counts, scalpOn, momOn, settings, getRiskGuard, getBotStat]);
+  }, [tradeHistory, counts, scalpOn, momOn, settings, getRiskGuard, getBotStat, fleetStatsRange]);
 
   const anyOn = scalpOn || momOn || settings.stocksEnabled || settings.polyEnabled ||
     settings.dipEnabled || settings.breakoutEnabled || settings.dcaEnabled || settings.fundingEnabled ||
@@ -971,9 +976,25 @@ export default function Bots() {
           </div>
         </div>
 
+        {/* Stats time-range selector for the fleet roll-up below */}
+        <div className="mt-3 flex items-center gap-1.5">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">{t("bots.mega.rangeLabel", lang)}</span>
+          {(["today", "7d", "30d", "all"] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setFleetStatsRange(r)}
+              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-colors ${
+                fleetStatsRange === r ? "bg-primary/20 text-primary border border-primary/40" : "bg-secondary/30 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t(`bots.mega.range.${r}`, lang)}
+            </button>
+          ))}
+        </div>
+
         {/* Fleet summary */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 rounded-md border border-border/40 bg-background/40 p-3">
-          <StatChip label={t("bots.mega.activeBots", lang)} value={`${fleet.activeCount} / 7`} tone={fleet.activeCount > 0 ? "good" : undefined} />
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 rounded-md border border-border/40 bg-background/40 p-3">
+          <StatChip label={t("bots.mega.activeBots", lang)} value={`${fleet.activeCount} / ${fleet.rows.length}`} tone={fleet.activeCount > 0 ? "good" : undefined} />
           <StatChip label={t("bots.mega.openPos", lang)} value={String(fleet.totOpen)} tone={fleet.totOpen > 0 ? "good" : undefined} />
           <StatChip label={t("bots.mega.closedTrades", lang)} value={String(fleet.totTrades)} />
           <StatChip label={t("bots.mega.winRate", lang)} value={fleet.totTrades > 0 ? `${fleet.wr.toFixed(0)}%` : "—"} tone={fleet.totTrades >= 4 ? (fleet.wr >= 50 ? "good" : "bad") : undefined} />
