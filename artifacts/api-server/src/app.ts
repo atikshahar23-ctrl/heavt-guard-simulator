@@ -29,6 +29,12 @@ for (const domain of (process.env.REPLIT_DOMAINS ?? "").split(",")) {
 const devDomain = process.env.REPLIT_DEV_DOMAIN?.trim();
 if (devDomain) corsAllowlist.add(`https://${devDomain}`);
 
+// Add allowed origins from environment variable (comma-separated)
+for (const origin of (process.env.ALLOWED_ORIGINS ?? "").split(",")) {
+  const o = origin.trim();
+  if (o) corsAllowlist.add(o);
+}
+
 // Trust exactly one reverse-proxy hop (the Replit edge proxy). This lets
 // Express correctly derive req.ip from X-Forwarded-For while refusing to trust
 // any additional hops that an attacker could inject.
