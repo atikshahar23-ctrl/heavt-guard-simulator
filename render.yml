@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: poly-market-api
+    runtime: node
+    nodeVersion: 20.19.2
+    region: frankfurt
+    plan: starter
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: poly-market-frontend
+    runtime: static
+    region: frankfurt
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/crypto-arb run build
+    staticPublishPath: ./artifacts/crypto-arb/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_API_URL
+        sync: false
