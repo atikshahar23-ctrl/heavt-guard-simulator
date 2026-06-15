@@ -101,6 +101,29 @@ export function applySlippage(
 }
 
 /**
+ * Round-trip cost (open + close fees, plus typical entry/exit slippage) for a
+ * Binance perp scalp, expressed in percent of notional (~0.31%). Used as the
+ * floor a Smart-Exit take-profit/giveback pair must clear to be net-positive.
+ */
+export const SCALP_ROUND_TRIP_COST_PCT = (FEE_RATES.perp.open + FEE_RATES.perp.close) * 100 + 0.2;
+
+/**
+ * Tighten a trailing-stop giveback so that once take-profit triggers, the
+ * locked-in gain (`takeProfitPct - giveback`) still clears round-trip
+ * fees/slippage with margin. Prevents "winning" trades that net to ~breakeven
+ * or a loss after costs.
+ */
+export function ensureProfitableGiveback(
+  takeProfitPct: number,
+  givebackPct: number,
+  minNetPct: number = SCALP_ROUND_TRIP_COST_PCT * 1.5,
+): number {
+  const maxGiveback = takeProfitPct - minNetPct;
+  if (maxGiveback <= 0) return 0;
+  return Math.min(givebackPct, maxGiveback);
+}
+
+/**
  * Pre-trade sanity filter: skip entries when conditions are too risky.
  * Returns a reason string if blocked, or null if the trade may proceed.
  */

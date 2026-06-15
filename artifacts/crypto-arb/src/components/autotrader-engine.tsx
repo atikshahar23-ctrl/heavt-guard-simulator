@@ -18,7 +18,7 @@ import { useLivePrices } from "@/contexts/live-price-context";
 import { pushSquadMessage, clearSquadMessages } from "@/lib/squad-comms";
 import { toast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
-import { checkPreTrade } from "@/lib/fees";
+import { checkPreTrade, ensureProfitableGiveback } from "@/lib/fees";
 import { useLanguage } from "@/contexts/language-context";
 
 /** Compact signed USD string for squad chatter (e.g. "+$12" / "-$4"). */
@@ -376,13 +376,17 @@ export function AutoTraderEngine() {
           : calcMode
             ? Math.max(settings.scalpTakeProfitPct, 1.5)
             : settings.scalpTakeProfitPct;
-      const givebackPct = boostActive
+      const rawGivebackPct = boostActive
         ? 0.1
         : shlomiMode
           ? Math.max(settings.scalpGivebackPct, 1.5)
           : calcMode
             ? Math.max(settings.scalpGivebackPct, 1.0)
             : settings.scalpGivebackPct;
+      // Tighten the giveback so a TP-triggered exit still nets a real profit
+      // after round-trip fees/slippage — otherwise "winning" trades can close
+      // at ~breakeven or a net loss once costs are deducted.
+      const givebackPct = ensureProfitableGiveback(takeProfitPct, rawGivebackPct);
       const recycleSec = boostActive
         ? Math.min(settings.maxScalpHoldSec || 12, 12)
         : calcMode
@@ -441,10 +445,24 @@ export function AutoTraderEngine() {
           continue;
         }
 
+        // Active stop: a clearly-underwater position (not just noise) gets cut
+        // promptly instead of waiting out the full stale-loser timer below.
+        const activeStopPct = shlomiMode ? -1.5 : calcMode ? -1.2 : -0.8;
+        if (ageMs >= 45_000 && gainPct <= activeStopPct && !pos.slPrice) {
+          closeBinancePosition(pos.id, price, "SL");
+          peakRef.current.delete(pos.id);
+          toast({
+            variant: "destructive",
+            title: `${t("bots.ate.smartExitPrefix", langRef.current)} · ${t("bots.ate.lossCut", langRef.current)} ${pos.asset}`,
+            description: `${pos.direction} ${gainPct.toFixed(2)}% ${t("bots.ate.descAfter", langRef.current).replace("{sec}", String(Math.round(ageMs / 1000)))} · ${t("bots.ate.noSl", langRef.current)}`,
+          });
+          continue;
+        }
+
         // Stale-and-losing trades: exit to stop the bleed. Without a hard SL a
-        // losing position could sit open for minutes accumulating loss. Cut it
-        // after 3× recycleSec (or 3 min minimum) if it hasn't recovered.
-        const lossCutSec = Math.max(180, (recycleSec || 90) * 3);
+        // losing position could sit open accumulating loss. Cut it after 2×
+        // recycleSec (or 90s minimum) if it hasn't recovered.
+        const lossCutSec = Math.max(90, (recycleSec || 60) * 2);
         if (ageMs >= lossCutSec * 1000 && gainPct < -0.3 && !pos.slPrice) {
           closeBinancePosition(pos.id, price, "SL");
           peakRef.current.delete(pos.id);

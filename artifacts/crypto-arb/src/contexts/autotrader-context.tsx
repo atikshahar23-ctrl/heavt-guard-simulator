@@ -317,7 +317,10 @@ const INTENSITY_COOLDOWN = [1, 0.67, 0.44, 0.3, 0.2] as const;
 const INTENSITY_MAXOPEN = [0.6, 0.8, 1, 1.4, 2] as const;
 const INTENSITY_CONFRANK = [1, 1, 0, 0, -1] as const;
 const INTENSITY_SCOREADD = [12, 6, 0, -6, -12] as const;
-const INTENSITY_SELECTIVITY = [1.3, 1.15, 1, 0.85, 0.7] as const;
+// Higher gears trade faster (cooldown/maxOpen/tradeRate above) but never drop
+// the selectivity bar below baseline (1.0) — speed shouldn't come at the cost
+// of letting weaker setups through.
+const INTENSITY_SELECTIVITY = [1.3, 1.15, 1, 1, 1] as const;
 
 /**
  * Fleet-wide trading temperament, applied on top of the intensity gear and to
@@ -719,7 +722,7 @@ export const DEFAULT_SETTINGS: AutoTraderSettings = {
   scalpTakeProfitPct: 0.6,
   scalpGivebackPct: 0.3,
   runnerTriggerPct: 1.5,
-  runnerTrailPct: 0.8,
+  runnerTrailPct: 1.2,
   maxScalpHoldSec: 90,
 
   catastrophicExitEnabled: true,
@@ -1348,11 +1351,13 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
       };
       // Adaptive manager: once there's a small sample, nudge selectivity from
       // the bot's own rolling win-rate. Losing streak → more selective (higher
-      // edge); winning → slightly more active. Bounded to stay sane.
+      // edge); winning → slightly more active. Bounded symmetrically (±0.5
+      // around the neutral baseline of 1) so winners can loosen up just as
+      // much as losers tighten.
       if (prev.adaptiveEnabled && next.trades >= 4) {
         const winRate = next.wins / next.trades;
-        if (winRate < 0.4) next.edge = Math.min(2, Math.round((cur.edge + 0.1) * 100) / 100);
-        else if (winRate > 0.6) next.edge = Math.max(0.6, Math.round((cur.edge - 0.1) * 100) / 100);
+        if (winRate < 0.4) next.edge = Math.min(1.5, Math.round((cur.edge + 0.1) * 100) / 100);
+        else if (winRate > 0.6) next.edge = Math.max(0.5, Math.round((cur.edge - 0.1) * 100) / 100);
       }
       return { ...prev, botStats: { ...prev.botStats, [botId]: next } };
     });
@@ -1376,7 +1381,16 @@ export function AutoTraderProvider({ children }: { children: ReactNode }) {
     (asset: string): number => {
       if (!settings.assetCautionEnabled) return 1;
       const stat = settings.assetStats[asset.toUpperCase()];
-      return stat ? assetCautionFromStat(stat) : 1;
+      if (!stat) return 1;
+      const caution = assetCautionFromStat(stat);
+      if (caution <= 1 || !stat.lastAt) return caution;
+      // A coin that hasn't traded (and so hasn't lost) since its last result
+      // gradually earns back trust: caution decays 10%/day toward neutral
+      // rather than haunting it forever.
+      const daysSince = (Date.now() - new Date(stat.lastAt).getTime()) / 86_400_000;
+      if (daysSince <= 0) return caution;
+      const decayed = 1 + (caution - 1) * Math.pow(0.9, daysSince);
+      return Math.round(decayed * 100) / 100;
     },
     [settings.assetCautionEnabled, settings.assetStats],
   );
