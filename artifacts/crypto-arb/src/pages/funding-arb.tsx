@@ -29,6 +29,7 @@ import { t, type Lang } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageIntro } from "@/components/page-intro";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { CryptoIcon } from "@/components/crypto-icon";
@@ -531,6 +532,8 @@ export default function FundingArbPage() {
           <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">{t("markets.funding.subtitle", lang)}</p>
         </div>
       </div>
+
+      <PageIntro title={t("fundingArb.intro.title", lang)} description={t("fundingArb.intro.desc", lang)} />
 
       <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
         <p className="text-[10px] font-mono text-amber-400/90 leading-snug">{t("markets.funding.riskNote", lang)}</p>

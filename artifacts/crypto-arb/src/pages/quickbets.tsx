@@ -3,6 +3,7 @@ import { useGetShortTermMarkets, getGetShortTermMarketsQueryKey } from "@workspa
 import type { PolymarketMarket } from "@workspace/api-client-react";
 import { Timer, RefreshCw, ExternalLink, Star, Zap, ArrowUpRight, TrendingUp, TrendingDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageIntro } from "@/components/page-intro";
 import { useFavorites } from "@/contexts/favorites-context";
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { CryptoIcon } from "@/components/crypto-icon";
@@ -201,6 +202,8 @@ export default function QuickBetsPage() {
           <span className="text-[10px] font-mono text-muted-foreground hidden sm:block">{filtered.length} markets</span>
         </div>
       </div>
+
+      <PageIntro title={t("quickbets.intro.title", lang)} description={t("quickbets.intro.desc", lang)} />
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

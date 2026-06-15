@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageIntro } from "@/components/page-intro";
 import { CryptoIcon } from "@/components/crypto-icon";
 import { useLanguage } from "@/contexts/language-context";
 import { t } from "@/lib/i18n";
@@ -584,6 +585,8 @@ export default function SignalsPage() {
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
       </div>
+
+      <PageIntro title={t("signals.intro.title", lang)} description={t("signals.intro.desc", lang)} />
 
       {/* Telegram panel */}
       {isSignedIn && (

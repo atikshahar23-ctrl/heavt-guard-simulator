@@ -8,6 +8,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageIntro } from "@/components/page-intro";
 import { CryptoIcon } from "@/components/crypto-icon";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -328,6 +329,7 @@ function MomentumCard({ c }: { c: MomentumCoin }) {
 }
 
 export default function MomentumPage() {
+  const { lang } = useLanguage();
   const [filter, setFilter] = useState<StageFilter>("ALL");
   const { data, isLoading, isFetching } = useGetMomentumCoins({
     query: {
@@ -364,6 +366,8 @@ export default function MomentumPage() {
           </p>
         </div>
       </div>
+
+      <PageIntro title={t("momentum.intro.title", lang)} description={t("momentum.intro.desc", lang)} />
 
       {/* Risk note */}
       <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">

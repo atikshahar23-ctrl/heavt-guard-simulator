@@ -46,6 +46,7 @@ const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPage = lazy(() => import("@/pages/admin"));
 const SignalsPage = lazy(() => import("@/pages/signals"));
 const OrderFlowPage = lazy(() => import("@/pages/order-flow"));
+const Guide = lazy(() => import("@/pages/guide"));
 import Layout from "@/components/layout";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { CalendarAlerter } from "@/components/calendar-alerter";
@@ -234,6 +235,7 @@ function Router() {
       <Suspense fallback={<PageFallback />}>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/guide" component={Guide} />
         <Route path="/browse" component={Browse} />
         <Route path="/movers" component={Movers} />
         <Route path="/scalp" component={Scalp} />

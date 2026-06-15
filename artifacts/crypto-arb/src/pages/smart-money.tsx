@@ -6,9 +6,12 @@ import {
 import { usePortfolio } from "@/contexts/portfolio-context";
 import { useAutoTrader } from "@/contexts/autotrader-context";
 import { useRefresh } from "@/contexts/refresh-context";
+import { useLanguage } from "@/contexts/language-context";
+import { t } from "@/lib/i18n";
 import { recommendLevels } from "@/lib/recommend-levels";
 import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageIntro } from "@/components/page-intro";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -215,6 +218,7 @@ function SmartMoneyBot() {
 }
 
 export default function SmartMoney() {
+  const { lang } = useLanguage();
   const { intervalFor } = useRefresh();
   const { openStockPosition } = usePortfolio();
   const [stake, setStake] = useState<string>(String(DEFAULT_STAKE));
@@ -310,6 +314,8 @@ export default function SmartMoney() {
           <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
         </button>
       </div>
+
+      <PageIntro title={t("smartMoney.intro.title", lang)} description={t("smartMoney.intro.desc", lang)} />
 
       <div className="flex items-center gap-3 mt-4 mb-5 flex-wrap">
         <div className="flex items-center gap-2 text-xs">

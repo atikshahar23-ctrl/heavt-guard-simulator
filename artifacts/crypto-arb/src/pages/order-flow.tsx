@@ -3,6 +3,7 @@ import { useOrderFlow, useOrderFlowSymbol } from "@/contexts/order-flow-context"
 import { useLanguage } from "@/contexts/language-context";
 import { t } from "@/lib/i18n";
 import { Card } from "@/components/ui/card";
+import { PageIntro } from "@/components/page-intro";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,8 @@ export default function OrderFlowPage() {
           </div>
         </form>
       </div>
+
+      <PageIntro title={t("orderFlow.intro.title", lang)} description={t("orderFlow.intro.desc", lang)} />
 
       {/* Feel Card */}
       <Card className={`p-4 border ${feelBorder} ${feelBg}`}>

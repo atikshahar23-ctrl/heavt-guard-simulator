@@ -8,6 +8,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageIntro } from "@/components/page-intro";
 import { CryptoIcon } from "@/components/crypto-icon";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -544,6 +545,7 @@ function AutoTraderPanel() {
 }
 
 export default function ScalpPage() {
+  const { lang } = useLanguage();
   const [filter, setFilter] = useState<DirFilter>("ALL");
   const { data, isLoading, isFetching } = useGetScalpSignals({
     query: {
@@ -578,6 +580,8 @@ export default function ScalpPage() {
           </p>
         </div>
       </div>
+
+      <PageIntro title={t("scalp.intro.title", lang)} description={t("scalp.intro.desc", lang)} />
 
       {/* Risk note */}
       <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">

@@ -103,7 +103,15 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   },
 ];
 
-const TOTAL_STEPS = 5;
+const NAV_MAP_GROUPS: { titleKey: string; descKey: string }[] = [
+  { titleKey: "nav.privateOffice", descKey: "nav.privateOffice.desc" },
+  { titleKey: "nav.globalMarkets", descKey: "nav.globalMarkets.desc" },
+  { titleKey: "nav.algorithmics", descKey: "nav.algorithmics.desc" },
+  { titleKey: "nav.autoActivity", descKey: "nav.autoActivity.desc" },
+  { titleKey: "nav.researchAndTools", descKey: "nav.researchAndTools.desc" },
+];
+
+const TOTAL_STEPS = 6;
 
 export function OnboardingWizard({
   onComplete,
@@ -137,6 +145,7 @@ export function OnboardingWizard({
     t("ob.welcome", lang),
     t("ob.practicePortfolio", lang),
     t("ob.allReady", lang),
+    t("ob.navMap", lang),
     t("ob.tutorial", lang),
     t("ob.quiz", lang),
   ];
@@ -275,6 +284,41 @@ export function OnboardingWizard({
               className="text-center text-2xl font-semibold tracking-wide text-foreground md:text-3xl"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
+              {t("ob.navMapTitle", lang)}
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">
+              {t("ob.navMapSubtitle", lang)}
+            </p>
+            <div className="mt-6 grid gap-3">
+              {NAV_MAP_GROUPS.map((g) => (
+                <div
+                  key={g.titleKey}
+                  className={`rounded-xl border border-border bg-white/[0.02] p-4 ${lang === "he" ? "text-right" : "text-left"}`}
+                >
+                  <span className="block font-semibold text-foreground">
+                    {t(g.titleKey, lang)}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                    {t(g.descKey, lang)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className={`mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 ${lang === "he" ? "text-right" : "text-left"}`}>
+              <p className="text-sm font-semibold text-foreground mb-1">{t("guide.firstSteps.title", lang)}</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">{t("guide.firstSteps.1", lang)}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("guide.firstSteps.2", lang)}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("guide.firstSteps.3", lang)}</p>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="flex flex-col">
+            <h2
+              className="text-center text-2xl font-semibold tracking-wide text-foreground md:text-3xl"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
               {t("ob.tutorialTitle", lang)}
             </h2>
             <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">
@@ -303,7 +347,7 @@ export function OnboardingWizard({
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="flex flex-col">
             <h2
               className="text-center text-2xl font-semibold tracking-wide text-foreground md:text-3xl"
@@ -419,11 +463,11 @@ export function OnboardingWizard({
         </div>
 
         {/* Skip option only for tutorial, not for quiz */}
-        {step === 3 && (
+        {step === 4 && (
           <div className="mt-3 text-center">
             <button
               type="button"
-              onClick={() => setStep(4)}
+              onClick={() => setStep(5)}
               className="text-xs text-muted-foreground underline hover:text-foreground"
             >
               {t("ob.skip", lang)}

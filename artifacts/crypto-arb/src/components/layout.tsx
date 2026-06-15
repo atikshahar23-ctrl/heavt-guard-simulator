@@ -8,7 +8,7 @@ import { Show, useClerk, useUser } from "@clerk/react";
 import {
   LayoutDashboard, LineChart, CandlestickChart, Zap, Globe, Trophy,
   TrendingUp, Menu, X, Activity, Gauge, Timer, History, Rocket, Megaphone, Bot, Search, Newspaper, Calculator, Compass, Coins,
-  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield, Bell, CloudOff,
+  LogIn, LogOut, User, BarChart3, Crown, CalendarDays, Languages, Settings as SettingsIcon, Shield, Bell, CloudOff, Sparkles, LifeBuoy,
 } from "lucide-react";
 import { useServerSync } from "@/contexts/server-sync-context";
 import { Jarvis } from "@/components/jarvis";
@@ -21,7 +21,7 @@ import { SidebarNews } from "@/components/sidebar-news";
 import logoUrl from "@/assets/logo-heavy-guard.png";
 
 type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; extra?: React.ReactNode };
-type NavGroup = { title: string; links: NavLink[] };
+type NavGroup = { title: string; description?: string; links: NavLink[] };
 
 function PortfolioMiniBalance() {
   const { cash, polyPositions, binancePositions, stockPositions } = usePortfolio();
@@ -163,7 +163,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const groups: NavGroup[] = [
     {
+      title: t("nav.startHere", lang),
+      description: t("nav.startHere.desc", lang),
+      links: [
+        { href: "/guide", label: t("nav.startHere", lang), icon: LifeBuoy },
+      ],
+    },
+    {
       title: t("nav.privateOffice", lang),
+      description: t("nav.privateOffice.desc", lang),
       links: [
         { href: "/", label: t("nav.dashboard", lang), icon: LayoutDashboard },
         { href: "/advisor", label: t("nav.advisor", lang), icon: Compass },
@@ -174,6 +182,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     {
       title: t("nav.globalMarkets", lang),
+      description: t("nav.globalMarkets.desc", lang),
       links: [
         { href: "/markets", label: t("nav.markets", lang), icon: LineChart },
         { href: "/stocks", label: t("nav.stocks", lang), icon: TrendingUp },
@@ -181,10 +190,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/browse", label: t("nav.browse", lang), icon: Globe },
         { href: "/binance", label: t("nav.binance", lang), icon: CandlestickChart },
         { href: "/movers", label: t("nav.movers", lang), icon: Activity },
+        { href: "/recommendations", label: t("nav.recommendations", lang), icon: Sparkles },
       ],
     },
     {
       title: t("nav.algorithmics", lang),
+      description: t("nav.algorithmics.desc", lang),
       links: [
         { href: "/order-flow", label: t("nav.orderFlow", lang), icon: Activity },
         { href: "/scalp", label: t("nav.scalp", lang), icon: Gauge },
@@ -197,6 +208,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     {
       title: t("nav.autoActivity", lang),
+      description: t("nav.autoActivity.desc", lang),
       links: [
         { href: "/bots", label: t("nav.bots", lang), icon: Bot },
         { href: "/trade-desk", label: t("nav.tradeDesk", lang), icon: Zap },
@@ -204,6 +216,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     {
       title: t("nav.researchAndTools", lang),
+      description: t("nav.researchAndTools.desc", lang),
       links: [
         { href: "/briefing", label: t("nav.briefing", lang), icon: Newspaper },
         { href: "/calendar", label: t("nav.calendar", lang), icon: CalendarDays },
@@ -248,7 +261,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {groups.map((group) => (
           <div key={group.title}>
             <div className="px-3 pb-2 short:pb-1">
-              <span className="text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55" dir={dir}>{group.title}</span>
+              <span className="block text-[9px] font-mono uppercase tracking-[0.26em] text-[#cdbfa4]/55" dir={dir}>{group.title}</span>
+              {group.description && (
+                <span className="block short:hidden text-[10px] text-muted-foreground/70 mt-0.5 leading-snug" dir={dir}>{group.description}</span>
+              )}
             </div>
             <div className="space-y-0.5">
               {group.links.map((link) => {
@@ -358,7 +374,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         {/* Concierge greeting bar (desktop) */}
-        <div className="hidden md:flex shrink-0 items-center justify-between px-6 py-1.5 border-b border-[#cdbfa4]/10 bg-background/95 backdrop-blur-sm text-[10px] tracking-widest">
+        <div className="hidden md:flex shrink-0 items-center justify-between px-6 py-1.5 border-b border-[#cdbfa4]/10 bg-background/95 backdrop-blur-sm text-[10px] tracking-widest" dir={dir}>
           <div className="flex items-center gap-3 text-muted-foreground">
             <Crown className="h-3 w-3 text-[#cdbfa4]" strokeWidth={1.5} />
             <span className="text-[#cdbfa4]">{greeting} · {t("nav.privateClient", lang)}</span>
