@@ -2,7 +2,7 @@ services:
   - type: web
     name: poly-market-api
     runtime: node
-    buildCommand: buildCommand: npm install -g pnpm && pnpm install --config.minimumReleaseAge=0 && pnpm run build && git clone --depth 1 https://github.com/atikshahar23-ctrl/alpha-new.git /tmp/alpha-web-src && (cd /tmp/alpha-web-src && npm install && npm run build:combined) && mkdir -p artifacts/alpha-web && cp -r /tmp/alpha-web-src/dist-combined artifacts/alpha-web/dist-combined
+    buildCommand: npm install -g pnpm && pnpm install --config.minimumReleaseAge=0 && pnpm run build && git clone --depth 1 https://github.com/atikshahar23-ctrl/alpha-new.git /tmp/alpha-web-src && (cd /tmp/alpha-web-src && npm install && npm run build:combined) && mkdir -p artifacts/alpha-web && cp -r /tmp/alpha-web-src/dist-combined artifacts/alpha-web/dist-combined
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     envVars:
       - key: NODE_ENV
