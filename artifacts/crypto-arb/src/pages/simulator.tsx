@@ -36,6 +36,7 @@ import {
   ChartCandlestick, BarChart3, Trophy, History, X, Plus,
   ArrowUpRight, ArrowDownRight, LineChart, Lightbulb, ExternalLink,
   ShieldAlert, Target, Clock, Bot, Sparkles, PlayCircle, Skull, Link, Zap,
+  Maximize2, Minimize2,
 } from "lucide-react";
 
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10] as const;
@@ -715,8 +716,10 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
 
         {/* CENTER: Chart + Trade Form */}
         <div className="flex flex-col flex-1 min-w-0 overflow-y-auto lg:overflow-hidden">
-          {/* Chart — fixed height on mobile so it always shows; flex-1 on desktop */}
-          <div className={`h-[220px] lg:h-auto lg:flex-1 lg:block shrink-0 lg:shrink ${mobileTab === "chart" ? "block" : "hidden lg:block"}`}>
+          {/* Chart — fixed height on mobile so it always shows; a guaranteed
+              min-height on desktop keeps it comfortably tradeable no matter
+              how tall the panels below it get. */}
+          <div className={`h-[220px] lg:h-auto lg:min-h-[460px] lg:flex-1 lg:block shrink-0 lg:shrink ${mobileTab === "chart" ? "block" : "hidden lg:block"}`}>
             <CandlestickChart
               symbol={selectedAsset}
               positions={binancePositions.filter(p => p.asset === selectedAsset)}
@@ -725,7 +728,8 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
             />
           </div>
 
-          {/* Quick Trade Recommendation — below chart, above full trade form */}
+          {/* Quick Trade — full-featured (direction, leverage, auto/manual
+              SL-TP, notional) on both mobile and desktop. */}
           <QuickTradeCard
             currentPrice={currentPrice}
             selectedAsset={selectedAsset}
@@ -737,8 +741,11 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
             className={`shrink-0 border-t border-border ${mobileTab === "chart" ? "block" : "hidden lg:block"}`}
           />
 
-          {/* Trade Form — shown on desktop + mobile trade-tab */}
-          <div className={`shrink-0 border-t border-border p-3 space-y-2 bg-card/20 overflow-y-auto ${mobileTab === "trade" ? "flex-1 block" : "hidden lg:block"}`}>
+          {/* Trade Form — mobile-only fallback for the "Trade" tab; on
+              desktop QuickTradeCard already covers every field here, so
+              showing both stacked just squeezed the chart and duplicated
+              the leverage/direction controls. */}
+          <div className={`shrink-0 border-t border-border p-3 space-y-2 bg-card/20 overflow-y-auto lg:hidden ${mobileTab === "trade" ? "flex-1 block" : "hidden"}`}>
             {/* Direction buttons */}
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -1068,6 +1075,7 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
   const [tpInputs, setTpInputs] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedChartSymbol, setSelectedChartSymbol] = useState<string | null>(null);
+  const [isChartFullscreen, setIsChartFullscreen] = useState(false);
 
   useEffect(() => {
     if (stockPositions.length > 0 && !selectedChartSymbol) {
@@ -1220,21 +1228,35 @@ function StocksTab({ stocks, stockPrices, posFilter, setPosFilter }: { stocks: S
       {selectedChartSymbol && (() => {
         const tvSym = stocks.find(s => s.symbol === selectedChartSymbol)?.tradingViewSymbol;
         return (
-          <div className="rounded-xl border border-primary/20 bg-card overflow-hidden" style={{ height: 360 }}>
+          <div
+            className={
+              isChartFullscreen
+                ? "fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background"
+                : "rounded-xl border border-primary/20 bg-card overflow-hidden"
+            }
+            style={isChartFullscreen ? undefined : { height: 360 }}
+          >
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/60 shrink-0">
               <ChartCandlestick className="h-3.5 w-3.5 text-primary" />
               <span className="text-[11px] font-bold tracking-widest uppercase text-primary">{t("sim.chartLabel", lang)}{selectedChartSymbol}</span>
               <span className="text-[10px] text-muted-foreground font-mono">{t("sim.chartHint", lang)}</span>
               <div className="flex-1" />
               <button
-                onClick={() => setSelectedChartSymbol(null)}
+                onClick={() => setIsChartFullscreen(f => !f)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title={isChartFullscreen ? t("sim.exitFullscreen", lang) : t("sim.viewFullscreen", lang)}
+              >
+                {isChartFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                onClick={() => { setSelectedChartSymbol(null); setIsChartFullscreen(false); }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 title={t("sim.closeChart", lang)}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div style={{ height: "calc(100% - 37px)" }}>
+            <div className={isChartFullscreen ? "flex-1 min-h-0" : ""} style={isChartFullscreen ? undefined : { height: "calc(100% - 37px)" }}>
               <StockChart symbol={selectedChartSymbol} tvSymbol={tvSym} />
             </div>
           </div>
