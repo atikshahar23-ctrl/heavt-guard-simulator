@@ -714,8 +714,10 @@ function BinanceFuturesTerminal({ binancePrices, initialAsset, posFilter, setPos
           <OrderBook price={currentPrice} symbol={selectedAsset} />
         </div>
 
-        {/* CENTER: Chart + Trade Form */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-y-auto lg:overflow-hidden">
+        {/* CENTER: Chart + Trade Form — always scrollable so the trade
+            controls below the chart stay reachable even when the chart's
+            min-height pushes total content past the viewport. */}
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto">
           {/* Chart — fixed height on mobile so it always shows; a guaranteed
               min-height on desktop keeps it comfortably tradeable no matter
               how tall the panels below it get. */}
