@@ -550,7 +550,7 @@ export default function Bots() {
           <AlphaBotEmblem className="h-11 w-11 shrink-0" active={settings.alphaCoordinatorEnabled && alpha.direction !== "NEUTRAL"} />
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Bot className="h-6 w-6 text-primary" /> Bot Command Center
+              <Bot className="h-6 w-6 text-primary" /> {t("bots.commandCenterTitle", lang)}
               {liveFuturesState.liveActive && (
                 <span className="text-[10px] font-bold font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 leading-tight">LIVE 🟢</span>
               )}
@@ -688,7 +688,7 @@ export default function Bots() {
         </div>
       )}
 
-      {/* ── Alpha Convergence Coordinator — Alpha Agent (super-coordinator) ── */}
+      {/* ── Alpha Convergence Coordinator — presented as ראובן/Reuven (super-coordinator) ── */}
       {(() => {
         const on = settings.alphaCoordinatorEnabled;
         const dir = on ? alpha.direction : "NEUTRAL";

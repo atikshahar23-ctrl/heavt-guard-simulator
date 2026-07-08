@@ -21,7 +21,7 @@ export function AlphaBotEmblem({
       viewBox="0 0 64 64"
       className={cn("h-10 w-10", className)}
       role="img"
-      aria-label="Alpha Coordinator emblem"
+      aria-label="Reuven — Fleet Coordinator emblem"
       fill="none"
     >
       <defs>

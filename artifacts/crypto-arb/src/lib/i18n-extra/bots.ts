@@ -33,8 +33,9 @@ export const botsStrings: Record<string, Record<"he" | "en", string>> = {
   "bots.toast.pauseOffTitle": { he: "הצי חזר לפעולה", en: "Fleet resumed" },
   "bots.toast.pauseOffDesc": { he: "הבוטים חוזרים לפתוח עסקאות חדשות בהתאם לאיתותים.", en: "Bots resume opening new trades based on signals." },
 
-  //  Header / banners 
-  "bots.headerSubtitle": { he: "מרכז שליטה אחד לכל הבוטים — סימולציית מסחר בלבד (כסף וירטואלי).", en: "One command center for all bots — trading simulation only (virtual money)." },
+  //  Header / banners
+  "bots.commandCenterTitle": { he: "המפקדה של ראובן", en: "Reuven's Command Center" },
+  "bots.headerSubtitle": { he: "מרכז שליטה אחד לכל הבוטים, בניהולו של ראובן — סימולציית מסחר בלבד (כסף וירטואלי).", en: "One command center for all bots, run by Reuven — trading simulation only (virtual money)." },
   "bots.emergencyStopTitle": { he: "עצירת חירום: מכבה את כל הבוטים וסוגר מיד את כל פוזיציות הבוט", en: "Emergency stop: disarms all bots and immediately closes all bot positions" },
   "bots.emergencyStop": { he: "עצירת חירום", en: "Emergency Stop" },
   "bots.pausedBadge": { he: "הצי מושהה", en: "Fleet paused" },
@@ -47,8 +48,8 @@ export const botsStrings: Record<string, Record<"he" | "en", string>> = {
   "bots.alpha.dirShort": { he: "ירידה (SHORT)", en: "Down (SHORT)" },
   "bots.alpha.dirWaiting": { he: "ממתין לקונצנזוס", en: "Awaiting consensus" },
   "bots.alpha.dirOff": { he: "כבוי", en: "Off" },
-  "bots.alpha.title": { he: "סוכן אלפא — מתאם-העל", en: "Alpha Agent — Super-Coordinator" },
-  "bots.alpha.toggleAria": { he: "הפעלת סוכן אלפא", en: "Toggle Alpha Agent" },
+  "bots.alpha.title": { he: "ראובן — מתאם-העל", en: "Reuven — Super-Coordinator" },
+  "bots.alpha.toggleAria": { he: "הפעלת ראובן", en: "Toggle Reuven" },
   "bots.alpha.descA": { he: "המוח המתאם של כל הצי: קורא את מידת ההסכמה בין כל מקורות האיתות — סקאלפ, מומנטום והסוכן החכם של המניות — ומגבש ", en: "The coordinating brain of the whole fleet: it reads the agreement across all signal sources — scalp, momentum and the smart stock agent — and forms " },
   "bots.alpha.descSpan": { he: "כיוון אחד לכל הבוטים", en: "one direction for all bots" },
   "bots.alpha.descB": { he: ". כשהבוטים מאוחדים בכיוון הם נעים יחד כמערך אחד: עסקאות שמסכימות עם הקונצנזוס עוברות סף קל יותר ומקבלות יותר מקום, ועסקאות שנוגדות אותו חייבות סטאפ חזק בהרבה. סימולציה חינוכית בלבד — הוא מתאם את הבוטים, לא מזיז שום שוק אמיתי.", en: ". When the bots are united on a direction they move together as one formation: trades that agree with the consensus clear an easier threshold and get more room, while trades that oppose it require a much stronger setup. Educational simulation only — it coordinates the bots, it doesn't move any real market." },
@@ -289,10 +290,10 @@ export const botsStrings: Record<string, Record<"he" | "en", string>> = {
   "bots.core.polyHint": { he: "הימורי כיוון יומיים על ביטקוין", en: "Daily directional bets on Bitcoin" },
 
   //  Scalp Squad 
-  "bots.squad.header": { he: "Scalp Squad · חמ״ל הסקאלפרים", en: "Scalp Squad · Scalpers' War Room" },
+  "bots.squad.header": { he: "Scalp Squad · חמ״ל הסקאלפרים (בפיקוד ראובן)", en: "Scalp Squad · Scalpers' War Room (under Reuven's command)" },
   "bots.squad.headerSuffix": { he: "חמ״ל הסקאלפרים", en: "Scalpers' War Room" },
   "bots.disclaimer": { he: "כל הבוטים פועלים על תיק נייר (paper trading) בלבד — אין כאן כסף אמיתי או ייעוץ השקעות.", en: "All bots run on a paper-trading portfolio only — there is no real money or investment advice here." },
-  "bots.squad.sub": { he: "5 בוטים מתואמים שמחלקים ביניהם את איתותי הסקאלפ", en: "5 coordinated bots that split the scalp signals among themselves" },
+  "bots.squad.sub": { he: "5 בוטים מתואמים שמחלקים ביניהם את איתותי הסקאלפ, בהנחיית ראובן", en: "5 coordinated bots that split the scalp signals among themselves, directed by Reuven" },
   "bots.squad.hint": { he: "כל בוט מתמחה בפלח אחר (לונג / שורט / חזק / זריז / גיבוי); שניים לא נכנסים לאותו מטבע אלא בקונצנזוס גבוה", en: "Each bot specializes in a different segment (long / short / strong / quick / backup); two won't enter the same coin except on high consensus" },
   "bots.squad.openPositions": { he: "פוזיציות פתוחות", en: "open positions" },
   "bots.squad.noPositions": { he: "אין פוזיציות פתוחות", en: "No open positions" },
